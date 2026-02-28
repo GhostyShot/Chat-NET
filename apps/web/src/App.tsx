@@ -1,0 +1,521 @@
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import type { AuthResponse } from "@chatnet/shared";
+import { io, type Socket } from "socket.io-client";
+import {
+  blockUser,
+  createGroupChannel,
+  deleteMessage,
+  forgotPassword,
+  getPresence,
+  listChannels,
+  listMessages,
+  login,
+  loginWithGoogle,
+  markRead,
+  searchMessages,
+  register,
+  resetPassword,
+  sendMessage,
+  updateMessage,
+  uploadFile,
+  verifyEmail,
+  type ChannelItem,
+  type MessageItem
+} from "./lib/api";
+
+type Mode = "login" | "register" | "forgot" | "reset" | "verify";
+
+export function App() {
+  const [mode, setMode] = useState<Mode>("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [token, setToken] = useState("");
+  const [message, setMessage] = useState("");
+  const [auth, setAuth] = useState<AuthResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [channels, setChannels] = useState<ChannelItem[]>([]);
+  const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<MessageItem[]>([]);
+  const [composerText, setComposerText] = useState("");
+  const [newChannelName, setNewChannelName] = useState("");
+  const [typingHint, setTypingHint] = useState("");
+  const socketRef = useRef<Socket | null>(null);
+  const [presenceMap, setPresenceMap] = useState<Record<string, boolean>>({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<MessageItem[]>([]);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState("");
+
+  useEffect(() => {
+    const loadChannels = async () => {
+      if (!auth) {
+        setChannels([]);
+        setActiveChannelId(null);
+        return;
+      }
+
+      try {
+        const list = await listChannels(auth.tokens.accessToken);
+        setChannels(list);
+        setActiveChannelId((current) => current ?? list[0]?.id ?? null);
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Channels konnten nicht geladen werden");
+      }
+    };
+
+    void loadChannels();
+  }, [auth]);
+
+  useEffect(() => {
+    const loadMessages = async () => {
+      if (!auth || !activeChannelId) {
+        setMessages([]);
+        return;
+      }
+
+      try {
+        const next = await listMessages(auth.tokens.accessToken, activeChannelId);
+        setMessages(next.slice().reverse());
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Nachrichten konnten nicht geladen werden");
+      }
+    };
+
+    void loadMessages();
+  }, [auth, activeChannelId]);
+
+  useEffect(() => {
+    if (!auth) {
+      return;
+    }
+
+    const socket: Socket = io("http://localhost:4000", {
+      auth: {
+        token: auth.tokens.accessToken
+      }
+    });
+    socketRef.current = socket;
+
+    const onNewMessage = (incoming: MessageItem) => {
+      if (activeChannelId && incoming.channelId && incoming.channelId !== activeChannelId) {
+        return;
+      }
+      setMessages((previous) => {
+        if (previous.some((entry) => entry.id === incoming.id)) {
+          return previous;
+        }
+        return [...previous, incoming];
+      });
+    };
+
+    const onTyping = (payload: { roomId: string; userId: string }) => {
+      if (payload.userId === auth.user.id || payload.roomId !== activeChannelId) {
+        return;
+      }
+      setTypingHint("Jemand schreibt gerade...");
+      setTimeout(() => setTypingHint(""), 1200);
+    };
+
+    const onPresenceUpdate = (payload: { userId: string; online: boolean }) => {
+      setPresenceMap((previous) => ({ ...previous, [payload.userId]: payload.online }));
+    };
+
+    const onMessageUpdated = (updated: MessageItem) => {
+      setMessages((previous) => previous.map((entry) => (entry.id === updated.id ? updated : entry)));
+    };
+
+    const onMessageDeleted = (payload: { id: string; deleted: boolean }) => {
+      if (!payload.deleted) {
+        return;
+      }
+      setMessages((previous) => previous.filter((entry) => entry.id !== payload.id));
+    };
+
+    socket.on("new_message", onNewMessage);
+    socket.on("typing", onTyping);
+    socket.on("presence_update", onPresenceUpdate);
+    socket.on("message_updated", onMessageUpdated);
+    socket.on("message_deleted", onMessageDeleted);
+
+    if (activeChannelId) {
+      socket.emit("join_room", activeChannelId);
+    }
+
+    return () => {
+      socket.off("new_message", onNewMessage);
+      socket.off("typing", onTyping);
+      socket.off("presence_update", onPresenceUpdate);
+      socket.off("message_updated", onMessageUpdated);
+      socket.off("message_deleted", onMessageDeleted);
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [auth, activeChannelId]);
+
+  useEffect(() => {
+    const loadPresence = async () => {
+      if (!auth || messages.length === 0) {
+        return;
+      }
+      const ids = Array.from(new Set(messages.map((item) => item.sender.id)));
+      const presence = await getPresence(auth.tokens.accessToken, ids);
+      const next = Object.fromEntries(presence.map((item) => [item.userId, item.online]));
+      setPresenceMap(next);
+    };
+    void loadPresence();
+  }, [auth, messages]);
+
+  useEffect(() => {
+    const markLatestAsRead = async () => {
+      if (!auth || !activeChannelId || messages.length === 0) {
+        return;
+      }
+      const latest = messages[messages.length - 1];
+      await markRead(auth.tokens.accessToken, activeChannelId, latest.id);
+    };
+    void markLatestAsRead();
+  }, [auth, activeChannelId, messages]);
+
+  const submit = async () => {
+    setLoading(true);
+    setMessage("");
+    try {
+      if (mode === "login") {
+        setAuth(await login(email, password));
+      }
+      if (mode === "register") {
+        setAuth(await register(email, password, displayName));
+      }
+      if (mode === "forgot") {
+        const resetToken = await forgotPassword(email);
+        setMessage(`Reset token (dev): ${resetToken}`);
+      }
+      if (mode === "reset") {
+        await resetPassword(token, password);
+        setMessage("Passwort wurde aktualisiert.");
+      }
+      if (mode === "verify") {
+        await verifyEmail(token);
+        setMessage("E-Mail wurde verifiziert.");
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unbekannter Fehler");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const google = async () => {
+    setLoading(true);
+    setMessage("");
+    try {
+      setAuth(await loginWithGoogle("dev_google_user"));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Google Login fehlgeschlagen");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onCreateChannel = async () => {
+    if (!auth || !newChannelName.trim()) {
+      return;
+    }
+
+    try {
+      const channel = await createGroupChannel(auth.tokens.accessToken, newChannelName.trim(), []);
+      setChannels((previous) => [channel, ...previous]);
+      setActiveChannelId(channel.id);
+      setNewChannelName("");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Channel konnte nicht erstellt werden");
+    }
+  };
+
+  const onSendMessage = async () => {
+    if (!auth || !activeChannelId || !composerText.trim()) {
+      return;
+    }
+
+    try {
+      await sendMessage(auth.tokens.accessToken, activeChannelId, composerText.trim());
+      setComposerText("");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Nachricht konnte nicht gesendet werden");
+    }
+  };
+
+  const onSearch = async () => {
+    if (!auth || searchQuery.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    try {
+      const results = await searchMessages(auth.tokens.accessToken, searchQuery.trim(), activeChannelId ?? undefined);
+      setSearchResults(results);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Suche fehlgeschlagen");
+    }
+  };
+
+  const onBlockSender = async (senderId: string) => {
+    if (!auth) {
+      return;
+    }
+    try {
+      await blockUser(auth.tokens.accessToken, senderId);
+      setMessage("User wurde blockiert.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Blockieren fehlgeschlagen");
+    }
+  };
+
+  const onEditMessage = (entry: MessageItem) => {
+    setEditingMessageId(entry.id);
+    setEditingContent(entry.content);
+  };
+
+  const onSaveEdit = async (messageId: string) => {
+    if (!auth || !activeChannelId || !editingContent.trim()) {
+      return;
+    }
+
+    try {
+      await updateMessage(auth.tokens.accessToken, activeChannelId, messageId, editingContent.trim());
+      setEditingMessageId(null);
+      setEditingContent("");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Bearbeiten fehlgeschlagen");
+    }
+  };
+
+  const onDeleteMessage = async (messageId: string) => {
+    if (!auth || !activeChannelId) {
+      return;
+    }
+    try {
+      await deleteMessage(auth.tokens.accessToken, activeChannelId, messageId);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Löschen fehlgeschlagen");
+    }
+  };
+
+  const onUploadSelected = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (!auth) {
+      return;
+    }
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      const uploaded = await uploadFile(auth.tokens.accessToken, file);
+      setComposerText((previous) => `${previous}${previous ? "\n" : ""}${uploaded.url}`);
+      event.target.value = "";
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Upload fehlgeschlagen");
+    }
+  };
+
+  if (auth) {
+    return (
+      <main className="layout">
+        <section className="card chat-card">
+          <header className="chat-header">
+            <div>
+              <h1>Chat-Net</h1>
+              <p className="subtitle">Eingeloggt als {auth.user.displayName}</p>
+            </div>
+            <button
+              className="secondary"
+              onClick={() => {
+                setAuth(null);
+                setMessages([]);
+                setChannels([]);
+                setActiveChannelId(null);
+              }}
+            >
+              Logout
+            </button>
+          </header>
+
+          <div className="chat-grid">
+            <aside className="channel-list">
+              <h3>Channels</h3>
+              <div className="new-channel">
+                <input
+                  value={newChannelName}
+                  onChange={(event) => setNewChannelName(event.target.value)}
+                  placeholder="Neuer Gruppenname"
+                />
+                <button className="primary" onClick={onCreateChannel}>
+                  Erstellen
+                </button>
+              </div>
+              {channels.map((channel) => (
+                <button
+                  key={channel.id}
+                  className={channel.id === activeChannelId ? "channel-item active" : "channel-item"}
+                  onClick={() => setActiveChannelId(channel.id)}
+                >
+                  {channel.name ?? (channel.type === "DIRECT" ? "Direktchat" : "Unbenannt")}
+                </button>
+              ))}
+            </aside>
+
+            <section className="messages">
+              <h3>Nachrichten</h3>
+              <div className="search-row">
+                <input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Nachrichten durchsuchen"
+                />
+                <button className="secondary" onClick={onSearch}>
+                  Suchen
+                </button>
+              </div>
+
+              {!!searchResults.length && (
+                <div className="search-results">
+                  {searchResults.slice(0, 5).map((entry) => (
+                    <p key={`search-${entry.id}`} className="subtitle">
+                      {entry.sender.displayName}: {entry.content}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              <div className="message-list">
+                {messages.map((entry) => (
+                  <article key={entry.id} className="message-bubble">
+                    <p className="message-meta">
+                      {entry.sender.displayName} {presenceMap[entry.sender.id] ? "• online" : "• offline"}
+                    </p>
+                    {editingMessageId === entry.id ? (
+                      <div className="edit-row">
+                        <input value={editingContent} onChange={(event) => setEditingContent(event.target.value)} />
+                        <button className="primary" onClick={() => onSaveEdit(entry.id)}>
+                          Speichern
+                        </button>
+                      </div>
+                    ) : (
+                      <p>{entry.content}</p>
+                    )}
+                    {entry.content.startsWith("http") && (
+                      <p>
+                        <a href={entry.content} target="_blank" rel="noreferrer">
+                          Datei öffnen
+                        </a>
+                      </p>
+                    )}
+                    {entry.sender.id !== auth.user.id && (
+                      <button className="secondary" onClick={() => onBlockSender(entry.sender.id)}>
+                        Blockieren
+                      </button>
+                    )}
+                    {entry.sender.id === auth.user.id && (
+                      <div className="message-actions">
+                        <button className="secondary" onClick={() => onEditMessage(entry)}>
+                          Bearbeiten
+                        </button>
+                        <button className="secondary" onClick={() => onDeleteMessage(entry.id)}>
+                          Löschen
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                ))}
+                {!messages.length && <p className="subtitle">Noch keine Nachrichten in diesem Channel.</p>}
+              </div>
+
+              <div className="composer">
+                <input type="file" onChange={onUploadSelected} />
+                <input
+                  value={composerText}
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    setComposerText(next);
+                    if (auth && activeChannelId && next.trim() && socketRef.current) {
+                      socketRef.current.emit("typing", { roomId: activeChannelId, userId: auth.user.id });
+                    }
+                  }}
+                  placeholder="Nachricht schreiben"
+                />
+                <button className="primary" onClick={onSendMessage}>
+                  Senden
+                </button>
+              </div>
+
+              {typingHint && <p className="subtitle">{typingHint}</p>}
+            </section>
+          </div>
+
+          {message && <p className="message">{message}</p>}
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="layout">
+      <section className="card">
+        <h1>Chat-Net</h1>
+        <p className="subtitle">chat-net.tech</p>
+
+        <div className="tabs">
+          <button onClick={() => setMode("login")}>Login</button>
+          <button onClick={() => setMode("register")}>Registrieren</button>
+          <button onClick={() => setMode("forgot")}>Passwort vergessen</button>
+          <button onClick={() => setMode("reset")}>Passwort zurücksetzen</button>
+          <button onClick={() => setMode("verify")}>E-Mail verifizieren</button>
+        </div>
+
+        {(mode === "login" || mode === "register" || mode === "forgot") && (
+          <label>
+            E-Mail
+            <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" />
+          </label>
+        )}
+
+        {(mode === "login" || mode === "register" || mode === "reset") && (
+          <label>
+            Passwort
+            <input
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              type="password"
+              autoComplete="current-password"
+            />
+          </label>
+        )}
+
+        {mode === "register" && (
+          <label>
+            Anzeigename
+            <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} type="text" />
+          </label>
+        )}
+
+        {(mode === "reset" || mode === "verify") && (
+          <label>
+            Token
+            <input value={token} onChange={(event) => setToken(event.target.value)} type="text" />
+          </label>
+        )}
+
+        <button onClick={submit} disabled={loading} className="primary">
+          {loading ? "Lädt..." : "Absenden"}
+        </button>
+
+        <button onClick={google} disabled={loading} className="secondary">
+          Mit Google fortfahren
+        </button>
+
+        {message && <p className="message">{message}</p>}
+      </section>
+    </main>
+  );
+}

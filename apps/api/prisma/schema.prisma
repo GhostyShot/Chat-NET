@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AuthProvider {
+  GOOGLE
+  PASSWORD
+}
+
+enum EmailTokenType {
+  VERIFY
+  RESET
+}
+
+enum ChannelType {
+  DIRECT
+  GROUP
+}
+
+enum MembershipRole {
+  OWNER
+  MEMBER
+}
+
+model User {
+  id            String       @id @default(uuid())
+  email         String       @unique
+  displayName   String
+  avatarUrl     String?
+  verifiedEmail Boolean      @default(false)
+  provider      AuthProvider
+  passwordHash  String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  emailTokens   EmailToken[]
+  channelMemberships ChannelMembership[]
+  messagesSent  Message[]
+  readReceipts  ReadReceipt[]
+  channelsCreated Channel[] @relation("ChannelCreator")
+  blocksInitiated UserBlock[] @relation("BlockerUser")
+  blocksReceived UserBlock[]  @relation("BlockedUser")
+}
+
+model UserBlock {
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocker   User     @relation("BlockerUser", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("BlockedUser", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+model EmailToken {
+  id        String         @id @default(uuid())
+  token     String         @unique
+  type      EmailTokenType
+  expiresAt DateTime
+  createdAt DateTime       @default(now())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+model Channel {
+  id            String              @id @default(uuid())
+  type          ChannelType
+  name          String?
+  createdById   String
+  createdBy     User                @relation("ChannelCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  memberships   ChannelMembership[]
+  messages      Message[]
+
+  @@index([updatedAt])
+}
+
+model ChannelMembership {
+  userId      String
+  channelId   String
+  role        MembershipRole @default(MEMBER)
+  createdAt   DateTime       @default(now())
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel     Channel        @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@id([userId, channelId])
+  @@index([channelId])
+}
+
+model Message {
+  id          String        @id @default(uuid())
+  channelId   String
+  senderId    String
+  content     String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  channel     Channel       @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  sender      User          @relation(fields: [senderId], references: [id], onDelete: Restrict)
+  readReceipts ReadReceipt[]
+
+  @@index([channelId, createdAt])
+}
+
+model ReadReceipt {
+  userId      String
+  messageId   String
+  readAt      DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message     Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@id([userId, messageId])
+  @@index([messageId])
+}

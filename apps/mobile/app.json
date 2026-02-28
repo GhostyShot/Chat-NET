@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Chat-Net",
+    "slug": "chat-net",
+    "scheme": "chatnet",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "platforms": ["ios", "android", "web"]
+  }
+}

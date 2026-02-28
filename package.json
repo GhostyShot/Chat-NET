@@ -1,0 +1,21 @@
+{
+  "name": "chat-net",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Chat-Net platform monorepo",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @chatnet/api",
+    "dev:api": "npm run dev -w @chatnet/api",
+    "dev:web": "npm run dev -w @chatnet/web",
+    "dev:mobile": "npm run start -w @chatnet/mobile",
+    "build": "npm run build --workspaces",
+    "typecheck": "npm run typecheck --workspaces"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+.DS_Store
+coverage
+apps/mobile/.expo
+apps/mobile/.expo-shared
+.npm-cache
+
+apps/api/uploads
+apps/api/apps/api/uploads
