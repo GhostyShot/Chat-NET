@@ -8,7 +8,7 @@ function required(name: string, fallback?: string): string {
   return value;
 }
 
-export const config = {
+export const appConfig = {
   port: Number(process.env.API_PORT ?? 4000),
   webOrigin: required("WEB_ORIGIN", "http://localhost:5173"),
   jwtAccessSecret: required("JWT_ACCESS_SECRET", "dev-access-secret-change-me"),

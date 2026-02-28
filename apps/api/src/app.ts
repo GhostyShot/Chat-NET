@@ -4,7 +4,7 @@ import helmet from "helmet";
 import path from "node:path";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { chatRouter } from "./modules/chat/chat.routes.js";
-import { config } from "./config.js";
+import { appConfig } from "./config.js";
 
 export function createApp() {
   const app = express();
@@ -12,7 +12,7 @@ export function createApp() {
   app.use(helmet());
   app.use(
     cors({
-      origin: config.webOrigin,
+      origin: appConfig.webOrigin,
       credentials: true
     })
   );

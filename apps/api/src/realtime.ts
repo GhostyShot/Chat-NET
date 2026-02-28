@@ -1,14 +1,14 @@
 import { Server as HttpServer } from "node:http";
 import jwt from "jsonwebtoken";
 import { Server } from "socket.io";
-import { config } from "./config.js";
+import { appConfig } from "./config.js";
 import { setRealtimeServer } from "./realtime.state.js";
 import { markConnected, markDisconnected } from "./realtime.presence.js";
 
 export function setupRealtime(server: HttpServer) {
   const io = new Server(server, {
     cors: {
-      origin: config.webOrigin,
+      origin: appConfig.webOrigin,
       credentials: true
     }
   });
@@ -20,7 +20,7 @@ export function setupRealtime(server: HttpServer) {
       return;
     }
     try {
-      const payload = jwt.verify(token, config.jwtAccessSecret) as { sub?: string };
+      const payload = jwt.verify(token, appConfig.jwtAccessSecret) as { sub?: string };
       if (!payload.sub) {
         next(new Error("INVALID_TOKEN"));
         return;

@@ -2,7 +2,7 @@ import argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import type { AuthResponse } from "@chatnet/shared";
 import type { StoredUser } from "./auth.types.js";
-import { config } from "../../config.js";
+import { appConfig } from "../../config.js";
 
 export async function hashPassword(password: string): Promise<string> {
   return argon2.hash(password, {
@@ -20,12 +20,12 @@ export async function verifyPassword(passwordHash: string, password: string): Pr
 export function buildAuthResponse(user: StoredUser): AuthResponse {
   const accessToken = jwt.sign(
     { sub: user.id, email: user.email, provider: user.provider },
-    config.jwtAccessSecret,
+    appConfig.jwtAccessSecret,
     { expiresIn: "20m" }
   );
   const refreshToken = jwt.sign(
     { sub: user.id, kind: "refresh" },
-    config.jwtRefreshSecret,
+    appConfig.jwtRefreshSecret,
     { expiresIn: "14d" }
   );
   return {

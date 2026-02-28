@@ -39,3 +39,18 @@ Chat-Net ist eine Chatplattform für Web und Mobile mit Fokus auf junge Zielgrup
 - Google Login prüft ID Tokens über `google-auth-library`; für lokale Entwicklung können `dev_*` Tokens über `GOOGLE_ALLOW_DEV_TOKENS=true` genutzt werden.
 - User- und EmailToken-Daten werden über Prisma in PostgreSQL gespeichert.
 - Für mobile Tests muss `apps/mobile/src/api.ts` ggf. auf die lokale Rechner-IP statt `localhost` zeigen (Simulator/Device-Netzwerk).
+
+## Neon + Vercel Setup
+
+1. Neon Projekt erstellen und DB anlegen.
+2. In API-Env setzen:
+	- `DATABASE_URL` (pooled)
+	- `DIRECT_URL` (direct)
+3. Migration ausführen:
+	- `npm run prisma:migrate -w @chatnet/api -- --name prod_init`
+4. Vercel Projekt für `apps/web` erstellen.
+5. In Vercel setzen:
+	- `VITE_API_URL=https://api.chat-net.tech`
+6. Domain verbinden:
+	- `chat-net.tech` -> Vercel
+	- `api.chat-net.tech` -> API-Hosting

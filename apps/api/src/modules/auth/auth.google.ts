@@ -1,5 +1,5 @@
 import { OAuth2Client } from "google-auth-library";
-import { config } from "../../config.js";
+import { appConfig } from "../../config.js";
 
 export interface VerifiedGoogleProfile {
   email: string;
@@ -8,11 +8,11 @@ export interface VerifiedGoogleProfile {
   verifiedEmail: boolean;
 }
 
-const googleClient = new OAuth2Client(config.googleClientId);
+const googleClient = new OAuth2Client(appConfig.googleClientId);
 
 export async function verifyGoogleIdToken(idToken: string): Promise<VerifiedGoogleProfile> {
   if (idToken.startsWith("dev_")) {
-    if (!config.googleAllowDevTokens) {
+    if (!appConfig.googleAllowDevTokens) {
       throw new Error("INVALID_GOOGLE_TOKEN");
     }
 
@@ -26,7 +26,7 @@ export async function verifyGoogleIdToken(idToken: string): Promise<VerifiedGoog
   try {
     const ticket = await googleClient.verifyIdToken({
       idToken,
-      audience: config.googleClientId
+      audience: appConfig.googleClientId
     });
     const payload = ticket.getPayload();
 

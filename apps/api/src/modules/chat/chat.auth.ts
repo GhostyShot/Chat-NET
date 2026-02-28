@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { config } from "../../config.js";
+import { appConfig } from "../../config.js";
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -17,7 +17,7 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
 
   const token = authorization.slice("Bearer ".length);
   try {
-    const payload = jwt.verify(token, config.jwtAccessSecret) as { sub?: string; email?: string };
+    const payload = jwt.verify(token, appConfig.jwtAccessSecret) as { sub?: string; email?: string };
     if (!payload.sub) {
       return res.status(401).json({ error: "INVALID_TOKEN" });
     }
