@@ -35,6 +35,7 @@ import {
 } from "./lib/api";
 
 type Mode = "login" | "register" | "forgot" | "reset";
+type BadgeKey = "verified_blue" | "vip" | "legend" | "core_team";
 
 type GoogleCredentialResponse = {
   credential?: string;
@@ -69,6 +70,14 @@ declare global {
 
 const GOOGLE_SCRIPT_ID = "google-identity-services";
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+const platformOwnerUserId = (import.meta.env.VITE_PLATFORM_OWNER_USER_ID as string | undefined)?.trim();
+const BADGE_STORAGE_PREFIX = "chat-net-custom-badges";
+const BADGE_OPTIONS: Array<{ key: BadgeKey; label: string; shortLabel: string }> = [
+  { key: "verified_blue", label: "Blauer Haken (X Style)", shortLabel: "✓" },
+  { key: "vip", label: "VIP", shortLabel: "VIP" },
+  { key: "legend", label: "Legend", shortLabel: "LEGEND" },
+  { key: "core_team", label: "Core Team", shortLabel: "TEAM" }
+];
 
 export function App() {
   const [theme, setTheme] = useState<"dark" | "light">(() => {
@@ -120,6 +129,49 @@ export function App() {
   const [googleLoadError, setGoogleLoadError] = useState("");
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
   const [showAuthPage, setShowAuthPage] = useState(false);
+  const [customBadgesByUserId, setCustomBadgesByUserId] = useState<Record<string, BadgeKey[]>>({});
+  const [badgeTargetUserId, setBadgeTargetUserId] = useState("");
+
+  const isPlatformOwner = (userId?: string) => Boolean(platformOwnerUserId && userId === platformOwnerUserId);
+
+  const renderPlatformOwnerBadge = (userId?: string) => {
+    if (!isPlatformOwner(userId)) {
+      return null;
+    }
+    return <img src="/chat-net-logo.svg" alt="Chat-Net Owner" className="owner-logo-badge" />;
+  };
+
+  const renderCustomBadges = (userId?: string) => {
+    if (!userId) {
+      return null;
+    }
+    const badges = customBadgesByUserId[userId] ?? [];
+    if (badges.length === 0) {
+      return null;
+    }
+    return (
+      <span className="custom-badge-row">
+        {badges.map((badge) => {
+          const badgeMeta = BADGE_OPTIONS.find((entry) => entry.key === badge);
+          if (!badgeMeta) {
+            return null;
+          }
+          if (badge === "verified_blue") {
+            return (
+              <span key={`${userId}-${badge}`} className="custom-badge verified-blue" title={badgeMeta.label}>
+                ✓
+              </span>
+            );
+          }
+          return (
+            <span key={`${userId}-${badge}`} className="custom-badge" title={badgeMeta.label}>
+              {badgeMeta.shortLabel}
+            </span>
+          );
+        })}
+      </span>
+    );
+  };
 
   const activeChannel = useMemo(
     () => channels.find((channel) => channel.id === activeChannelId) ?? null,
@@ -152,6 +204,46 @@ export function App() {
 
   const canModerateMembers = ownMembershipRole === "OWNER" || ownMembershipRole === "ADMIN";
   const canManageRoles = ownMembershipRole === "OWNER";
+  const knownUsers = useMemo(() => {
+    const userMap = new Map<string, { id: string; username?: string; displayName: string }>();
+    const addUser = (user?: { id: string; username?: string; displayName: string }) => {
+      if (!user?.id) {
+        return;
+      }
+      if (!userMap.has(user.id)) {
+        userMap.set(user.id, user);
+      }
+    };
+
+    if (auth?.user) {
+      addUser({ id: auth.user.id, username: auth.user.username, displayName: auth.user.displayName });
+    }
+
+    for (const channel of channels) {
+      for (const membership of channel.memberships ?? []) {
+        addUser({
+          id: membership.user.id,
+          username: membership.user.username,
+          displayName: membership.user.displayName
+        });
+      }
+    }
+
+    for (const member of channelMembers) {
+      addUser({ id: member.userId, username: member.user.username, displayName: member.user.displayName });
+    }
+
+    for (const entry of messages) {
+      addUser({ id: entry.sender.id, username: entry.sender.username, displayName: entry.sender.displayName });
+    }
+
+    return Array.from(userMap.values()).sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }, [auth?.user, channels, channelMembers, messages]);
+
+  const badgeTargetUser = useMemo(
+    () => knownUsers.find((user) => user.id === badgeTargetUserId) ?? null,
+    [knownUsers, badgeTargetUserId]
+  );
   const memberRoleByUserId = useMemo(() => {
     const roleMap = new Map<string, "OWNER" | "ADMIN" | "MEMBER">();
     for (const membership of activeChannel?.memberships ?? []) {
@@ -207,6 +299,57 @@ export function App() {
     setProfileNickname(auth.user.displayName);
     setProfileUsername(auth.user.username);
   }, [auth]);
+
+  useEffect(() => {
+    if (!auth || !isPlatformOwner(auth.user.id)) {
+      setCustomBadgesByUserId({});
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(`${BADGE_STORAGE_PREFIX}:${auth.user.id}`);
+      if (!raw) {
+        setCustomBadgesByUserId({});
+        return;
+      }
+      const parsed = JSON.parse(raw) as Record<string, BadgeKey[]>;
+      setCustomBadgesByUserId(parsed ?? {});
+    } catch {
+      setCustomBadgesByUserId({});
+    }
+  }, [auth]);
+
+  useEffect(() => {
+    if (!auth || !isPlatformOwner(auth.user.id)) {
+      return;
+    }
+    window.localStorage.setItem(`${BADGE_STORAGE_PREFIX}:${auth.user.id}`, JSON.stringify(customBadgesByUserId));
+  }, [auth, customBadgesByUserId]);
+
+  useEffect(() => {
+    if (!knownUsers.length) {
+      setBadgeTargetUserId("");
+      return;
+    }
+    setBadgeTargetUserId((current) => {
+      if (current && knownUsers.some((user) => user.id === current)) {
+        return current;
+      }
+      return knownUsers[0]?.id ?? "";
+    });
+  }, [knownUsers]);
+
+  const toggleBadgeForUser = (userId: string, badge: BadgeKey) => {
+    setCustomBadgesByUserId((previous) => {
+      const current = previous[userId] ?? [];
+      const hasBadge = current.includes(badge);
+      const next = hasBadge ? current.filter((entry) => entry !== badge) : [...current, badge];
+      if (next.length === 0) {
+        const { [userId]: _removed, ...rest } = previous;
+        return rest;
+      }
+      return { ...previous, [userId]: next };
+    });
+  };
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -948,7 +1091,8 @@ export function App() {
                 <span className="status-dot" />
                 <span>
                   {auth.user.displayName}
-                  {ownMembershipRole === "OWNER" && <small className="owner-badge">👑 OWNER</small>}
+                  {renderPlatformOwnerBadge(auth.user.id)}
+                  {renderCustomBadges(auth.user.id)}
                   <small className="chip-handle">@{auth.user.username}</small>
                 </span>
               </div>
@@ -991,6 +1135,47 @@ export function App() {
                   Profil speichern
                 </button>
               </div>
+
+              {isPlatformOwner(auth.user.id) && (
+                <div className="owner-studio">
+                  <div className="panel-header owner-studio-header">
+                    <h3>Owner Badge Studio</h3>
+                    <span>Secret UI</span>
+                  </div>
+                  <label>
+                    Badge-Zielperson
+                    <select
+                      value={badgeTargetUserId}
+                      onChange={(event) => setBadgeTargetUserId(event.target.value)}
+                      className="owner-studio-select"
+                    >
+                      {knownUsers.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.displayName} {user.username ? `(@${user.username})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  {badgeTargetUser && (
+                    <div className="owner-studio-badges">
+                      {BADGE_OPTIONS.map((badge) => {
+                        const active = (customBadgesByUserId[badgeTargetUser.id] ?? []).includes(badge.key);
+                        return (
+                          <label key={badge.key} className={active ? "badge-toggle active" : "badge-toggle"}>
+                            <input
+                              type="checkbox"
+                              checked={active}
+                              onChange={() => toggleBadgeForUser(badgeTargetUser.id, badge.key)}
+                            />
+                            <span>{badge.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </section>
           )}
 
@@ -1031,7 +1216,11 @@ export function App() {
                       return (
                         <div key={member.userId} className="member-item">
                           <div>
-                            <p className="member-name">{member.user.displayName}</p>
+                            <p className="member-name">
+                              {member.user.displayName}
+                              {renderPlatformOwnerBadge(member.userId)}
+                              {renderCustomBadges(member.userId)}
+                            </p>
                             <p className="member-meta">
                               @{member.user.username} • {member.role}
                             </p>
@@ -1132,8 +1321,9 @@ export function App() {
                     >
                       <p className="message-meta">
                         {entry.sender.displayName}
+                        {renderPlatformOwnerBadge(entry.sender.id)}
+                        {renderCustomBadges(entry.sender.id)}
                         {entry.sender.username ? ` (@${entry.sender.username})` : ""}
-                        {memberRoleByUserId.get(entry.sender.id) === "OWNER" ? " 👑" : ""}
                         {memberRoleByUserId.get(entry.sender.id) === "ADMIN" ? " ⭐" : ""} {presenceMap[entry.sender.id] ? "• online" : "• offline"}
                       </p>
 
