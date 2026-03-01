@@ -42,6 +42,8 @@ Chat-Net ist eine Chatplattform für Web und Mobile mit Fokus auf junge Zielgrup
 
 - Google Login prüft ID Tokens über `google-auth-library`; für lokale Entwicklung können `dev_*` Tokens über `GOOGLE_ALLOW_DEV_TOKENS=true` genutzt werden.
 - User- und EmailToken-Daten werden über Prisma in PostgreSQL gespeichert.
+- Passwort-Reset läuft über E-Mail-Link: `/auth/forgot-password` verschickt einen persönlichen Link auf die Web-App (`WEB_APP_URL/?mode=reset&token=...`), danach wird nur das neue Passwort gesetzt.
+- Für echten Mailversand SMTP-Variablen setzen (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`).
 - Für mobile Tests/Deploys `apps/mobile/.env` mit `EXPO_PUBLIC_API_URL` setzen (z. B. lokale Rechner-IP statt `localhost` für Devices).
 
 ## Neon + Vercel Setup

@@ -9,6 +9,7 @@ import type {
 import { authStore } from "./auth.store.js";
 import { buildAuthResponse, hashPassword, verifyPassword } from "./auth.security.js";
 import { verifyGoogleIdToken } from "./auth.google.js";
+import { sendPasswordResetEmail } from "./auth.mail.js";
 
 const RESET_TOKEN_TTL_MS = 1000 * 60 * 30;
 
@@ -72,7 +73,7 @@ export class AuthService {
   async requestPasswordReset(input: PasswordResetRequest) {
     const user = await authStore.getByEmail(input.email);
     if (!user || !user.passwordHash) {
-      return { resetToken: "hidden" };
+      return { ok: true };
     }
 
     const resetToken = await authStore.createEmailToken({
@@ -81,7 +82,9 @@ export class AuthService {
       expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS)
     });
 
-    return { resetToken };
+    await sendPasswordResetEmail({ to: user.email, token: resetToken });
+
+    return { ok: true };
   }
 
   async resetPassword(input: PasswordResetInput) {

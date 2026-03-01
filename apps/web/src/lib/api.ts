@@ -107,7 +107,7 @@ export async function loginWithGoogle(idToken: string): Promise<AuthResponse> {
   return payload as AuthResponse;
 }
 
-export async function forgotPassword(email: string): Promise<string> {
+export async function forgotPassword(email: string): Promise<void> {
   const response = await fetch(`${API_URL}/auth/forgot-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -117,7 +117,6 @@ export async function forgotPassword(email: string): Promise<string> {
   if (!response.ok) {
     throw new Error(payload.error ?? "FORGOT_PASSWORD_FAILED");
   }
-  return payload.resetToken as string;
 }
 
 export async function resetPassword(token: string, newPassword: string): Promise<void> {

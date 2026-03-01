@@ -76,7 +76,7 @@ export const api = {
   },
   login: (email: string, password: string) => request<AuthResponse>("/auth/login", { body: { email, password } }),
   google: (idToken: string) => request<AuthResponse>("/auth/google", { body: { idToken } }),
-  forgot: (email: string) => request<{ resetToken: string }>("/auth/forgot-password", { body: { email } }),
+  forgot: (email: string) => request<{ ok: boolean }>("/auth/forgot-password", { body: { email } }),
   reset: (token: string, newPassword: string) => request<{ ok: boolean }>("/auth/reset-password", { body: { token, newPassword } }),
   listChannels: (accessToken: string) =>
     request<ChannelItem[]>("/chat/channels", {

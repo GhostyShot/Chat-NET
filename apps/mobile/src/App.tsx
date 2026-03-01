@@ -197,12 +197,12 @@ export default function App() {
         setMessage(`Account erstellt für ${auth.user.displayName}`);
       }
       if (mode === "forgot") {
-        const data = await api.forgot(email);
-        setMessage(`Reset Token (dev): ${data.resetToken}`);
+        await api.forgot(email);
+        setMessage("Wenn ein Konto existiert, wurde eine E-Mail mit Reset-Link verschickt.");
       }
       if (mode === "reset") {
         await api.reset(token, password);
-        setMessage("Passwort aktualisiert");
+        setMessage("Passwort aktualisiert.");
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unbekannter Fehler");

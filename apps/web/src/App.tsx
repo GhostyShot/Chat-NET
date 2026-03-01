@@ -86,6 +86,7 @@ export function App() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [token, setToken] = useState("");
+  const [resetTokenFromLink, setResetTokenFromLink] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [auth, setAuth] = useState<AuthResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -192,6 +193,20 @@ export function App() {
     document.documentElement.setAttribute("data-theme", theme);
     window.localStorage.setItem("chat-net-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || auth) {
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const modeParam = params.get("mode");
+    const resetToken = params.get("token");
+    if (modeParam === "reset" && resetToken) {
+      setMode("reset");
+      setToken(resetToken);
+      setResetTokenFromLink(resetToken);
+    }
+  }, [auth]);
 
   useEffect(() => {
     const loadChannels = async () => {
@@ -464,12 +479,19 @@ export function App() {
         setAuth(await register(email, password, displayName));
       }
       if (mode === "forgot") {
-        const resetToken = await forgotPassword(email);
-        setMessage(`Reset token (dev): ${resetToken}`);
+        await forgotPassword(email);
+        setMessage("Wenn ein Konto existiert, wurde eine E-Mail mit Reset-Link verschickt.");
       }
       if (mode === "reset") {
         await resetPassword(token, password);
         setMessage("Passwort wurde aktualisiert.");
+        if (resetTokenFromLink) {
+          setResetTokenFromLink(null);
+          window.history.replaceState({}, "", "/");
+          setMode("login");
+          setToken("");
+          setPassword("");
+        }
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unbekannter Fehler");
@@ -1231,7 +1253,7 @@ export function App() {
 
   return (
     <main className="app-shell auth-shell">
-      <section className="auth-card">
+      <section className={resetTokenFromLink ? "auth-card reset-card" : "auth-card"}>
         <div className="auth-brand">
           <img src="/chat-net-logo.svg" alt="Chat-Net Logo" className="auth-logo" />
           <p className="eyebrow">chat-net.tech</p>
@@ -1240,6 +1262,38 @@ export function App() {
         </div>
 
         <div className="auth-panel">
+          {resetTokenFromLink ? (
+            <>
+              <h3>Neues Passwort vergeben</h3>
+              <p className="hint">Lege jetzt dein neues Passwort fest.</p>
+              <label>
+                Neues Passwort
+                <input
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Mindestens 8 Zeichen"
+                />
+              </label>
+              <button onClick={submit} disabled={loading} className="primary wide">
+                {loading ? "Lädt..." : "Passwort speichern"}
+              </button>
+              <button
+                className="secondary wide"
+                onClick={() => {
+                  setResetTokenFromLink(null);
+                  window.history.replaceState({}, "", "/");
+                  setMode("login");
+                  setToken("");
+                }}
+              >
+                Zurück zum Login
+              </button>
+              {message && <p className="message-banner">{message}</p>}
+            </>
+          ) : (
+            <>
           <div className="mode-tabs">
             <button className={mode === "login" ? "tab active" : "tab"} onClick={() => setMode("login")}>
               Login
@@ -1317,6 +1371,8 @@ export function App() {
           )}
 
           {message && <p className="message-banner">{message}</p>}
+            </>
+          )}
         </div>
       </section>
     </main>

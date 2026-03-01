@@ -88,6 +88,15 @@ body {
   overflow: hidden;
 }
 
+.reset-card {
+  width: min(560px, 100%);
+  grid-template-columns: 1fr;
+}
+
+.reset-card .auth-brand {
+  display: none;
+}
+
 .auth-brand {
   padding: 40px;
   display: grid;
