@@ -9,6 +9,7 @@ import {
   createGroupChannel,
   deleteMessage,
   forgotPassword,
+  getProfile,
   getPresence,
   listChannels,
   listMessages,
@@ -19,6 +20,7 @@ import {
   register,
   resetPassword,
   sendMessage,
+  updateProfile,
   updateMessage,
   uploadFile,
   verifyEmail,
@@ -94,6 +96,10 @@ export function App() {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileNickname, setProfileNickname] = useState("");
+  const [profileUsername, setProfileUsername] = useState("");
+  const [mentionNotice, setMentionNotice] = useState("");
   const [googleReady, setGoogleReady] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
 
@@ -101,6 +107,16 @@ export function App() {
     () => channels.find((channel) => channel.id === activeChannelId) ?? null,
     [channels, activeChannelId]
   );
+
+  useEffect(() => {
+    if (!auth) {
+      setProfileNickname("");
+      setProfileUsername("");
+      return;
+    }
+    setProfileNickname(auth.user.displayName);
+    setProfileUsername(auth.user.username);
+  }, [auth]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -126,6 +142,33 @@ export function App() {
 
     void loadChannels();
   }, [auth]);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!auth) {
+        return;
+      }
+      try {
+        const profile = await getProfile(auth.tokens.accessToken);
+        setAuth((current) =>
+          current
+            ? {
+                ...current,
+                user: {
+                  ...current.user,
+                  ...profile,
+                  avatarUrl: profile.avatarUrl ?? undefined
+                }
+              }
+            : current
+        );
+      } catch {
+        // keep existing auth payload if profile fetch fails
+      }
+    };
+
+    void loadProfile();
+  }, [auth?.tokens.accessToken]);
 
   useEffect(() => {
     const loadMessages = async () => {
@@ -161,6 +204,16 @@ export function App() {
       if (activeChannelId && incoming.channelId && incoming.channelId !== activeChannelId) {
         return;
       }
+
+      const ownUsername = auth.user.username?.toLowerCase();
+      if (
+        ownUsername &&
+        incoming.sender.id !== auth.user.id &&
+        incoming.content.toLowerCase().includes(`@${ownUsername}`)
+      ) {
+        setMentionNotice(`🔔 Mention von ${incoming.sender.displayName}`);
+      }
+
       setMessages((previous) => {
         if (previous.some((entry) => entry.id === incoming.id)) {
           return previous;
@@ -484,6 +537,51 @@ export function App() {
     }
   };
 
+  const renderContentWithMentions = (content: string) => {
+    const ownUsername = auth?.user.username?.toLowerCase();
+    return content.split(/(@[a-z0-9_]{3,24})/gi).map((part, index) => {
+      if (!part.startsWith("@")) {
+        return <span key={`txt-${index}`}>{part}</span>;
+      }
+      const token = part.slice(1).toLowerCase();
+      const className = ownUsername && token === ownUsername ? "mention-hit" : "mention";
+      return (
+        <span key={`mention-${index}`} className={className}>
+          {part}
+        </span>
+      );
+    });
+  };
+
+  const onSaveProfile = async () => {
+    if (!auth) {
+      return;
+    }
+
+    try {
+      const profile = await updateProfile(auth.tokens.accessToken, {
+        displayName: profileNickname,
+        username: profileUsername
+      });
+      setAuth((current) =>
+        current
+          ? {
+              ...current,
+              user: {
+                ...current.user,
+                ...profile,
+                avatarUrl: profile.avatarUrl ?? undefined
+              }
+            }
+          : current
+      );
+      setMessage("Profil gespeichert.");
+      setProfileOpen(false);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Profil konnte nicht gespeichert werden");
+    }
+  };
+
   const logout = () => {
     setAuth(null);
     setMessages([]);
@@ -493,6 +591,7 @@ export function App() {
     setSearchQuery("");
     setComposerText("");
     setMessage("");
+    setMentionNotice("");
   };
 
   if (auth) {
@@ -514,13 +613,52 @@ export function App() {
               </button>
               <div className="user-chip">
                 <span className="status-dot" />
-                <span>{auth.user.displayName}</span>
+                <span>
+                  {auth.user.displayName}
+                  <small className="chip-handle">@{auth.user.username}</small>
+                </span>
               </div>
+              <button className="secondary" onClick={() => setProfileOpen((current) => !current)}>
+                Profil
+              </button>
               <button className="secondary" onClick={logout}>
                 Logout
               </button>
             </div>
           </header>
+
+          {profileOpen && (
+            <section className="panel profile-panel">
+              <div className="panel-header">
+                <h3>Profil</h3>
+                <span>{auth.user.userHandle}</span>
+              </div>
+              <div className="profile-grid">
+                <label>
+                  Nickname
+                  <input
+                    value={profileNickname}
+                    onChange={(event) => setProfileNickname(event.target.value)}
+                    placeholder="Dein Nickname"
+                  />
+                </label>
+                <label>
+                  Username
+                  <input
+                    value={profileUsername}
+                    onChange={(event) => setProfileUsername(event.target.value.toLowerCase())}
+                    placeholder="discord_style"
+                  />
+                </label>
+                <p className="inline-note">
+                  Deine eindeutige ID: <strong>{auth.user.userHandle}</strong>
+                </p>
+                <button className="primary" onClick={onSaveProfile}>
+                  Profil speichern
+                </button>
+              </div>
+            </section>
+          )}
 
           <div className="chat-layout">
             <aside className="panel channel-panel">
@@ -608,7 +746,8 @@ export function App() {
                   return (
                     <article key={entry.id} className={ownMessage ? "message-bubble mine" : "message-bubble"}>
                       <p className="message-meta">
-                        {entry.sender.displayName} {presenceMap[entry.sender.id] ? "• online" : "• offline"}
+                        {entry.sender.displayName}
+                        {entry.sender.username ? ` (@${entry.sender.username})` : ""} {presenceMap[entry.sender.id] ? "• online" : "• offline"}
                       </p>
 
                       {editingMessageId === entry.id ? (
@@ -623,7 +762,7 @@ export function App() {
                           </button>
                         </div>
                       ) : (
-                        <p className="message-content">{entry.content}</p>
+                        <p className="message-content">{renderContentWithMentions(entry.content)}</p>
                       )}
 
                       {entry.content.startsWith("http") && (
@@ -683,6 +822,7 @@ export function App() {
           </div>
 
           {message && <p className="message-banner">{message}</p>}
+          {mentionNotice && <p className="message-banner mention-banner">{mentionNotice}</p>}
         </section>
       </main>
     );

@@ -34,6 +34,7 @@ export class ChatService {
             user: {
               select: {
                 id: true,
+                username: true,
                 displayName: true,
                 avatarUrl: true
               }
@@ -201,6 +202,7 @@ export class ChatService {
         user: {
           select: {
             id: true,
+            username: true,
             displayName: true,
             avatarUrl: true
           }
@@ -251,6 +253,7 @@ export class ChatService {
         sender: {
           select: {
             id: true,
+            username: true,
             displayName: true,
             avatarUrl: true
           }
@@ -294,6 +297,7 @@ export class ChatService {
         sender: {
           select: {
             id: true,
+            username: true,
             displayName: true,
             avatarUrl: true
           }
@@ -392,6 +396,7 @@ export class ChatService {
         sender: {
           select: {
             id: true,
+            username: true,
             displayName: true,
             avatarUrl: true
           }
@@ -466,6 +471,7 @@ export class ChatService {
         sender: {
           select: {
             id: true,
+            username: true,
             displayName: true,
             avatarUrl: true
           }
@@ -511,6 +517,7 @@ export class ChatService {
         blocked: {
           select: {
             id: true,
+            username: true,
             displayName: true,
             avatarUrl: true
           }

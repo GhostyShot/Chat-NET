@@ -8,6 +8,7 @@ export interface RegisterInput {
   email: string;
   password: string;
   displayName: string;
+  username?: string;
 }
 
 export interface LoginInput {
@@ -48,7 +49,13 @@ export interface CreateEmailTokenInput {
 export interface CreateUserInput {
   email: string;
   displayName: string;
+  username?: string;
   provider: AuthProvider;
   verifiedEmail: boolean;
   passwordHash?: string;
+}
+
+export interface UpdateProfileInput {
+  displayName?: string;
+  username?: string;
 }

@@ -3,6 +3,9 @@ export type AuthProvider = "google" | "password";
 export interface UserProfile {
   id: string;
   email: string;
+  username: string;
+  userCode: string;
+  userHandle: string;
   displayName: string;
   avatarUrl?: string;
   verifiedEmail: boolean;

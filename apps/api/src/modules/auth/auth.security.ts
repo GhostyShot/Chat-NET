@@ -32,6 +32,9 @@ export function buildAuthResponse(user: StoredUser): AuthResponse {
     user: {
       id: user.id,
       email: user.email,
+      username: user.username,
+      userCode: user.userCode,
+      userHandle: `${user.username}#${user.userCode}`,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
       provider: user.provider,

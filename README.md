@@ -14,6 +14,9 @@ Chat-Net ist eine Chatplattform für Web und Mobile mit Fokus auf junge Zielgrup
 - Realtime Presence (online/offline, last seen in-memory)
 - Suche über Nachrichten (API + Web/Mobile UI)
 - Moderation Basis: User blockieren
+- Profilverwaltung: Nickname + Username
+- Eindeutige User-ID im Stil `username#CODE`
+- Mentions/Pings via `@username`
 - Push-Benachrichtigungen (API-Stub vorbereitet)
 - Auth: Google OAuth **und** E-Mail/Passwort
 

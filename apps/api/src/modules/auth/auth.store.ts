@@ -4,6 +4,55 @@ import { prisma } from "../../lib/prisma.js";
 import type { CreateEmailTokenInput, CreateUserInput, EmailTokenRecord, StoredUser } from "./auth.types.js";
 
 export class AuthStore {
+  private sanitizeUsername(value: string): string {
+    return value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, "")
+      .slice(0, 24);
+  }
+
+  private buildUsernameSeed(input: { email: string; displayName: string }): string {
+    const fromName = this.sanitizeUsername(input.displayName.replace(/\s+/g, "_"));
+    if (fromName.length >= 3) {
+      return fromName;
+    }
+    const local = this.sanitizeUsername(input.email.split("@")[0] ?? "user");
+    return local.length >= 3 ? local : "user";
+  }
+
+  private async ensureUniqueUsername(seed: string): Promise<string> {
+    const base = seed.slice(0, 24);
+    let candidate = base;
+    let attempt = 0;
+
+    while (attempt < 20) {
+      const existing = await prisma.user.findUnique({ where: { username: candidate } });
+      if (!existing) {
+        return candidate;
+      }
+      attempt += 1;
+      const suffix = Math.floor(Math.random() * 9000 + 1000).toString();
+      candidate = `${base.slice(0, Math.max(3, 24 - suffix.length - 1))}_${suffix}`;
+    }
+
+    return `${base.slice(0, 16)}_${uuid().slice(0, 7)}`;
+  }
+
+  private async createUniqueUserCode(): Promise<string> {
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      const candidate = Math.random().toString(36).slice(2, 8).toUpperCase();
+      if (candidate.length < 6) {
+        continue;
+      }
+      const existing = await prisma.user.findUnique({ where: { userCode: candidate } });
+      if (!existing) {
+        return candidate;
+      }
+    }
+    return uuid().replace(/-/g, "").slice(0, 6).toUpperCase();
+  }
+
   private toDbProvider(provider: CreateUserInput["provider"]): DbAuthProvider {
     return provider === "google" ? "GOOGLE" : "PASSWORD";
   }
@@ -20,6 +69,9 @@ export class AuthStore {
     return {
       id: user.id,
       email: user.email,
+      username: user.username,
+      userCode: user.userCode,
+      userHandle: `${user.username}#${user.userCode}`,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl ?? undefined,
       verifiedEmail: user.verifiedEmail,
@@ -41,10 +93,16 @@ export class AuthStore {
   }
 
   async createUser(input: CreateUserInput): Promise<StoredUser> {
+    const seed = input.username ? this.sanitizeUsername(input.username) : this.buildUsernameSeed(input);
+    const username = await this.ensureUniqueUsername(seed.length >= 3 ? seed : "user");
+    const userCode = await this.createUniqueUserCode();
+
     const user = await prisma.user.create({
       data: {
         id: uuid(),
         email: input.email.toLowerCase(),
+        username,
+        userCode,
         displayName: input.displayName,
         provider: this.toDbProvider(input.provider),
         verifiedEmail: input.verifiedEmail,
@@ -59,6 +117,7 @@ export class AuthStore {
       where: { id: user.id },
       data: {
         displayName: user.displayName,
+        username: user.username,
         avatarUrl: user.avatarUrl ?? null,
         verifiedEmail: user.verifiedEmail,
         passwordHash: user.passwordHash ?? null,
@@ -98,6 +157,19 @@ export class AuthStore {
       type: this.fromDbTokenType(dbRecord.type),
       expiresAt: dbRecord.expiresAt.getTime()
     };
+  }
+
+  async isUsernameTaken(username: string, excludeUserId?: string): Promise<boolean> {
+    const normalized = this.sanitizeUsername(username);
+    const existing = await prisma.user.findUnique({ where: { username: normalized } });
+    if (!existing) {
+      return false;
+    }
+    return existing.id !== excludeUserId;
+  }
+
+  normalizeUsername(username: string): string {
+    return this.sanitizeUsername(username);
   }
 }
 

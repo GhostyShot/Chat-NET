@@ -16,6 +16,7 @@ export interface MessageItem {
   createdAt: string;
   sender: {
     id: string;
+    username?: string;
     displayName: string;
     avatarUrl?: string | null;
   };
@@ -25,6 +26,18 @@ export interface PresenceItem {
   userId: string;
   online: boolean;
   lastSeenAt: number | null;
+}
+
+export interface ProfileItem {
+  id: string;
+  email: string;
+  username: string;
+  userCode: string;
+  userHandle: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  verifiedEmail: boolean;
+  provider: "google" | "password";
 }
 
 function authHeaders(accessToken: string) {
@@ -108,6 +121,34 @@ export async function verifyEmail(token: string): Promise<void> {
   if (!response.ok) {
     throw new Error(payload.error ?? "VERIFY_EMAIL_FAILED");
   }
+}
+
+export async function getProfile(accessToken: string): Promise<ProfileItem> {
+  const response = await fetch(`${API_URL}/auth/me`, {
+    method: "GET",
+    headers: authHeaders(accessToken)
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error ?? "PROFILE_FAILED");
+  }
+  return payload as ProfileItem;
+}
+
+export async function updateProfile(
+  accessToken: string,
+  data: { displayName?: string; username?: string }
+): Promise<ProfileItem> {
+  const response = await fetch(`${API_URL}/auth/profile`, {
+    method: "PATCH",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(data)
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error ?? "PROFILE_UPDATE_FAILED");
+  }
+  return payload as ProfileItem;
 }
 
 export async function listChannels(accessToken: string): Promise<ChannelItem[]> {

@@ -4,6 +4,7 @@ import type {
   PasswordResetInput,
   PasswordResetRequest,
   RegisterInput,
+  UpdateProfileInput,
   VerifyEmailInput
 } from "./auth.types.js";
 import { authStore } from "./auth.store.js";
@@ -23,6 +24,7 @@ export class AuthService {
     const user = await authStore.createUser({
       email: input.email,
       displayName: input.displayName,
+      username: input.username,
       provider: "password",
       verifiedEmail: false,
       passwordHash
@@ -61,6 +63,7 @@ export class AuthService {
       user = await authStore.createUser({
         email: googleProfile.email,
         displayName: input.displayName ?? googleProfile.displayName,
+        username: undefined,
         provider: "google",
         verifiedEmail: googleProfile.verifiedEmail
       });
@@ -119,6 +122,50 @@ export class AuthService {
     user.verifiedEmail = true;
     await authStore.updateUser(user);
     return { ok: true };
+  }
+
+  async getProfile(userId: string) {
+    const user = await authStore.getById(userId);
+    if (!user) {
+      throw new Error("INVALID_TOKEN");
+    }
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      userCode: user.userCode,
+      userHandle: `${user.username}#${user.userCode}`,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+      provider: user.provider,
+      verifiedEmail: user.verifiedEmail
+    };
+  }
+
+  async updateProfile(userId: string, input: UpdateProfileInput) {
+    const user = await authStore.getById(userId);
+    if (!user) {
+      throw new Error("INVALID_TOKEN");
+    }
+
+    if (input.displayName !== undefined) {
+      user.displayName = input.displayName;
+    }
+
+    if (input.username !== undefined) {
+      const normalized = authStore.normalizeUsername(input.username);
+      if (normalized.length < 3) {
+        throw new Error("USERNAME_INVALID_FORMAT");
+      }
+      const taken = await authStore.isUsernameTaken(normalized, user.id);
+      if (taken) {
+        throw new Error("USERNAME_TAKEN");
+      }
+      user.username = normalized;
+    }
+
+    const updated = await authStore.updateUser(user);
+    return buildAuthResponse(updated).user;
   }
 }
 

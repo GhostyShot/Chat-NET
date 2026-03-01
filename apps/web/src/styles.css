@@ -251,6 +251,12 @@ button {
   padding: 8px 12px;
 }
 
+.chip-handle {
+  display: block;
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
 .status-dot {
   width: 8px;
   height: 8px;
@@ -271,6 +277,17 @@ button {
   padding: 14px;
   display: grid;
   gap: 12px;
+}
+
+.profile-panel {
+  gap: 10px;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  align-items: end;
 }
 
 .panel-header {
@@ -376,6 +393,19 @@ button {
   white-space: pre-wrap;
 }
 
+.mention {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.mention-hit {
+  color: #fff;
+  background: var(--accent);
+  border-radius: 6px;
+  padding: 0 4px;
+  font-weight: 700;
+}
+
 .file-link {
   color: var(--accent);
 }
@@ -429,6 +459,10 @@ button {
   color: var(--text-main);
   padding: 10px 12px;
   margin: 0;
+}
+
+.mention-banner {
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--banner-border));
 }
 
 @media (max-width: 980px) {

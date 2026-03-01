@@ -6,9 +6,11 @@ import {
   loginSchema,
   registerSchema,
   resetPasswordSchema,
+  updateProfileSchema,
   verifyEmailSchema
 } from "./auth.validators.js";
 import { authService } from "./auth.service.js";
+import { requireAuth, type AuthenticatedRequest } from "../chat/chat.auth.js";
 
 const loginLimiter = rateLimit({
   windowMs: 60_000,
@@ -33,6 +35,8 @@ function withErrorBoundary<T>(fn: () => Promise<T>, res: any) {
       const status =
         message === "EMAIL_EXISTS" ||
         message === "INVALID_CREDENTIALS" ||
+        message === "USERNAME_TAKEN" ||
+        message === "USERNAME_INVALID_FORMAT" ||
         isGoogleTokenError ||
         message === "INVALID_TOKEN"
           ? 400
@@ -95,4 +99,27 @@ authRouter.post("/verify-email", async (req, res) => {
   }
 
   return withErrorBoundary(() => authService.verifyEmail(parsed.data), res);
+});
+
+authRouter.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    return res.status(401).json({ error: "AUTH_REQUIRED" });
+  }
+
+  return withErrorBoundary(() => authService.getProfile(userId), res);
+});
+
+authRouter.patch("/profile", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    return res.status(401).json({ error: "AUTH_REQUIRED" });
+  }
+
+  const parsed = updateProfileSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "INVALID_BODY", details: parsed.error.issues });
+  }
+
+  return withErrorBoundary(() => authService.updateProfile(userId, parsed.data), res);
 });
