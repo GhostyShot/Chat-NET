@@ -82,7 +82,14 @@ export class AuthService {
       expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS)
     });
 
-    await sendPasswordResetEmail({ to: user.email, token: resetToken });
+    const delivery = await sendPasswordResetEmail({ to: user.email, token: resetToken });
+    if (!delivery.delivered) {
+      console.warn(`[auth] Reset mail not delivered for ${user.email} (SMTP not configured).`);
+    } else {
+      console.info(
+        `[auth] Reset mail queued for ${user.email}. messageId=${delivery.messageId ?? "n/a"} accepted=${delivery.accepted?.length ?? 0} rejected=${delivery.rejected?.length ?? 0}`
+      );
+    }
 
     return { ok: true };
   }

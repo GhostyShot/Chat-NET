@@ -81,6 +81,9 @@ const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefin
 const platformOwnerUserId = (import.meta.env.VITE_PLATFORM_OWNER_USER_ID as string | undefined)?.trim();
 const PLATFORM_OWNER_FALLBACK_USERNAME = "paul_fmp";
 const BADGE_STORAGE_PREFIX = "chat-net-custom-badges";
+const AUTH_COOKIE_KEY = "chat_net_auth";
+const AUTH_STORAGE_KEY = "chat_net_auth_v1";
+const AUTH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 14;
 const DEFAULT_BADGE_DEFINITIONS: BadgeDefinition[] = [
   { id: "owner_chatnet", label: "Owner (Logo + OWNER)", shortLabel: "OWNER", style: "owner_chatnet" },
   { id: "verified_blue", label: "Blauer Haken (X Style)", shortLabel: "✓", style: "verified_blue" },
@@ -88,6 +91,49 @@ const DEFAULT_BADGE_DEFINITIONS: BadgeDefinition[] = [
   { id: "legend", label: "Legend", shortLabel: "LEGEND" },
   { id: "core_team", label: "Core Team", shortLabel: "TEAM" }
 ];
+
+function readPersistedAuth(): AuthResponse | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const tryParse = (raw: string | null): AuthResponse | null => {
+    if (!raw) {
+      return null;
+    }
+    try {
+      return JSON.parse(raw) as AuthResponse;
+    } catch {
+      return null;
+    }
+  };
+
+  const cookieMatch = document.cookie
+    .split("; ")
+    .find((entry) => entry.startsWith(`${AUTH_COOKIE_KEY}=`));
+  const fromCookie = tryParse(cookieMatch ? decodeURIComponent(cookieMatch.split("=").slice(1).join("=")) : null);
+  if (fromCookie) {
+    return fromCookie;
+  }
+
+  return tryParse(window.localStorage.getItem(AUTH_STORAGE_KEY));
+}
+
+function persistAuth(auth: AuthResponse | null) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (!auth) {
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    document.cookie = `${AUTH_COOKIE_KEY}=; Max-Age=0; Path=/; SameSite=Lax`;
+    return;
+  }
+
+  const payload = JSON.stringify(auth);
+  window.localStorage.setItem(AUTH_STORAGE_KEY, payload);
+  document.cookie = `${AUTH_COOKIE_KEY}=${encodeURIComponent(payload)}; Max-Age=${AUTH_COOKIE_MAX_AGE_SECONDS}; Path=/; SameSite=Lax`;
+}
 
 export function App() {
   const [theme, setTheme] = useState<"dark" | "light">(() => {
@@ -107,7 +153,7 @@ export function App() {
   const [token, setToken] = useState("");
   const [resetTokenFromLink, setResetTokenFromLink] = useState<string | null>(null);
   const [message, setMessage] = useState("");
-  const [auth, setAuth] = useState<AuthResponse | null>(null);
+  const [auth, setAuth] = useState<AuthResponse | null>(() => readPersistedAuth());
   const [loading, setLoading] = useState(false);
   const [channels, setChannels] = useState<ChannelItem[]>([]);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
@@ -502,6 +548,10 @@ export function App() {
     document.documentElement.setAttribute("data-theme", theme);
     window.localStorage.setItem("chat-net-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    persistAuth(auth);
+  }, [auth]);
 
   useEffect(() => {
     if (typeof window === "undefined" || auth) {

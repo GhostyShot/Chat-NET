@@ -1,6 +1,8 @@
 import nodemailer from "nodemailer";
 import { appConfig } from "../../config.js";
 
+let cachedTransporter: nodemailer.Transporter | null = null;
+
 function buildResetUrl(token: string): string {
   const base = appConfig.webAppUrl.replace(/\/$/, "");
   const params = new URLSearchParams({ mode: "reset", token });
@@ -16,6 +18,24 @@ function hasSmtpConfig(): boolean {
   return Boolean(appConfig.smtpHost && appConfig.smtpFrom);
 }
 
+function getTransporter() {
+  if (cachedTransporter) {
+    return cachedTransporter;
+  }
+
+  cachedTransporter = nodemailer.createTransport({
+    host: appConfig.smtpHost,
+    port: appConfig.smtpPort,
+    secure: appConfig.smtpSecure,
+    auth: appConfig.smtpUser && appConfig.smtpPass ? { user: appConfig.smtpUser, pass: appConfig.smtpPass } : undefined,
+    connectionTimeout: 15_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000
+  });
+
+  return cachedTransporter;
+}
+
 export async function sendPasswordResetEmail(input: { to: string; token: string }) {
   const resetUrl = buildResetUrl(input.token);
   const logoUrl = buildLogoUrl();
@@ -25,15 +45,11 @@ export async function sendPasswordResetEmail(input: { to: string; token: string 
     return { delivered: false as const, resetUrl };
   }
 
-  const transporter = nodemailer.createTransport({
-    host: appConfig.smtpHost,
-    port: appConfig.smtpPort,
-    secure: appConfig.smtpSecure,
-    auth: appConfig.smtpUser && appConfig.smtpPass ? { user: appConfig.smtpUser, pass: appConfig.smtpPass } : undefined
-  });
+  const transporter = getTransporter();
 
-  await transporter.sendMail({
+  const sendResult = await transporter.sendMail({
     from: appConfig.smtpFrom,
+    replyTo: appConfig.smtpFrom,
     to: input.to,
     subject: "Passwort zurücksetzen – Chat-Net",
     text: `Chat-Net Passwort zurücksetzen\n\nDu hast ein Zurücksetzen deines Passworts angefordert.\n\nÖffne diesen persönlichen Link:\n${resetUrl}\n\nDer Link ist 30 Minuten gültig und kann nur einmal verwendet werden.\n\nFalls du das nicht warst, kannst du diese E-Mail ignorieren.`,
@@ -85,5 +101,11 @@ export async function sendPasswordResetEmail(input: { to: string; token: string 
     `
   });
 
-  return { delivered: true as const, resetUrl };
+  return {
+    delivered: true as const,
+    resetUrl,
+    messageId: sendResult.messageId,
+    accepted: sendResult.accepted,
+    rejected: sendResult.rejected
+  };
 }
