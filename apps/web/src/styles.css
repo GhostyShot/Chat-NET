@@ -48,6 +48,35 @@
   --shadow-soft: 0 14px 34px rgba(50, 80, 150, 0.16);
 }
 
+:root[data-theme="light"] .chat-shell {
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--surface-main) 96%, var(--accent) 4%),
+    color-mix(in srgb, var(--surface-main) 98%, transparent)
+  );
+  box-shadow: var(--shadow-soft);
+}
+
+:root[data-theme="light"] .chat-topbar,
+:root[data-theme="light"] .panel,
+:root[data-theme="light"] .owner-studio,
+:root[data-theme="light"] .message-bubble,
+:root[data-theme="light"] .composer,
+:root[data-theme="light"] .modal-panel {
+  box-shadow: var(--shadow-soft);
+}
+
+:root[data-theme="light"] .chat-topbar,
+:root[data-theme="light"] .panel,
+:root[data-theme="light"] .owner-studio,
+:root[data-theme="light"] .modal-panel {
+  border-color: color-mix(in srgb, var(--border-main) 88%, var(--accent));
+}
+
+:root[data-theme="light"] .message-bubble.mine {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--bubble-border));
+}
+
 * {
   box-sizing: border-box;
 }
@@ -443,12 +472,16 @@ button:hover {
   min-height: 100dvh;
   border-radius: 0;
   border: 1px solid var(--border-main);
-  background: var(--surface-main);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--surface-main) 88%, var(--accent) 12%),
+    color-mix(in srgb, var(--surface-main) 94%, transparent)
+  );
   backdrop-filter: blur(12px);
-  box-shadow: var(--shadow-soft);
-  padding: 12px;
+  box-shadow: var(--shadow-soft), var(--shadow-glow);
+  padding: 14px;
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .chat-topbar {
@@ -457,14 +490,26 @@ button:hover {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  border: 1px solid var(--border-main);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--surface-panel) 82%, transparent);
-  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--border-main) 78%, var(--accent));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface-panel) 84%, transparent);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-soft);
+  padding: 12px 14px;
+}
+
+.brand-block {
+  display: grid;
+  gap: 2px;
 }
 
 .brand-block h1 {
   margin-bottom: 4px;
+}
+
+.brand-block .subtitle {
+  color: var(--text-sub);
+  letter-spacing: 0.01em;
 }
 
 .brand-logo {
@@ -484,16 +529,18 @@ button:hover {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .user-chip {
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid var(--input-border);
-  background: color-mix(in srgb, var(--input-bg) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--input-border) 78%, var(--accent));
+  background: color-mix(in srgb, var(--input-bg) 78%, transparent);
   border-radius: 12px;
-  padding: 8px 12px;
+  padding: 8px 11px;
 }
 
 .chip-handle {
@@ -573,11 +620,13 @@ button:hover {
 
 .owner-studio {
   margin-top: 6px;
-  border: 1px dashed var(--input-border);
-  border-radius: 12px;
-  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--input-border) 72%, var(--accent));
+  border-radius: 14px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--surface-panel) 86%, transparent);
+  backdrop-filter: blur(8px);
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .owner-studio-header {
@@ -595,9 +644,9 @@ button:hover {
 }
 
 .owner-studio-create {
-  border-top: 1px dashed var(--input-border);
+  border-top: 1px solid color-mix(in srgb, var(--input-border) 84%, transparent);
   margin-top: 4px;
-  padding-top: 8px;
+  padding-top: 10px;
 }
 
 .owner-studio-create-grid {
@@ -616,7 +665,7 @@ button:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid var(--input-border);
+  border: 1px solid color-mix(in srgb, var(--input-border) 80%, transparent);
   border-radius: 10px;
   padding: 8px;
   background: color-mix(in srgb, var(--input-bg) 84%, transparent);
@@ -641,17 +690,18 @@ button:hover {
 .chat-layout {
   display: grid;
   grid-template-columns: 292px 1fr;
-  gap: 12px;
+  gap: 14px;
 }
 
 .panel {
-  border: 1px solid var(--border-main);
-  border-radius: 14px;
-  background: var(--surface-panel);
-  backdrop-filter: blur(8px);
-  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--border-main) 82%, var(--accent));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface-panel) 88%, transparent);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-soft);
+  padding: 13px;
   display: grid;
-  gap: 10px;
+  gap: 11px;
 }
 
 .profile-panel {
@@ -675,6 +725,11 @@ button:hover {
   letter-spacing: 0.04em;
 }
 
+.panel-header h3 {
+  color: var(--text-main);
+  font-size: 13px;
+}
+
 .new-channel-row {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -683,7 +738,7 @@ button:hover {
 
 .channel-items {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   max-height: 60dvh;
   overflow: auto;
 }
@@ -692,26 +747,60 @@ button:hover {
   text-align: left;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid color-mix(in srgb, var(--input-border) 80%, transparent);
-  background: color-mix(in srgb, var(--input-bg) 76%, transparent);
-  border-radius: 10px;
-  padding: 8px 10px;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--input-border) 84%, transparent);
+  background: color-mix(in srgb, var(--input-bg) 80%, transparent);
+  border-radius: 12px;
+  padding: 10px 11px;
 }
 
-.channel-item small {
-  opacity: 0.7;
-  text-transform: lowercase;
+.channel-main {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.channel-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.channel-subline {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-sub);
+}
+
+.channel-kind {
+  border: 1px solid color-mix(in srgb, var(--input-border) 74%, transparent);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-sub);
+  background: color-mix(in srgb, var(--surface-panel) 76%, transparent);
 }
 
 .channel-item:hover {
-  border-color: color-mix(in srgb, var(--accent) 36%, var(--input-border));
+  border-color: color-mix(in srgb, var(--accent) 44%, var(--input-border));
 }
 
 .channel-item.active {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, var(--input-bg));
+  border-color: color-mix(in srgb, var(--accent) 74%, var(--input-border));
+  background: color-mix(in srgb, var(--accent) 16%, var(--input-bg));
+}
+
+.channel-item.active .channel-kind {
+  border-color: color-mix(in srgb, var(--accent) 65%, var(--input-border));
+  color: var(--text-main);
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface-panel));
 }
 
 .invite-box {
@@ -723,9 +812,10 @@ button:hover {
 }
 
 .member-panel {
-  border: 1px dashed var(--input-border);
+  border: 1px solid color-mix(in srgb, var(--input-border) 80%, transparent);
   border-radius: 12px;
-  padding: 10px;
+  padding: 11px;
+  background: color-mix(in srgb, var(--input-bg) 82%, transparent);
   display: grid;
   gap: 8px;
 }
@@ -736,7 +826,7 @@ button:hover {
 }
 
 .member-item {
-  border: 1px solid var(--input-border);
+  border: 1px solid color-mix(in srgb, var(--input-border) 82%, transparent);
   border-radius: 10px;
   padding: 8px;
   display: flex;
@@ -773,14 +863,18 @@ button:hover {
 .search-row {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 6px;
+  gap: 8px;
+}
+
+.search-row input {
+  background: color-mix(in srgb, var(--input-bg) 86%, transparent);
 }
 
 .search-results {
-  border: 1px solid var(--input-border);
+  border: 1px solid color-mix(in srgb, var(--input-border) 78%, transparent);
   border-radius: 12px;
-  padding: 10px;
-  background: color-mix(in srgb, var(--surface-panel) 80%, var(--accent) 20%);
+  padding: 11px;
+  background: color-mix(in srgb, var(--surface-panel) 82%, var(--accent) 18%);
   display: grid;
   gap: 6px;
 }
@@ -795,31 +889,104 @@ button:hover {
   max-height: 52dvh;
   overflow: auto;
   display: grid;
-  gap: 8px;
+  gap: 10px;
+  padding-right: 2px;
 }
 
 .message-bubble {
-  border: 1px solid color-mix(in srgb, var(--bubble-border) 78%, transparent);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--bubble-bg) 88%, transparent);
-  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--bubble-border) 80%, transparent);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--bubble-bg) 90%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bubble-border) 28%, transparent) inset;
+  padding: 10px 11px;
   display: grid;
-  gap: 6px;
+  gap: 7px;
   cursor: pointer;
 }
 
 .message-bubble.mine {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--bubble-border));
-  background: color-mix(in srgb, var(--bubble-own-bg) 86%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--bubble-border));
+  background: color-mix(in srgb, var(--bubble-own-bg) 88%, transparent);
+}
+
+.message-head {
+  display: grid;
+  gap: 4px;
+}
+
+.message-author-line {
+  display: grid;
+  gap: 5px;
 }
 
 .message-meta {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
   font-size: 12px;
-  opacity: 0.8;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--text-main) 92%, var(--text-sub));
+}
+
+.message-handle {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-sub);
+}
+
+.message-badges-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.role-pill,
+.presence-pill,
+.message-time {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.role-pill {
+  border: 1px solid color-mix(in srgb, var(--accent) 58%, var(--input-border));
+  background: color-mix(in srgb, var(--accent) 20%, var(--input-bg));
+  color: var(--text-main);
+}
+
+.presence-pill {
+  border: 1px solid color-mix(in srgb, var(--input-border) 80%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 80%, transparent);
+  color: var(--text-sub);
+}
+
+.presence-pill.online {
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--input-border));
+  color: color-mix(in srgb, var(--text-main) 86%, var(--accent));
+}
+
+.presence-pill.offline {
+  opacity: 0.84;
+}
+
+.message-time {
+  border: 1px solid color-mix(in srgb, var(--input-border) 78%, transparent);
+  background: color-mix(in srgb, var(--input-bg) 70%, transparent);
+  color: var(--text-sub);
 }
 
 .message-content {
+  margin: 0;
   white-space: pre-wrap;
+  line-height: 1.45;
 }
 
 .mention {
@@ -837,6 +1004,7 @@ button:hover {
 
 .file-link {
   color: var(--accent);
+  font-weight: 600;
 }
 
 .edit-row,
@@ -890,12 +1058,13 @@ button:hover {
 .composer {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 6px;
+  gap: 8px;
   align-items: end;
-  border: 1px solid color-mix(in srgb, var(--input-border) 80%, transparent);
-  border-radius: 12px;
-  padding: 8px;
-  background: color-mix(in srgb, var(--surface-panel) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--input-border) 78%, var(--accent));
+  border-radius: 14px;
+  padding: 9px;
+  background: color-mix(in srgb, var(--surface-panel) 76%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--surface-panel) 45%, transparent);
 }
 
 .composer-input-wrap {
@@ -904,6 +1073,9 @@ button:hover {
 
 .composer-input-wrap textarea {
   width: 100%;
+  min-height: 46px;
+  max-height: 160px;
+  resize: vertical;
 }
 
 .mention-suggestions {
@@ -912,10 +1084,10 @@ button:hover {
   right: 0;
   bottom: calc(100% + 6px);
   z-index: 10;
-  border: 1px solid var(--input-border);
+  border: 1px solid color-mix(in srgb, var(--input-border) 80%, transparent);
   border-radius: 12px;
   background: var(--surface-panel);
-  box-shadow: var(--shadow-soft);
+  box-shadow: var(--shadow-soft), var(--shadow-glow);
   padding: 6px;
   display: grid;
   gap: 4px;
@@ -945,17 +1117,25 @@ button:hover {
 }
 
 .upload-button {
-  border: 1px solid var(--input-border);
-  background: var(--btn-secondary);
+  border: 1px solid color-mix(in srgb, var(--input-border) 86%, transparent);
+  background: color-mix(in srgb, var(--btn-secondary) 88%, transparent);
   border-radius: 12px;
   padding: 11px 12px;
   cursor: pointer;
   user-select: none;
 }
 
+.upload-button:hover {
+  border-color: color-mix(in srgb, var(--accent) 46%, var(--input-border));
+}
+
 .upload-button.disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.composer-send {
+  min-width: 96px;
 }
 
 .file-input {
@@ -988,13 +1168,13 @@ button:hover {
 
 .modal-panel {
   width: min(460px, 100%);
-  border-radius: 14px;
-  border: 1px solid var(--border-main);
-  background: color-mix(in srgb, var(--surface-panel) 90%, #000 10%);
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border-main) 82%, var(--accent));
+  background: color-mix(in srgb, var(--surface-panel) 92%, transparent);
   box-shadow: var(--shadow-soft), var(--shadow-glow);
-  padding: 14px;
+  padding: 15px;
   display: grid;
-  gap: 10px;
+  gap: 11px;
 }
 
 .modal-actions {
@@ -1021,6 +1201,10 @@ button:hover {
   .channel-items {
     max-height: 30dvh;
   }
+
+  .channel-kind {
+    font-size: 9px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1041,8 +1225,25 @@ button:hover {
     padding: 10px;
   }
 
+  .chat-topbar {
+    padding: 10px;
+  }
+
+  .user-block {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .channel-item {
+    padding: 9px 10px;
+  }
+
   .composer {
     grid-template-columns: 1fr;
+  }
+
+  .composer-send {
+    width: 100%;
   }
 
   .owner-studio-create-grid {

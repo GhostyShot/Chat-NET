@@ -285,6 +285,24 @@ export function App() {
     return channel.name ?? "Direktchat";
   };
 
+  const getChannelTypeLabel = (channel: ChannelItem) => {
+    return channel.type === "GROUP" ? "Gruppe" : "Direkt";
+  };
+
+  const formatTimeLabel = (value?: string) => {
+    if (!value) {
+      return "";
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return "";
+    }
+    return parsed.toLocaleTimeString("de-DE", {
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  };
+
   const ownMembershipRole = useMemo(() => {
     if (!activeChannel || !auth) {
       return null;
@@ -1284,14 +1302,14 @@ export function App() {
               <img src="/chat-net-logo.svg" alt="Chat-Net Logo" className="brand-logo" />
               <p className="eyebrow">chat-net.tech</p>
               <h1>Chat-Net</h1>
-              <p className="subtitle">Modern chat for real conversations</p>
+              <p className="subtitle">Der sichere Chat für echte Gespräche</p>
             </div>
             <div className="user-block">
               <button
                 className="secondary"
                 onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
               >
-                {theme === "dark" ? "Light" : "Dark"}
+                {theme === "dark" ? "Hell" : "Dunkel"}
               </button>
               <div className="user-chip">
                 <span className="status-dot" />
@@ -1311,7 +1329,7 @@ export function App() {
                 Profil
               </button>
               <button className="secondary" onClick={logout}>
-                Logout
+                Abmelden
               </button>
             </div>
           </header>
@@ -1354,8 +1372,8 @@ export function App() {
             <section className="panel owner-studio-panel">
               <div className="owner-studio">
                 <div className="panel-header owner-studio-header">
-                  <h3>Owner Badge Studio</h3>
-                  <span>Secret UI</span>
+                  <h3>Owner-Badge Studio</h3>
+                  <span>Owner-Bereich</span>
                 </div>
                 <label>
                   Badge-Zielperson
@@ -1396,7 +1414,7 @@ export function App() {
                     <input
                       value={newBadgeLabel}
                       onChange={(event) => setNewBadgeLabel(event.target.value)}
-                      placeholder="Badge Name (z. B. Founder)"
+                      placeholder="Badge-Name (z. B. Founder)"
                     />
                     <input
                       value={newBadgeShortLabel}
@@ -1438,13 +1456,13 @@ export function App() {
           <div className="chat-layout">
             <aside className="panel channel-panel">
               <div className="panel-header">
-                <h3>Channels</h3>
+                <h3>Kanäle</h3>
                 <span>{channels.length}</span>
               </div>
 
               <div className="channel-toolbar">
                 <button className="secondary compact" onClick={openCreateChannelModal}>
-                  Neuer Channel
+                  Neuer Kanal
                 </button>
                 <button className="secondary compact" onClick={() => setDirectModalOpen(true)}>
                   Direktchat
@@ -1530,11 +1548,14 @@ export function App() {
                     className={channel.id === activeChannelId ? "channel-item active" : "channel-item"}
                     onClick={() => setActiveChannelId(channel.id)}
                   >
-                    <span>{getChannelDisplayName(channel)}</span>
-                    <small>{channel.type}</small>
+                    <div className="channel-main">
+                      <span className="channel-name">{getChannelDisplayName(channel)}</span>
+                      <small className="channel-subline">Letzte Aktivität {formatTimeLabel(channel.updatedAt)}</small>
+                    </div>
+                    <span className="channel-kind">{getChannelTypeLabel(channel)}</span>
                   </button>
                 ))}
-                {!channels.length && <p className="empty-hint">Noch keine Channels vorhanden.</p>}
+                {!channels.length && <p className="empty-hint">Noch keine Kanäle vorhanden.</p>}
               </div>
             </aside>
 
@@ -1569,19 +1590,32 @@ export function App() {
                 {messages.map((entry) => {
                   const ownMessage = entry.sender.id === auth.user.id;
                   const showActions = activeMessageId === entry.id;
+                  const isOnline = Boolean(presenceMap[entry.sender.id]);
+                  const role = memberRoleByUserId.get(entry.sender.id);
+                  const timeLabel = formatTimeLabel(entry.createdAt);
                   return (
                     <article
                       key={entry.id}
                       className={ownMessage ? "message-bubble mine" : "message-bubble"}
                       onClick={() => setActiveMessageId((current) => (current === entry.id ? null : entry.id))}
                     >
-                      <p className="message-meta">
-                        {entry.sender.displayName}
-                        {renderPlatformOwnerBadge(entry.sender.id, entry.sender.username)}
-                        {renderCustomBadges(entry.sender.id)}
-                        {entry.sender.username ? ` (@${entry.sender.username})` : ""}
-                        {memberRoleByUserId.get(entry.sender.id) === "ADMIN" ? " ⭐" : ""} {presenceMap[entry.sender.id] ? "• online" : "• offline"}
-                      </p>
+                      <div className="message-head">
+                        <div className="message-author-line">
+                          <p className="message-meta">
+                            {entry.sender.displayName}
+                            {entry.sender.username ? <span className="message-handle">@{entry.sender.username}</span> : null}
+                            {renderPlatformOwnerBadge(entry.sender.id, entry.sender.username)}
+                            {renderCustomBadges(entry.sender.id)}
+                          </p>
+                          <div className="message-badges-row">
+                            {role === "ADMIN" ? <span className="role-pill">Admin</span> : null}
+                            <span className={isOnline ? "presence-pill online" : "presence-pill offline"}>
+                              {isOnline ? "Online" : "Offline"}
+                            </span>
+                            {timeLabel ? <span className="message-time">{timeLabel}</span> : null}
+                          </div>
+                        </div>
+                      </div>
 
                       {editingMessageId === entry.id ? (
                         <div className="edit-row">
@@ -1627,7 +1661,7 @@ export function App() {
 
                 {!messages.length && (
                   <div className="empty-state">
-                    <p>Noch keine Nachrichten in diesem Channel.</p>
+                    <p>Noch keine Nachrichten in diesem Kanal.</p>
                     <span>Starte die Unterhaltung mit deiner ersten Nachricht.</span>
                   </div>
                 )}
@@ -1647,17 +1681,17 @@ export function App() {
                 <div className="composer-input-wrap">
                   <textarea
                     ref={composerRef}
-                  value={composerText}
-                  onChange={(event) => {
-                    const next = event.target.value;
-                    setComposerText(next);
-                    updateMentionState(next, event.target.selectionStart ?? next.length);
-                    if (auth && activeChannelId && next.trim() && socketRef.current) {
-                      socketRef.current.emit("typing", { roomId: activeChannelId, userId: auth.user.id });
-                    }
-                  }}
-                  onKeyDown={onComposerKeyDown}
-                  placeholder="Schreibe eine Nachricht... (Enter = senden, Shift+Enter = Zeilenumbruch)"
+                    value={composerText}
+                    onChange={(event) => {
+                      const next = event.target.value;
+                      setComposerText(next);
+                      updateMentionState(next, event.target.selectionStart ?? next.length);
+                      if (auth && activeChannelId && next.trim() && socketRef.current) {
+                        socketRef.current.emit("typing", { roomId: activeChannelId, userId: auth.user.id });
+                      }
+                    }}
+                    onKeyDown={onComposerKeyDown}
+                    placeholder="Nachricht schreiben (Enter senden, Shift+Enter Zeilenumbruch)"
                   />
                   {mentionQuery !== null && filteredMentionCandidates.length > 0 && (
                     <div className="mention-suggestions">
@@ -1675,7 +1709,7 @@ export function App() {
                     </div>
                   )}
                 </div>
-                <button className="primary" onClick={onSendMessage}>
+                <button className="primary composer-send" onClick={onSendMessage}>
                   Senden
                 </button>
               </div>
@@ -1688,7 +1722,7 @@ export function App() {
           {createChannelModalOpen && (
             <div className="modal-backdrop" onClick={() => setCreateChannelModalOpen(false)}>
               <section className="modal-panel" onClick={(event) => event.stopPropagation()}>
-                <h3>Neuen Channel erstellen</h3>
+                <h3>Neuen Kanal erstellen</h3>
                 <input
                   value={newChannelName}
                   onChange={(event) => setNewChannelName(event.target.value)}
