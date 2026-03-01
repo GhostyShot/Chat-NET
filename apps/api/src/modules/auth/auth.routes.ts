@@ -29,10 +29,11 @@ function withErrorBoundary<T>(fn: () => Promise<T>, res: any) {
     .then((data) => res.json(data))
     .catch((error: Error) => {
       const message = error.message || "UNEXPECTED_ERROR";
+      const isGoogleTokenError = message.startsWith("INVALID_GOOGLE_TOKEN");
       const status =
         message === "EMAIL_EXISTS" ||
         message === "INVALID_CREDENTIALS" ||
-        message === "INVALID_GOOGLE_TOKEN" ||
+        isGoogleTokenError ||
         message === "INVALID_TOKEN"
           ? 400
           : 500;

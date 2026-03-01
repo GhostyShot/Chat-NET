@@ -8,7 +8,7 @@ export interface VerifiedGoogleProfile {
   verifiedEmail: boolean;
 }
 
-const googleClient = new OAuth2Client(appConfig.googleClientId);
+const googleClient = new OAuth2Client();
 
 export async function verifyGoogleIdToken(idToken: string): Promise<VerifiedGoogleProfile> {
   if (idToken.startsWith("dev_")) {
@@ -26,12 +26,16 @@ export async function verifyGoogleIdToken(idToken: string): Promise<VerifiedGoog
   try {
     const ticket = await googleClient.verifyIdToken({
       idToken,
-      audience: appConfig.googleClientId
+      audience: appConfig.googleClientIds
     });
     const payload = ticket.getPayload();
 
-    if (!payload?.email || !payload.email_verified) {
-      throw new Error("INVALID_GOOGLE_TOKEN");
+    if (!payload?.email) {
+      throw new Error("INVALID_GOOGLE_TOKEN_EMAIL");
+    }
+
+    if (!payload.email_verified) {
+      throw new Error("INVALID_GOOGLE_TOKEN_UNVERIFIED_EMAIL");
     }
 
     return {
@@ -40,7 +44,11 @@ export async function verifyGoogleIdToken(idToken: string): Promise<VerifiedGoog
       avatarUrl: payload.picture,
       verifiedEmail: true
     };
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("Wrong recipient") || message.includes("audience")) {
+      throw new Error("INVALID_GOOGLE_TOKEN_AUDIENCE");
+    }
     throw new Error("INVALID_GOOGLE_TOKEN");
   }
 }
