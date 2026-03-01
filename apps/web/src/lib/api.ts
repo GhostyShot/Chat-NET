@@ -267,6 +267,33 @@ export async function removeChannelMember(accessToken: string, channelId: string
   }
 }
 
+export async function transferChannelOwnership(
+  accessToken: string,
+  channelId: string,
+  targetUserId: string
+): Promise<void> {
+  const response = await fetch(`${API_URL}/chat/channels/${channelId}/ownership/transfer`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ targetUserId })
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error ?? "TRANSFER_OWNERSHIP_FAILED");
+  }
+}
+
+export async function leaveChannel(accessToken: string, channelId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/chat/channels/${channelId}/members/me`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken)
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error ?? "LEAVE_CHANNEL_FAILED");
+  }
+}
+
 export async function listMessages(accessToken: string, channelId: string): Promise<MessageItem[]> {
   const response = await fetch(`${API_URL}/chat/channels/${channelId}/messages?limit=50`, {
     method: "GET",

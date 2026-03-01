@@ -118,6 +118,17 @@ export const api = {
       method: "DELETE",
       accessToken
     }),
+  transferChannelOwnership: (accessToken: string, channelId: string, targetUserId: string) =>
+    request<{ ok: boolean }>(`/chat/channels/${channelId}/ownership/transfer`, {
+      method: "POST",
+      accessToken,
+      body: { targetUserId }
+    }),
+  leaveChannel: (accessToken: string, channelId: string) =>
+    request<{ ok: boolean }>(`/chat/channels/${channelId}/members/me`, {
+      method: "DELETE",
+      accessToken
+    }),
   listMessages: (accessToken: string, channelId: string) =>
     request<{ items: MessageItem[] }>(`/chat/channels/${channelId}/messages?limit=50`, {
       method: "GET",

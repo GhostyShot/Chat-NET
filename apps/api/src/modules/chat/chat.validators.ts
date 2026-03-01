@@ -45,3 +45,7 @@ export const usernameTargetSchema = z.object({
 export const updateMemberRoleSchema = z.object({
   role: z.enum(["admin", "member"])
 });
+
+export const transferOwnershipSchema = z.object({
+  targetUserId: z.uuid()
+});

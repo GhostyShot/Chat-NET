@@ -12,6 +12,7 @@ import {
   readReceiptSchema,
   searchQuerySchema,
   sendMessageSchema,
+  transferOwnershipSchema,
   updateMemberRoleSchema,
   updateMessageSchema
 } from "./chat.validators.js";
@@ -39,7 +40,8 @@ function withErrorBoundary<T>(fn: () => Promise<T>, res: Response) {
         message === "USER_NOT_FOUND" ||
         message === "GROUP_ONLY" ||
         message === "MEMBER_EXISTS" ||
-        message === "INVALID_TARGET_USER"
+        message === "INVALID_TARGET_USER" ||
+        message === "OWNER_TRANSFER_REQUIRED"
           ? 400
           : message === "FORBIDDEN_CHANNEL" || message === "USER_BLOCKED"
             ? 403
@@ -200,6 +202,27 @@ chatRouter.patch("/channels/:channelId/members/:targetUserId/role", async (req: 
   );
 });
 
+chatRouter.delete("/channels/:channelId/members/me", async (req: AuthenticatedRequest, res) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    return res.status(401).json({ error: "AUTH_REQUIRED" });
+  }
+
+  const channelId = singleParam(req.params.channelId);
+  if (!channelId) {
+    return res.status(400).json({ error: "INVALID_CHANNEL_ID" });
+  }
+
+  return withErrorBoundary(
+    () =>
+      chatService.leaveChannel({
+        channelId,
+        requesterId: userId
+      }),
+    res
+  );
+});
+
 chatRouter.delete("/channels/:channelId/members/:targetUserId", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
@@ -218,6 +241,33 @@ chatRouter.delete("/channels/:channelId/members/:targetUserId", async (req: Auth
         channelId,
         requesterId: userId,
         targetUserId
+      }),
+    res
+  );
+});
+
+chatRouter.post("/channels/:channelId/ownership/transfer", async (req: AuthenticatedRequest, res) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    return res.status(401).json({ error: "AUTH_REQUIRED" });
+  }
+
+  const channelId = singleParam(req.params.channelId);
+  if (!channelId) {
+    return res.status(400).json({ error: "INVALID_CHANNEL_ID" });
+  }
+
+  const parsed = transferOwnershipSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "INVALID_BODY", details: parsed.error.issues });
+  }
+
+  return withErrorBoundary(
+    () =>
+      chatService.transferChannelOwnership({
+        channelId,
+        requesterId: userId,
+        targetUserId: parsed.data.targetUserId
       }),
     res
   );

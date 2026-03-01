@@ -373,6 +373,114 @@ export class ChatService {
     return { ok: true, removedUserId: input.targetUserId };
   }
 
+  async transferChannelOwnership(input: { channelId: string; requesterId: string; targetUserId: string }) {
+    const channel = await prisma.channel.findUnique({ where: { id: input.channelId } });
+    if (!channel) {
+      throw new Error("FORBIDDEN_CHANNEL");
+    }
+
+    if (channel.type !== "GROUP") {
+      throw new Error("GROUP_ONLY");
+    }
+
+    if (input.requesterId === input.targetUserId) {
+      throw new Error("INVALID_TARGET_USER");
+    }
+
+    const requesterRole = await this.getMembershipRole(input.channelId, input.requesterId);
+    if (requesterRole !== "OWNER") {
+      throw new Error("FORBIDDEN_CHANNEL");
+    }
+
+    const targetMembership = await prisma.channelMembership.findUnique({
+      where: {
+        userId_channelId: {
+          userId: input.targetUserId,
+          channelId: input.channelId
+        }
+      }
+    });
+
+    if (!targetMembership) {
+      throw new Error("USER_NOT_FOUND");
+    }
+
+    await prisma.$transaction([
+      prisma.channelMembership.update({
+        where: {
+          userId_channelId: {
+            userId: input.requesterId,
+            channelId: input.channelId
+          }
+        },
+        data: {
+          role: "ADMIN"
+        }
+      }),
+      prisma.channelMembership.update({
+        where: {
+          userId_channelId: {
+            userId: input.targetUserId,
+            channelId: input.channelId
+          }
+        },
+        data: {
+          role: "OWNER"
+        }
+      }),
+      prisma.channel.update({
+        where: { id: input.channelId },
+        data: { updatedAt: new Date() }
+      })
+    ]);
+
+    return { ok: true, channelId: input.channelId, ownerUserId: input.targetUserId };
+  }
+
+  async leaveChannel(input: { channelId: string; requesterId: string }) {
+    const channel = await prisma.channel.findUnique({ where: { id: input.channelId } });
+    if (!channel) {
+      throw new Error("FORBIDDEN_CHANNEL");
+    }
+
+    if (channel.type !== "GROUP") {
+      throw new Error("GROUP_ONLY");
+    }
+
+    const membership = await prisma.channelMembership.findUnique({
+      where: {
+        userId_channelId: {
+          userId: input.requesterId,
+          channelId: input.channelId
+        }
+      }
+    });
+
+    if (!membership) {
+      throw new Error("FORBIDDEN_CHANNEL");
+    }
+
+    if (membership.role === "OWNER") {
+      throw new Error("OWNER_TRANSFER_REQUIRED");
+    }
+
+    await prisma.channelMembership.delete({
+      where: {
+        userId_channelId: {
+          userId: input.requesterId,
+          channelId: input.channelId
+        }
+      }
+    });
+
+    await prisma.channel.update({
+      where: { id: input.channelId },
+      data: { updatedAt: new Date() }
+    });
+
+    return { ok: true, leftUserId: input.requesterId, channelId: input.channelId };
+  }
+
   async sendMessage(input: { channelId: string; userId: string; content: string }) {
     const membership = await prisma.channelMembership.findUnique({
       where: {

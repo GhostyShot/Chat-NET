@@ -304,6 +304,47 @@ export default function App() {
     }
   };
 
+  const onTransferOwnership = async (member: ChannelMemberItem) => {
+    if (!auth || !activeChannelId || !canManageRoles) {
+      return;
+    }
+
+    try {
+      await api.transferChannelOwnership(auth.tokens.accessToken, activeChannelId, member.userId);
+      const [members, list] = await Promise.all([
+        api.listChannelMembers(auth.tokens.accessToken, activeChannelId),
+        api.listChannels(auth.tokens.accessToken)
+      ]);
+      setChannelMembers(members);
+      setChannels(list);
+      setMessage(`Owner wurde an @${member.user.username} übertragen.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Owner konnte nicht übertragen werden");
+    }
+  };
+
+  const onLeaveGroup = async () => {
+    if (!auth || !activeChannelId || !activeChannel || activeChannel.type !== "GROUP") {
+      return;
+    }
+
+    try {
+      await api.leaveChannel(auth.tokens.accessToken, activeChannelId);
+      const list = await api.listChannels(auth.tokens.accessToken);
+      setChannels(list);
+      setActiveChannelId((current) => {
+        if (current && list.some((entry) => entry.id === current)) {
+          return current;
+        }
+        return list[0]?.id ?? null;
+      });
+      setChannelMembers([]);
+      setMessage("Du hast die Gruppe verlassen.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Gruppe konnte nicht verlassen werden");
+    }
+  };
+
   const onSend = async () => {
     if (!auth || !activeChannelId || !composerText.trim()) {
       return;
@@ -444,6 +485,11 @@ export default function App() {
                     <Text style={styles.messageMeta}>@{member.user.username} • {member.role}</Text>
                   </View>
                   {canManageRoles && member.role !== "OWNER" && member.userId !== auth.user.id && (
+                    <Pressable style={styles.secondarySmall} onPress={() => onTransferOwnership(member)}>
+                      <Text style={styles.primaryText}>Owner</Text>
+                    </Pressable>
+                  )}
+                  {canManageRoles && member.role !== "OWNER" && member.userId !== auth.user.id && (
                     <Pressable style={styles.secondarySmall} onPress={() => onToggleMemberRole(member)}>
                       <Text style={styles.primaryText}>{member.role === "ADMIN" ? "Member" : "Admin"}</Text>
                     </Pressable>
@@ -455,6 +501,14 @@ export default function App() {
                   )}
                 </View>
               ))}
+              <View style={styles.newChannelRow}>
+                <Pressable style={styles.secondary} onPress={onLeaveGroup} disabled={ownRole === "OWNER"}>
+                  <Text style={styles.primaryText}>Gruppe verlassen</Text>
+                </Pressable>
+              </View>
+              {ownRole === "OWNER" && (
+                <Text style={styles.subtitle}>Übertrage erst den Owner an ein anderes Mitglied.</Text>
+              )}
             </View>
           )}
 

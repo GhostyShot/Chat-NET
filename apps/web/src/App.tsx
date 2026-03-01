@@ -17,11 +17,13 @@ import {
   login,
   loginWithGoogle,
   markRead,
+  leaveChannel,
   removeChannelMember,
   searchMessages,
   register,
   resetPassword,
   sendMessage,
+  transferChannelOwnership,
   updateChannelMemberRole,
   updateProfile,
   updateMessage,
@@ -648,6 +650,24 @@ export function App() {
     }
   };
 
+  const refreshChannelList = async (preferredChannelId?: string | null) => {
+    if (!auth) {
+      return;
+    }
+    const list = await listChannels(auth.tokens.accessToken);
+    setChannels(list);
+    setActiveChannelId((current) => {
+      if (preferredChannelId === null) {
+        return list[0]?.id ?? null;
+      }
+      const desired = preferredChannelId ?? current;
+      if (desired && list.some((entry) => entry.id === desired)) {
+        return desired;
+      }
+      return list[0]?.id ?? null;
+    });
+  };
+
   const onToggleMemberRole = async (member: ChannelMemberItem) => {
     if (!auth || !activeChannelId || !canManageRoles) {
       return;
@@ -676,6 +696,37 @@ export function App() {
       setMessage(`@${member.user.username} wurde entfernt.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Mitglied konnte nicht entfernt werden");
+    }
+  };
+
+  const onTransferOwnership = async (member: ChannelMemberItem) => {
+    if (!auth || !activeChannelId || !canManageRoles) {
+      return;
+    }
+
+    try {
+      await transferChannelOwnership(auth.tokens.accessToken, activeChannelId, member.userId);
+      const members = await listChannelMembers(auth.tokens.accessToken, activeChannelId);
+      setChannelMembers(members);
+      await refreshChannelList(activeChannelId);
+      setMessage(`Owner wurde an @${member.user.username} übertragen.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Owner konnte nicht übertragen werden");
+    }
+  };
+
+  const onLeaveGroup = async () => {
+    if (!auth || !activeChannelId || !activeChannel || activeChannel.type !== "GROUP") {
+      return;
+    }
+
+    try {
+      await leaveChannel(auth.tokens.accessToken, activeChannelId);
+      setChannelMembers([]);
+      await refreshChannelList(null);
+      setMessage("Du hast die Gruppe verlassen.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Gruppe konnte nicht verlassen werden");
     }
   };
 
@@ -889,6 +940,11 @@ export function App() {
                           </div>
                           <div className="member-actions">
                             {canManageRoles && member.role !== "OWNER" && !isSelf && (
+                              <button className="secondary compact" onClick={() => onTransferOwnership(member)}>
+                                Owner geben
+                              </button>
+                            )}
+                            {canManageRoles && member.role !== "OWNER" && !isSelf && (
                               <button className="secondary compact" onClick={() => onToggleMemberRole(member)}>
                                 {member.role === "ADMIN" ? "Zu Member" : "Zu Admin"}
                               </button>
@@ -904,6 +960,18 @@ export function App() {
                     })}
                     {!channelMembers.length && <p className="inline-note">Keine Mitgliederdaten verfügbar.</p>}
                   </div>
+                  <div className="member-actions member-footer-actions">
+                    <button
+                      className="secondary compact"
+                      onClick={onLeaveGroup}
+                      disabled={ownMembershipRole === "OWNER"}
+                    >
+                      Gruppe verlassen
+                    </button>
+                  </div>
+                  {ownMembershipRole === "OWNER" && (
+                    <p className="inline-note">Übertrage erst den Owner an ein anderes Mitglied, bevor du die Gruppe verlässt.</p>
+                  )}
                 </div>
               )}
 
