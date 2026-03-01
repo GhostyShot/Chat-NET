@@ -7,6 +7,13 @@ export interface ChannelItem {
   type: "DIRECT" | "GROUP";
   name: string | null;
   updatedAt: string;
+  memberships?: Array<{
+    user: {
+      id: string;
+      username?: string;
+      displayName: string;
+    };
+  }>;
 }
 
 export interface MessageItem {

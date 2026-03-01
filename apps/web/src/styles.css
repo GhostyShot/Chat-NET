@@ -473,6 +473,52 @@ button {
   align-items: end;
 }
 
+.composer-input-wrap {
+  position: relative;
+}
+
+.composer-input-wrap textarea {
+  width: 100%;
+}
+
+.mention-suggestions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 10;
+  border: 1px solid var(--input-border);
+  border-radius: 12px;
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-soft);
+  padding: 6px;
+  display: grid;
+  gap: 4px;
+}
+
+.mention-option {
+  text-align: left;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-main);
+}
+
+.mention-option small {
+  color: var(--text-sub);
+}
+
+.mention-option.active,
+.mention-option:hover {
+  border-color: var(--input-border);
+  background: color-mix(in srgb, var(--accent) 16%, var(--input-bg));
+}
+
 .upload-button {
   border: 1px solid var(--input-border);
   background: var(--btn-secondary);

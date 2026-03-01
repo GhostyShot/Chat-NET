@@ -90,6 +90,7 @@ export function App() {
   const [newChannelName, setNewChannelName] = useState("");
   const [typingHint, setTypingHint] = useState("");
   const socketRef = useRef<Socket | null>(null);
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const [presenceMap, setPresenceMap] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<MessageItem[]>([]);
@@ -101,6 +102,8 @@ export function App() {
   const [profileNickname, setProfileNickname] = useState("");
   const [profileUsername, setProfileUsername] = useState("");
   const [mentionNotice, setMentionNotice] = useState("");
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionIndex, setMentionIndex] = useState(0);
   const [googleReady, setGoogleReady] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
 
@@ -108,6 +111,44 @@ export function App() {
     () => channels.find((channel) => channel.id === activeChannelId) ?? null,
     [channels, activeChannelId]
   );
+
+  const mentionCandidates = useMemo(() => {
+    const candidates = new Map<string, string>();
+    const addCandidate = (username?: string, displayName?: string) => {
+      if (!username) {
+        return;
+      }
+      const normalized = username.toLowerCase();
+      if (!/^[a-z0-9_]{3,24}$/u.test(normalized)) {
+        return;
+      }
+      if (!candidates.has(normalized)) {
+        candidates.set(normalized, displayName ?? normalized);
+      }
+    };
+
+    addCandidate(auth?.user.username, auth?.user.displayName);
+
+    for (const message of messages) {
+      addCandidate(message.sender.username, message.sender.displayName);
+    }
+
+    for (const membership of activeChannel?.memberships ?? []) {
+      addCandidate(membership.user.username, membership.user.displayName);
+    }
+
+    return Array.from(candidates.entries()).map(([username, displayName]) => ({ username, displayName }));
+  }, [auth?.user.displayName, auth?.user.username, messages, activeChannel?.memberships]);
+
+  const filteredMentionCandidates = useMemo(() => {
+    if (mentionQuery === null) {
+      return [];
+    }
+    const normalized = mentionQuery.toLowerCase();
+    return mentionCandidates
+      .filter((item) => item.username.startsWith(normalized) && item.username !== auth?.user.username)
+      .slice(0, 6);
+  }, [mentionCandidates, mentionQuery, auth?.user.username]);
 
   useEffect(() => {
     if (!auth) {
@@ -496,6 +537,42 @@ export function App() {
     }
   };
 
+  const updateMentionState = (value: string, caretPosition: number) => {
+    const uptoCaret = value.slice(0, caretPosition);
+    const match = uptoCaret.match(/(?:^|\s)@([a-z0-9_]*)$/iu);
+    if (!match) {
+      setMentionQuery(null);
+      setMentionIndex(0);
+      return;
+    }
+    setMentionQuery((match[1] ?? "").toLowerCase());
+    setMentionIndex(0);
+  };
+
+  const insertMention = (username: string) => {
+    const textarea = composerRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    const caret = textarea.selectionStart ?? composerText.length;
+    const before = composerText.slice(0, caret);
+    const after = composerText.slice(caret);
+    const replacedBefore = before.replace(/(?:^|\s)@([a-z0-9_]*)$/iu, (full) => {
+      const prefix = full.startsWith(" ") ? " " : "";
+      return `${prefix}@${username} `;
+    });
+    const nextValue = `${replacedBefore}${after}`;
+    setComposerText(nextValue);
+    setMentionQuery(null);
+
+    window.requestAnimationFrame(() => {
+      const nextCaret = replacedBefore.length;
+      textarea.focus();
+      textarea.setSelectionRange(nextCaret, nextCaret);
+    });
+  };
+
   const onStartDirectByUsername = async () => {
     if (!auth || !inviteUsername.trim()) {
       return;
@@ -532,6 +609,28 @@ export function App() {
   };
 
   const onComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (mentionQuery !== null && filteredMentionCandidates.length > 0) {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setMentionIndex((current) => (current + 1) % filteredMentionCandidates.length);
+        return;
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setMentionIndex((current) => (current - 1 + filteredMentionCandidates.length) % filteredMentionCandidates.length);
+        return;
+      }
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        insertMention(filteredMentionCandidates[mentionIndex]?.username ?? filteredMentionCandidates[0].username);
+        return;
+      }
+      if (event.key === "Escape") {
+        setMentionQuery(null);
+        return;
+      }
+    }
+
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       void onSendMessage();
@@ -811,18 +910,37 @@ export function App() {
                   Datei
                 </label>
                 <input id="upload-input" className="file-input" type="file" onChange={onUploadSelected} />
-                <textarea
+                <div className="composer-input-wrap">
+                  <textarea
+                    ref={composerRef}
                   value={composerText}
                   onChange={(event) => {
                     const next = event.target.value;
                     setComposerText(next);
+                    updateMentionState(next, event.target.selectionStart ?? next.length);
                     if (auth && activeChannelId && next.trim() && socketRef.current) {
                       socketRef.current.emit("typing", { roomId: activeChannelId, userId: auth.user.id });
                     }
                   }}
                   onKeyDown={onComposerKeyDown}
                   placeholder="Schreibe eine Nachricht... (Enter = senden, Shift+Enter = Zeilenumbruch)"
-                />
+                  />
+                  {mentionQuery !== null && filteredMentionCandidates.length > 0 && (
+                    <div className="mention-suggestions">
+                      {filteredMentionCandidates.map((item, index) => (
+                        <button
+                          key={item.username}
+                          type="button"
+                          className={index === mentionIndex ? "mention-option active" : "mention-option"}
+                          onClick={() => insertMention(item.username)}
+                        >
+                          <span>@{item.username}</span>
+                          <small>{item.displayName}</small>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button className="primary" onClick={onSendMessage}>
                   Senden
                 </button>
