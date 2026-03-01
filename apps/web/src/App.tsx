@@ -35,7 +35,13 @@ import {
 } from "./lib/api";
 
 type Mode = "login" | "register" | "forgot" | "reset";
-type BadgeKey = "verified_blue" | "vip" | "legend" | "core_team";
+type BadgeId = string;
+type BadgeDefinition = {
+  id: BadgeId;
+  label: string;
+  shortLabel: string;
+  style?: "default" | "verified_blue" | "owner_chatnet";
+};
 
 type GoogleCredentialResponse = {
   credential?: string;
@@ -73,11 +79,12 @@ const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefin
 const platformOwnerUserId = (import.meta.env.VITE_PLATFORM_OWNER_USER_ID as string | undefined)?.trim();
 const PLATFORM_OWNER_FALLBACK_USERNAME = "paul_fmp";
 const BADGE_STORAGE_PREFIX = "chat-net-custom-badges";
-const BADGE_OPTIONS: Array<{ key: BadgeKey; label: string; shortLabel: string }> = [
-  { key: "verified_blue", label: "Blauer Haken (X Style)", shortLabel: "✓" },
-  { key: "vip", label: "VIP", shortLabel: "VIP" },
-  { key: "legend", label: "Legend", shortLabel: "LEGEND" },
-  { key: "core_team", label: "Core Team", shortLabel: "TEAM" }
+const DEFAULT_BADGE_DEFINITIONS: BadgeDefinition[] = [
+  { id: "owner_chatnet", label: "Owner (Logo + OWNER)", shortLabel: "OWNER", style: "owner_chatnet" },
+  { id: "verified_blue", label: "Blauer Haken (X Style)", shortLabel: "✓", style: "verified_blue" },
+  { id: "vip", label: "VIP", shortLabel: "VIP" },
+  { id: "legend", label: "Legend", shortLabel: "LEGEND" },
+  { id: "core_team", label: "Core Team", shortLabel: "TEAM" }
 ];
 
 export function App() {
@@ -132,8 +139,11 @@ export function App() {
   const [googleRenderAttempt, setGoogleRenderAttempt] = useState(0);
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
   const [showAuthPage, setShowAuthPage] = useState(false);
-  const [customBadgesByUserId, setCustomBadgesByUserId] = useState<Record<string, BadgeKey[]>>({});
+  const [badgeDefinitions, setBadgeDefinitions] = useState<BadgeDefinition[]>(DEFAULT_BADGE_DEFINITIONS);
+  const [customBadgesByUserId, setCustomBadgesByUserId] = useState<Record<string, BadgeId[]>>({});
   const [badgeTargetUserId, setBadgeTargetUserId] = useState("");
+  const [newBadgeLabel, setNewBadgeLabel] = useState("");
+  const [newBadgeShortLabel, setNewBadgeShortLabel] = useState("");
 
   const isPlatformOwner = (userId?: string, username?: string) => {
     const normalizedUsername = username?.toLowerCase();
@@ -142,11 +152,24 @@ export function App() {
 
   const currentUserIsPlatformOwner = isPlatformOwner(auth?.user.id, auth?.user.username);
 
+  const badgeDefinitionById = useMemo(() => {
+    const map = new Map<BadgeId, BadgeDefinition>();
+    for (const definition of badgeDefinitions) {
+      map.set(definition.id, definition);
+    }
+    return map;
+  }, [badgeDefinitions]);
+
   const renderPlatformOwnerBadge = (userId?: string, username?: string) => {
     if (!isPlatformOwner(userId, username)) {
       return null;
     }
-    return <img src="/chat-net-logo.svg" alt="Chat-Net Owner" className="owner-logo-badge" />;
+    return (
+      <span className="owner-pill-badge" title="Chat-Net Owner">
+        <img src="/chat-net-logo.svg" alt="Chat-Net Owner" className="owner-logo-badge" />
+        <span>OWNER</span>
+      </span>
+    );
   };
 
   const renderCustomBadges = (userId?: string) => {
@@ -160,14 +183,22 @@ export function App() {
     return (
       <span className="custom-badge-row">
         {badges.map((badge) => {
-          const badgeMeta = BADGE_OPTIONS.find((entry) => entry.key === badge);
+          const badgeMeta = badgeDefinitionById.get(badge);
           if (!badgeMeta) {
             return null;
           }
-          if (badge === "verified_blue") {
+          if (badgeMeta.style === "verified_blue") {
             return (
               <span key={`${userId}-${badge}`} className="custom-badge verified-blue" title={badgeMeta.label}>
                 ✓
+              </span>
+            );
+          }
+          if (badgeMeta.style === "owner_chatnet") {
+            return (
+              <span key={`${userId}-${badge}`} className="custom-badge owner-custom" title={badgeMeta.label}>
+                <img src="/chat-net-logo.svg" alt="" className="owner-custom-logo" />
+                <span>{badgeMeta.shortLabel}</span>
               </span>
             );
           }
@@ -310,18 +341,58 @@ export function App() {
 
   useEffect(() => {
     if (!auth || !currentUserIsPlatformOwner) {
+      setBadgeDefinitions(DEFAULT_BADGE_DEFINITIONS);
       setCustomBadgesByUserId({});
       return;
     }
     try {
       const raw = window.localStorage.getItem(`${BADGE_STORAGE_PREFIX}:${auth.user.id}`);
       if (!raw) {
+        setBadgeDefinitions(DEFAULT_BADGE_DEFINITIONS);
         setCustomBadgesByUserId({});
         return;
       }
-      const parsed = JSON.parse(raw) as Record<string, BadgeKey[]>;
-      setCustomBadgesByUserId(parsed ?? {});
+      const parsed: unknown = JSON.parse(raw);
+
+      const isBadgeDefinition = (value: unknown): value is BadgeDefinition => {
+        if (!value || typeof value !== "object") {
+          return false;
+        }
+        const candidate = value as Record<string, unknown>;
+        return typeof candidate.id === "string" && typeof candidate.label === "string" && typeof candidate.shortLabel === "string";
+      };
+
+      const sanitizeAssignments = (value: unknown): Record<string, BadgeId[]> => {
+        if (!value || typeof value !== "object" || Array.isArray(value)) {
+          return {};
+        }
+        const result: Record<string, BadgeId[]> = {};
+        for (const [userId, badges] of Object.entries(value)) {
+          if (Array.isArray(badges)) {
+            result[userId] = badges.filter((badge): badge is BadgeId => typeof badge === "string");
+          }
+        }
+        return result;
+      };
+
+      const parsedAsObject = parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+
+      if (parsedAsObject && ("assignments" in parsedAsObject || "definitions" in parsedAsObject)) {
+        const definitionsRaw = Array.isArray(parsedAsObject.definitions)
+          ? parsedAsObject.definitions.filter((entry): entry is BadgeDefinition => isBadgeDefinition(entry))
+          : DEFAULT_BADGE_DEFINITIONS;
+        const mergedDefinitions = [
+          ...DEFAULT_BADGE_DEFINITIONS,
+          ...definitionsRaw.filter((entry) => !DEFAULT_BADGE_DEFINITIONS.some((base) => base.id === entry.id))
+        ];
+        setBadgeDefinitions(mergedDefinitions);
+        setCustomBadgesByUserId(sanitizeAssignments(parsedAsObject.assignments));
+      } else {
+        setBadgeDefinitions(DEFAULT_BADGE_DEFINITIONS);
+        setCustomBadgesByUserId(sanitizeAssignments(parsed));
+      }
     } catch {
+      setBadgeDefinitions(DEFAULT_BADGE_DEFINITIONS);
       setCustomBadgesByUserId({});
     }
   }, [auth, currentUserIsPlatformOwner]);
@@ -330,8 +401,11 @@ export function App() {
     if (!auth || !currentUserIsPlatformOwner) {
       return;
     }
-    window.localStorage.setItem(`${BADGE_STORAGE_PREFIX}:${auth.user.id}`, JSON.stringify(customBadgesByUserId));
-  }, [auth, customBadgesByUserId, currentUserIsPlatformOwner]);
+    window.localStorage.setItem(
+      `${BADGE_STORAGE_PREFIX}:${auth.user.id}`,
+      JSON.stringify({ assignments: customBadgesByUserId, definitions: badgeDefinitions })
+    );
+  }, [auth, customBadgesByUserId, currentUserIsPlatformOwner, badgeDefinitions]);
 
   useEffect(() => {
     if (!knownUsers.length) {
@@ -346,7 +420,7 @@ export function App() {
     });
   }, [knownUsers]);
 
-  const toggleBadgeForUser = (userId: string, badge: BadgeKey) => {
+  const toggleBadgeForUser = (userId: string, badge: BadgeId) => {
     setCustomBadgesByUserId((previous) => {
       const current = previous[userId] ?? [];
       const hasBadge = current.includes(badge);
@@ -357,6 +431,30 @@ export function App() {
       }
       return { ...previous, [userId]: next };
     });
+  };
+
+  const createCustomBadge = () => {
+    const label = newBadgeLabel.trim();
+    const shortLabel = newBadgeShortLabel.trim().toUpperCase();
+    if (!label || !shortLabel || shortLabel.length > 10) {
+      setMessage("Badge braucht Namen und ein kurzes Label (max. 10 Zeichen).");
+      return;
+    }
+    const id = `custom_${label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")}`;
+    if (!id || badgeDefinitions.some((entry) => entry.id === id)) {
+      setMessage("Badge existiert bereits. Nutze einen anderen Namen.");
+      return;
+    }
+
+    const newDefinition: BadgeDefinition = { id, label, shortLabel };
+    setBadgeDefinitions((previous) => [...previous, newDefinition]);
+    if (auth?.user.id) {
+      toggleBadgeForUser(auth.user.id, id);
+      setBadgeTargetUserId(auth.user.id);
+    }
+    setNewBadgeLabel("");
+    setNewBadgeShortLabel("");
+    setMessage("Neues Badge erstellt und dir zugewiesen.");
   };
 
   useEffect(() => {
@@ -1180,14 +1278,14 @@ export function App() {
 
                 {badgeTargetUser && (
                   <div className="owner-studio-badges">
-                    {BADGE_OPTIONS.map((badge) => {
-                      const active = (customBadgesByUserId[badgeTargetUser.id] ?? []).includes(badge.key);
+                    {badgeDefinitions.map((badge) => {
+                      const active = (customBadgesByUserId[badgeTargetUser.id] ?? []).includes(badge.id);
                       return (
-                        <label key={badge.key} className={active ? "badge-toggle active" : "badge-toggle"}>
+                        <label key={badge.id} className={active ? "badge-toggle active" : "badge-toggle"}>
                           <input
                             type="checkbox"
                             checked={active}
-                            onChange={() => toggleBadgeForUser(badgeTargetUser.id, badge.key)}
+                            onChange={() => toggleBadgeForUser(badgeTargetUser.id, badge.id)}
                           />
                           <span>{badge.label}</span>
                         </label>
@@ -1195,6 +1293,26 @@ export function App() {
                     })}
                   </div>
                 )}
+
+                <div className="owner-studio-create">
+                  <p className="inline-note">Eigenes Badge erstellen (wird automatisch dir zugewiesen)</p>
+                  <div className="owner-studio-create-grid">
+                    <input
+                      value={newBadgeLabel}
+                      onChange={(event) => setNewBadgeLabel(event.target.value)}
+                      placeholder="Badge Name (z. B. Founder)"
+                    />
+                    <input
+                      value={newBadgeShortLabel}
+                      onChange={(event) => setNewBadgeShortLabel(event.target.value)}
+                      placeholder="Kurzlabel (z. B. FND)"
+                      maxLength={10}
+                    />
+                    <button className="secondary" onClick={createCustomBadge}>
+                      Badge erstellen
+                    </button>
+                  </div>
+                </div>
               </div>
             </section>
           )}

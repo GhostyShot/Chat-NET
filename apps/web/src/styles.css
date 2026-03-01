@@ -505,9 +505,24 @@ button:hover {
 .owner-logo-badge {
   width: 14px;
   height: 14px;
-  margin-left: 6px;
-  vertical-align: -2px;
+  margin-left: 0;
+  vertical-align: middle;
   filter: drop-shadow(0 1px 4px color-mix(in srgb, var(--accent) 35%, transparent));
+}
+
+.owner-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  border-radius: 999px;
+  padding: 1px 7px;
+  border: 1px solid color-mix(in srgb, var(--accent) 52%, var(--input-border));
+  background: color-mix(in srgb, var(--accent) 16%, var(--input-bg));
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
 }
 
 .custom-badge-row {
@@ -544,6 +559,18 @@ button:hover {
   font-size: 11px;
 }
 
+.custom-badge.owner-custom {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+}
+
+.owner-custom-logo {
+  width: 11px;
+  height: 11px;
+}
+
 .owner-studio {
   margin-top: 6px;
   border: 1px dashed var(--input-border);
@@ -565,6 +592,18 @@ button:hover {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 6px;
+}
+
+.owner-studio-create {
+  border-top: 1px dashed var(--input-border);
+  margin-top: 4px;
+  padding-top: 8px;
+}
+
+.owner-studio-create-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(120px, 160px) auto;
+  gap: 8px;
 }
 
 .badge-toggle {
@@ -992,6 +1031,10 @@ button:hover {
   }
 
   .composer {
+    grid-template-columns: 1fr;
+  }
+
+  .owner-studio-create-grid {
     grid-template-columns: 1fr;
   }
 }
