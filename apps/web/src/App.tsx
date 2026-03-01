@@ -166,6 +166,7 @@ export function App() {
   const [typingHint, setTypingHint] = useState("");
   const socketRef = useRef<Socket | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const messageListRef = useRef<HTMLDivElement | null>(null);
   const [presenceMap, setPresenceMap] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<MessageItem[]>([]);
@@ -195,6 +196,7 @@ export function App() {
   const [uploadsEnabledForAll, setUploadsEnabledForAll] = useState(true);
   const [canManagePlatformSettings, setCanManagePlatformSettings] = useState(false);
   const [platformToggleLoading, setPlatformToggleLoading] = useState(false);
+  const [unreadByChannelId, setUnreadByChannelId] = useState<Record<string, number>>({});
 
   const isPlatformOwner = (userId?: string, username?: string) => {
     const normalizedUsername = username?.toLowerCase();
@@ -267,6 +269,18 @@ export function App() {
     () => channels.find((channel) => channel.id === activeChannelId) ?? null,
     [channels, activeChannelId]
   );
+
+  const sortedChannels = useMemo(() => {
+    const parseTimestamp = (value?: string) => {
+      if (!value) {
+        return 0;
+      }
+      const parsed = Date.parse(value);
+      return Number.isNaN(parsed) ? 0 : parsed;
+    };
+
+    return [...channels].sort((left, right) => parseTimestamp(right.updatedAt) - parseTimestamp(left.updatedAt));
+  }, [channels]);
 
   const getChannelDisplayName = (channel: ChannelItem | null) => {
     if (!channel) {
@@ -652,6 +666,27 @@ export function App() {
   }, [auth, activeChannelId]);
 
   useEffect(() => {
+    if (!activeChannelId) {
+      return;
+    }
+    setUnreadByChannelId((previous) => {
+      if (!previous[activeChannelId]) {
+        return previous;
+      }
+      const { [activeChannelId]: _removed, ...rest } = previous;
+      return rest;
+    });
+  }, [activeChannelId]);
+
+  useEffect(() => {
+    const listElement = messageListRef.current;
+    if (!listElement) {
+      return;
+    }
+    listElement.scrollTo({ top: listElement.scrollHeight, behavior: "smooth" });
+  }, [messages, activeChannelId]);
+
+  useEffect(() => {
     const loadMembers = async () => {
       if (!auth || !activeChannelId || !activeChannel || activeChannel.type !== "GROUP") {
         setChannelMembers([]);
@@ -682,17 +717,41 @@ export function App() {
     socketRef.current = socket;
 
     const onNewMessage = (incoming: MessageItem) => {
-      if (activeChannelId && incoming.channelId && incoming.channelId !== activeChannelId) {
-        return;
+      const incomingChannelId = incoming.channelId;
+      const isOwnMessage = incoming.sender.id === auth.user.id;
+      const isActiveChannel = Boolean(incomingChannelId && incomingChannelId === activeChannelId);
+
+      if (incomingChannelId) {
+        setChannels((previous) =>
+          previous.map((channel) =>
+            channel.id === incomingChannelId
+              ? {
+                  ...channel,
+                  updatedAt: incoming.createdAt || new Date().toISOString()
+                }
+              : channel
+          )
+        );
       }
 
       const ownUsername = auth.user.username?.toLowerCase();
       if (
         ownUsername &&
-        incoming.sender.id !== auth.user.id &&
+        !isOwnMessage &&
         incoming.content.toLowerCase().includes(`@${ownUsername}`)
       ) {
         setMentionNotice(`🔔 Mention von ${incoming.sender.displayName}`);
+      }
+
+      if (!isActiveChannel && incomingChannelId && !isOwnMessage) {
+        setUnreadByChannelId((previous) => ({
+          ...previous,
+          [incomingChannelId]: (previous[incomingChannelId] ?? 0) + 1
+        }));
+      }
+
+      if (!isActiveChannel) {
+        return;
       }
 
       setMessages((previous) => {
@@ -1542,7 +1601,9 @@ export function App() {
               )}
 
               <div className="channel-items">
-                {channels.map((channel) => (
+                {sortedChannels.map((channel) => {
+                  const unreadCount = unreadByChannelId[channel.id] ?? 0;
+                  return (
                   <button
                     key={channel.id}
                     className={channel.id === activeChannelId ? "channel-item active" : "channel-item"}
@@ -1552,9 +1613,13 @@ export function App() {
                       <span className="channel-name">{getChannelDisplayName(channel)}</span>
                       <small className="channel-subline">Letzte Aktivität {formatTimeLabel(channel.updatedAt)}</small>
                     </div>
-                    <span className="channel-kind">{getChannelTypeLabel(channel)}</span>
+                    <div className="channel-side">
+                      <span className="channel-kind">{getChannelTypeLabel(channel)}</span>
+                      {unreadCount > 0 ? <span className="channel-unread">{unreadCount > 99 ? "99+" : unreadCount}</span> : null}
+                    </div>
                   </button>
-                ))}
+                  );
+                })}
                 {!channels.length && <p className="empty-hint">Noch keine Kanäle vorhanden.</p>}
               </div>
             </aside>
@@ -1586,7 +1651,7 @@ export function App() {
                 </div>
               )}
 
-              <div className="message-list">
+              <div className="message-list" ref={messageListRef}>
                 {messages.map((entry) => {
                   const ownMessage = entry.sender.id === auth.user.id;
                   const showActions = activeMessageId === entry.id;

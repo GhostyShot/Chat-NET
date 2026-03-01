@@ -788,6 +788,28 @@ button:hover {
   background: color-mix(in srgb, var(--surface-panel) 76%, transparent);
 }
 
+.channel-side {
+  display: grid;
+  justify-items: end;
+  align-content: start;
+  gap: 6px;
+}
+
+.channel-unread {
+  min-width: 22px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--accent) 65%, var(--input-border));
+  background: color-mix(in srgb, var(--accent) 32%, var(--input-bg));
+  color: var(--text-main);
+  font-size: 10px;
+  font-weight: 700;
+}
+
 .channel-item:hover {
   border-color: color-mix(in srgb, var(--accent) 44%, var(--input-border));
 }
@@ -1203,6 +1225,12 @@ button:hover {
   }
 
   .channel-kind {
+    font-size: 9px;
+  }
+
+  .channel-unread {
+    min-width: 20px;
+    height: 17px;
     font-size: 9px;
   }
 }
