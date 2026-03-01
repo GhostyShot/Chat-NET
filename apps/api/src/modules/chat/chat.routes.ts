@@ -1,7 +1,6 @@
 import { Router } from "express";
 import type { Response } from "express";
 import fs from "node:fs";
-import path from "node:path";
 import multer from "multer";
 import { requireAuth, type AuthenticatedRequest } from "./chat.auth.js";
 import { chatService } from "./chat.service.js";
@@ -16,6 +15,7 @@ import {
 } from "./chat.validators.js";
 import { getRealtimeServer } from "../../realtime.state.js";
 import { getBulkPresence } from "../../realtime.presence.js";
+import { appConfig } from "../../config.js";
 
 function singleParam(value: string | string[] | undefined): string | undefined {
   if (!value) {
@@ -46,7 +46,7 @@ export const chatRouter = Router();
 
 chatRouter.use(requireAuth);
 
-const uploadDir = path.resolve(process.cwd(), "apps/api/uploads");
+const uploadDir = appConfig.uploadDir;
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -376,11 +376,12 @@ chatRouter.post("/upload", upload.single("file"), async (req: AuthenticatedReque
   }
 
   const host = req.get("host");
-  if (!host) {
-    return res.status(500).json({ error: "HOST_MISSING" });
+  const baseUrl = appConfig.publicBaseUrl || (host ? `${req.protocol}://${host}` : "");
+  if (!baseUrl) {
+    return res.status(500).json({ error: "PUBLIC_BASE_URL_MISSING" });
   }
 
-  const fileUrl = `${req.protocol}://${host}/uploads/${encodeURIComponent(req.file.filename)}`;
+  const fileUrl = `${baseUrl.replace(/\/$/, "")}/uploads/${encodeURIComponent(req.file.filename)}`;
   return res.json({
     url: fileUrl,
     filename: req.file.originalname,
