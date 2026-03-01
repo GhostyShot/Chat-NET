@@ -1,6 +1,7 @@
 import type { AuthResponse } from "@chatnet/shared";
 
-const API_URL = "http://localhost:4000";
+const runtimeEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+export const API_URL = runtimeEnv?.EXPO_PUBLIC_API_URL ?? "http://localhost:4000";
 
 export interface ChannelItem {
   id: string;

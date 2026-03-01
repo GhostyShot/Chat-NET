@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { AuthResponse } from "@chatnet/shared";
 import { io, type Socket } from "socket.io-client";
-import { api, type ChannelItem, type MessageItem } from "./api";
+import { API_URL, api, type ChannelItem, type MessageItem } from "./api";
 
 type Mode = "login" | "register" | "forgot" | "reset" | "verify";
 
@@ -72,7 +72,7 @@ export default function App() {
       return;
     }
 
-    const socket: Socket = io("http://localhost:4000", {
+    const socket: Socket = io(API_URL, {
       auth: { token: auth.tokens.accessToken }
     });
     socketRef.current = socket;

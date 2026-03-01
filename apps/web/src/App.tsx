@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import type { AuthResponse } from "@chatnet/shared";
 import { io, type Socket } from "socket.io-client";
 import {
+  API_URL,
   blockUser,
   createGroupChannel,
   deleteMessage,
@@ -90,7 +91,7 @@ export function App() {
       return;
     }
 
-    const socket: Socket = io("http://localhost:4000", {
+    const socket: Socket = io(API_URL, {
       auth: {
         token: auth.tokens.accessToken
       }

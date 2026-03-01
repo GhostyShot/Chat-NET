@@ -38,7 +38,7 @@ Chat-Net ist eine Chatplattform für Web und Mobile mit Fokus auf junge Zielgrup
 
 - Google Login prüft ID Tokens über `google-auth-library`; für lokale Entwicklung können `dev_*` Tokens über `GOOGLE_ALLOW_DEV_TOKENS=true` genutzt werden.
 - User- und EmailToken-Daten werden über Prisma in PostgreSQL gespeichert.
-- Für mobile Tests muss `apps/mobile/src/api.ts` ggf. auf die lokale Rechner-IP statt `localhost` zeigen (Simulator/Device-Netzwerk).
+- Für mobile Tests/Deploys `apps/mobile/.env` mit `EXPO_PUBLIC_API_URL` setzen (z. B. lokale Rechner-IP statt `localhost` für Devices).
 
 ## Neon + Vercel Setup
 
