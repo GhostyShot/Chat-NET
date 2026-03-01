@@ -24,10 +24,14 @@ export async function verifyGoogleIdToken(idToken: string): Promise<VerifiedGoog
   }
 
   try {
-    const ticket = await googleClient.verifyIdToken({
-      idToken,
-      audience: appConfig.googleClientIds
-    });
+    const ticket = appConfig.googleStrictAudience
+      ? await googleClient.verifyIdToken({
+          idToken,
+          audience: appConfig.googleClientIds
+        })
+      : await googleClient.verifyIdToken({
+          idToken
+        });
     const payload = ticket.getPayload();
 
     if (!payload?.email) {

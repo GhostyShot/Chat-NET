@@ -58,6 +58,7 @@ export const appConfig = {
   jwtRefreshSecret: required("JWT_REFRESH_SECRET", "dev-refresh-secret-change-me"),
   googleClientId: googleClientIds[0],
   googleClientIds,
+  googleStrictAudience: (resolveSecretValue(process.env.GOOGLE_STRICT_AUDIENCE) ?? "false") === "true",
   googleAllowDevTokens: (process.env.GOOGLE_ALLOW_DEV_TOKENS ?? "true") === "true",
   uploadDir: process.env.UPLOAD_DIR ?? path.resolve(process.cwd(), "uploads"),
   publicBaseUrl: process.env.PUBLIC_BASE_URL ?? process.env.RENDER_EXTERNAL_URL ?? ""
