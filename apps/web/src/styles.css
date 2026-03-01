@@ -1,25 +1,26 @@
 :root {
   color-scheme: dark;
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  --bg-main: radial-gradient(circle at 20% 10%, #1d2d67 0%, #0b1020 40%, #080c18 100%);
-  --text-main: #e6ecff;
-  --text-sub: #a4b4e8;
-  --border-main: #2e4078;
-  --surface-main: rgba(10, 18, 40, 0.86);
-  --surface-panel: #0d1735;
-  --surface-brand: linear-gradient(160deg, #192a64 0%, #0f1a3b 60%, #0a1128 100%);
-  --input-bg: #121d3d;
-  --input-border: #3f518c;
-  --btn-primary: linear-gradient(140deg, #4f81ff, #3b62df);
-  --btn-primary-border: #4f81ff;
-  --btn-secondary: #1d2c57;
-  --accent: #5e8dff;
-  --bubble-bg: #132349;
-  --bubble-own-bg: #1a3270;
-  --bubble-border: #2d4277;
-  --banner-bg: #152b5e;
-  --banner-border: #4160ac;
-  --shadow-soft: 0 18px 48px rgba(0, 0, 0, 0.28);
+  font-family: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --bg-main: radial-gradient(circle at 18% 8%, #232327 0%, #0f0f11 42%, #08080a 100%);
+  --text-main: #f0f0f3;
+  --text-sub: #a8a9b3;
+  --border-main: #2c2d33;
+  --surface-main: rgba(18, 19, 23, 0.84);
+  --surface-panel: rgba(24, 25, 31, 0.84);
+  --surface-brand: linear-gradient(165deg, #1e1f25 0%, #17181d 58%, #111216 100%);
+  --input-bg: rgba(28, 29, 35, 0.9);
+  --input-border: #3b3d46;
+  --btn-primary: #2e3138;
+  --btn-primary-border: #4b4e57;
+  --btn-secondary: #262830;
+  --accent: #9a80ff;
+  --bubble-bg: rgba(31, 33, 40, 0.88);
+  --bubble-own-bg: rgba(40, 42, 54, 0.9);
+  --bubble-border: #3a3c49;
+  --banner-bg: rgba(37, 32, 58, 0.86);
+  --banner-border: #544497;
+  --shadow-soft: 0 18px 48px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent), 0 0 38px color-mix(in srgb, var(--accent) 20%, transparent);
   background: var(--bg-main);
   color: var(--text-main);
 }
@@ -80,8 +81,8 @@ body {
   border-radius: 24px;
   border: 1px solid var(--border-main);
   background: var(--surface-main);
-  backdrop-filter: blur(10px);
-  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--shadow-soft), var(--shadow-glow);
   display: grid;
   grid-template-columns: 1fr 1fr;
   overflow: hidden;
@@ -98,6 +99,7 @@ body {
 .auth-logo {
   width: 136px;
   height: auto;
+  filter: drop-shadow(0 8px 24px rgba(121, 94, 255, 0.25));
 }
 
 .auth-panel {
@@ -139,6 +141,8 @@ h1 {
   border: 1px solid var(--input-border);
   background: var(--input-bg);
   color: var(--text-main);
+  font-size: 13px;
+  padding: 8px 11px;
 }
 
 .tab.active {
@@ -180,11 +184,15 @@ button {
 .primary {
   background: var(--btn-primary);
   border-color: var(--btn-primary-border);
-  color: #fff;
+  color: var(--text-main);
 }
 
 .secondary {
   background: var(--btn-secondary);
+}
+
+button:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--input-border));
 }
 
 .compact {
@@ -214,6 +222,10 @@ button {
   min-height: 42px;
   display: grid;
   place-items: center;
+  border-radius: 12px;
+  padding: 4px;
+  background: color-mix(in srgb, var(--surface-panel) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--input-border) 75%, transparent);
 }
 
 .hint {
@@ -228,8 +240,8 @@ button {
   border-radius: 0;
   border: 1px solid var(--border-main);
   background: var(--surface-main);
-  backdrop-filter: blur(8px);
-  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-soft), var(--shadow-glow);
   padding: 16px;
   display: grid;
   gap: 16px;
@@ -251,6 +263,13 @@ button {
   width: 84px;
   height: auto;
   margin-bottom: 4px;
+  filter: drop-shadow(0 8px 24px rgba(121, 94, 255, 0.24));
+}
+
+.channel-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .user-block {
@@ -303,6 +322,7 @@ button {
   border: 1px solid var(--border-main);
   border-radius: 16px;
   background: var(--surface-panel);
+  backdrop-filter: blur(10px);
   padding: 14px;
   display: grid;
   gap: 12px;
@@ -608,6 +628,34 @@ button {
 
 .mention-banner {
   border-color: color-mix(in srgb, var(--accent) 70%, var(--banner-border));
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(7, 8, 12, 0.66);
+  backdrop-filter: blur(3px);
+  display: grid;
+  place-items: center;
+  z-index: 30;
+  padding: 16px;
+}
+
+.modal-panel {
+  width: min(460px, 100%);
+  border-radius: 14px;
+  border: 1px solid var(--border-main);
+  background: color-mix(in srgb, var(--surface-panel) 90%, #000 10%);
+  box-shadow: var(--shadow-soft), var(--shadow-glow);
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 @media (max-width: 980px) {

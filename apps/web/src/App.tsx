@@ -29,13 +29,12 @@ import {
   updateProfile,
   updateMessage,
   uploadFile,
-  verifyEmail,
   type ChannelMemberItem,
   type ChannelItem,
   type MessageItem
 } from "./lib/api";
 
-type Mode = "login" | "register" | "forgot" | "reset" | "verify";
+type Mode = "login" | "register" | "forgot" | "reset";
 
 type GoogleCredentialResponse = {
   credential?: string;
@@ -95,6 +94,9 @@ export function App() {
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [composerText, setComposerText] = useState("");
   const [newChannelName, setNewChannelName] = useState("");
+  const [createChannelModalOpen, setCreateChannelModalOpen] = useState(false);
+  const [directModalOpen, setDirectModalOpen] = useState(false);
+  const [addMemberModalOpen, setAddMemberModalOpen] = useState(false);
   const [typingHint, setTypingHint] = useState("");
   const socketRef = useRef<Socket | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
@@ -104,7 +106,8 @@ export function App() {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState("");
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
-  const [inviteUsername, setInviteUsername] = useState("");
+  const [directUsername, setDirectUsername] = useState("");
+  const [addMemberUsername, setAddMemberUsername] = useState("");
   const [channelMembers, setChannelMembers] = useState<ChannelMemberItem[]>([]);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileNickname, setProfileNickname] = useState("");
@@ -410,7 +413,7 @@ export function App() {
 
       googleButtonRef.current.innerHTML = "";
       window.google.accounts.id.renderButton(googleButtonRef.current, {
-        theme: "outline",
+        theme: theme === "dark" ? "filled_black" : "outline",
         size: "large",
         text: "continue_with",
         shape: "pill",
@@ -448,7 +451,7 @@ export function App() {
       cancelled = true;
       script.removeEventListener("load", renderGoogleButton);
     };
-  }, [auth]);
+  }, [auth, theme]);
 
   const submit = async () => {
     setLoading(true);
@@ -467,10 +470,6 @@ export function App() {
       if (mode === "reset") {
         await resetPassword(token, password);
         setMessage("Passwort wurde aktualisiert.");
-      }
-      if (mode === "verify") {
-        await verifyEmail(token);
-        setMessage("E-Mail wurde verifiziert.");
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unbekannter Fehler");
@@ -617,12 +616,12 @@ export function App() {
   };
 
   const onStartDirectByUsername = async () => {
-    if (!auth || !inviteUsername.trim()) {
+    if (!auth || !directUsername.trim()) {
       return;
     }
 
     try {
-      const channel = await createDirectByUsername(auth.tokens.accessToken, inviteUsername.trim());
+      const channel = await createDirectByUsername(auth.tokens.accessToken, directUsername.trim());
       setChannels((previous) => {
         if (previous.some((entry) => entry.id === channel.id)) {
           return previous;
@@ -630,7 +629,8 @@ export function App() {
         return [channel, ...previous];
       });
       setActiveChannelId(channel.id);
-      setInviteUsername("");
+      setDirectUsername("");
+      setDirectModalOpen(false);
       setMessage("Direktchat wurde erstellt.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Direktchat konnte nicht erstellt werden");
@@ -638,13 +638,14 @@ export function App() {
   };
 
   const onAddMemberByUsername = async () => {
-    if (!auth || !activeChannelId || !activeChannel || activeChannel.type !== "GROUP" || !inviteUsername.trim()) {
+    if (!auth || !activeChannelId || !activeChannel || activeChannel.type !== "GROUP" || !addMemberUsername.trim()) {
       return;
     }
 
     try {
-      await addGroupMemberByUsername(auth.tokens.accessToken, activeChannelId, inviteUsername.trim());
-      setInviteUsername("");
+      await addGroupMemberByUsername(auth.tokens.accessToken, activeChannelId, addMemberUsername.trim());
+      setAddMemberUsername("");
+      setAddMemberModalOpen(false);
       setMessage("Person wurde zur Gruppe hinzugefügt.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Person konnte nicht hinzugefügt werden");
@@ -749,6 +750,18 @@ export function App() {
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Gruppe konnte nicht gelöscht werden");
     }
+  };
+
+  const openCreateChannelModal = () => {
+    setCreateChannelModalOpen(true);
+  };
+
+  const onCreateChannelFromModal = async () => {
+    if (!auth || !newChannelName.trim()) {
+      return;
+    }
+    await onCreateChannel();
+    setCreateChannelModalOpen(false);
   };
 
   const onComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -912,35 +925,24 @@ export function App() {
                 <span>{channels.length}</span>
               </div>
 
-              <div className="new-channel-row">
-                <input
-                  value={newChannelName}
-                  onChange={(event) => setNewChannelName(event.target.value)}
-                  placeholder="Neuer Gruppenchat"
-                />
-                <button className="primary" onClick={onCreateChannel}>
-                  +
+              <div className="channel-toolbar">
+                <button className="secondary compact" onClick={openCreateChannelModal}>
+                  Neuer Channel
                 </button>
-              </div>
-
-              <div className="invite-box">
-                <input
-                  value={inviteUsername}
-                  onChange={(event) => setInviteUsername(event.target.value.toLowerCase())}
-                  placeholder="@username"
-                  type="text"
-                />
-                <button className="secondary" onClick={onStartDirectByUsername}>
+                <button className="secondary compact" onClick={() => setDirectModalOpen(true)}>
                   Direktchat
                 </button>
                 <button
-                  className="secondary"
-                  onClick={onAddMemberByUsername}
-                  disabled={!activeChannel || activeChannel.type !== "GROUP"}
+                  className="secondary compact"
+                  onClick={() => setAddMemberModalOpen(true)}
+                  disabled={!activeChannel || activeChannel.type !== "GROUP" || ownMembershipRole !== "OWNER"}
                 >
-                  Zur Gruppe
+                  Person hinzufügen
                 </button>
-                <p className="inline-note">Für "Zur Gruppe" musst du Owner eines Gruppenchats sein.</p>
+              </div>
+
+              <div className="inline-note">
+                Channel- und User-Aktionen öffnen jetzt als kleines Popup-Menü.
               </div>
 
               {activeChannel?.type === "GROUP" && (
@@ -1156,6 +1158,72 @@ export function App() {
 
           {message && <p className="message-banner">{message}</p>}
           {mentionNotice && <p className="message-banner mention-banner">{mentionNotice}</p>}
+
+          {createChannelModalOpen && (
+            <div className="modal-backdrop" onClick={() => setCreateChannelModalOpen(false)}>
+              <section className="modal-panel" onClick={(event) => event.stopPropagation()}>
+                <h3>Neuen Channel erstellen</h3>
+                <input
+                  value={newChannelName}
+                  onChange={(event) => setNewChannelName(event.target.value)}
+                  placeholder="Neuer Gruppenchat"
+                />
+                <div className="modal-actions">
+                  <button className="secondary" onClick={() => setCreateChannelModalOpen(false)}>
+                    Abbrechen
+                  </button>
+                  <button className="primary" onClick={onCreateChannelFromModal}>
+                    Erstellen
+                  </button>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {directModalOpen && (
+            <div className="modal-backdrop" onClick={() => setDirectModalOpen(false)}>
+              <section className="modal-panel" onClick={(event) => event.stopPropagation()}>
+                <h3>Direktchat starten</h3>
+                <input
+                  value={directUsername}
+                  onChange={(event) => setDirectUsername(event.target.value.toLowerCase())}
+                  placeholder="@username"
+                  type="text"
+                />
+                <div className="modal-actions">
+                  <button className="secondary" onClick={() => setDirectModalOpen(false)}>
+                    Abbrechen
+                  </button>
+                  <button className="primary" onClick={onStartDirectByUsername}>
+                    Starten
+                  </button>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {addMemberModalOpen && (
+            <div className="modal-backdrop" onClick={() => setAddMemberModalOpen(false)}>
+              <section className="modal-panel" onClick={(event) => event.stopPropagation()}>
+                <h3>Person zur Gruppe hinzufügen</h3>
+                <input
+                  value={addMemberUsername}
+                  onChange={(event) => setAddMemberUsername(event.target.value.toLowerCase())}
+                  placeholder="@username"
+                  type="text"
+                />
+                <p className="inline-note">Nur Owner können neue Mitglieder hinzufügen.</p>
+                <div className="modal-actions">
+                  <button className="secondary" onClick={() => setAddMemberModalOpen(false)}>
+                    Abbrechen
+                  </button>
+                  <button className="primary" onClick={onAddMemberByUsername}>
+                    Hinzufügen
+                  </button>
+                </div>
+              </section>
+            </div>
+          )}
         </section>
       </main>
     );
@@ -1184,9 +1252,6 @@ export function App() {
             </button>
             <button className={mode === "reset" ? "tab active" : "tab"} onClick={() => setMode("reset")}>
               Passwort zurücksetzen
-            </button>
-            <button className={mode === "verify" ? "tab active" : "tab"} onClick={() => setMode("verify")}>
-              E-Mail verifizieren
             </button>
           </div>
 
@@ -1227,7 +1292,7 @@ export function App() {
             </label>
           )}
 
-          {(mode === "reset" || mode === "verify") && (
+          {mode === "reset" && (
             <label>
               Token
               <input value={token} onChange={(event) => setToken(event.target.value)} type="text" placeholder="Token" />
