@@ -126,6 +126,13 @@ export function App() {
 
   const canModerateMembers = ownMembershipRole === "OWNER" || ownMembershipRole === "ADMIN";
   const canManageRoles = ownMembershipRole === "OWNER";
+  const memberRoleByUserId = useMemo(() => {
+    const roleMap = new Map<string, "OWNER" | "ADMIN" | "MEMBER">();
+    for (const membership of activeChannel?.memberships ?? []) {
+      roleMap.set(membership.user.id, membership.role);
+    }
+    return roleMap;
+  }, [activeChannel?.memberships]);
 
   const mentionCandidates = useMemo(() => {
     const candidates = new Map<string, string>();
@@ -779,6 +786,7 @@ export function App() {
                 <span className="status-dot" />
                 <span>
                   {auth.user.displayName}
+                  {ownMembershipRole === "OWNER" && <small className="owner-badge">👑 OWNER</small>}
                   <small className="chip-handle">@{auth.user.username}</small>
                 </span>
               </div>
@@ -953,7 +961,9 @@ export function App() {
                     >
                       <p className="message-meta">
                         {entry.sender.displayName}
-                        {entry.sender.username ? ` (@${entry.sender.username})` : ""} {presenceMap[entry.sender.id] ? "• online" : "• offline"}
+                        {entry.sender.username ? ` (@${entry.sender.username})` : ""}
+                        {memberRoleByUserId.get(entry.sender.id) === "OWNER" ? " 👑" : ""}
+                        {memberRoleByUserId.get(entry.sender.id) === "ADMIN" ? " ⭐" : ""} {presenceMap[entry.sender.id] ? "• online" : "• offline"}
                       </p>
 
                       {editingMessageId === entry.id ? (

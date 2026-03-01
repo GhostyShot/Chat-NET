@@ -35,6 +35,9 @@ export default function App() {
   const ownRole = activeChannel?.memberships?.find((membership) => membership.user.id === auth?.user.id)?.role ?? null;
   const canModerateMembers = ownRole === "OWNER" || ownRole === "ADMIN";
   const canManageRoles = ownRole === "OWNER";
+  const memberRoleByUserId = new Map<string, "OWNER" | "ADMIN" | "MEMBER">(
+    (activeChannel?.memberships ?? []).map((membership) => [membership.user.id, membership.role])
+  );
 
   useEffect(() => {
     const loadChannels = async () => {
@@ -379,7 +382,10 @@ export default function App() {
           <View style={styles.headerRow}>
             <View>
               <Text style={styles.title}>Chat-Net</Text>
-              <Text style={styles.subtitle}>{auth.user.displayName}</Text>
+              <Text style={styles.subtitle}>
+                {auth.user.displayName}
+                {ownRole === "OWNER" ? "  👑 OWNER" : ""}
+              </Text>
             </View>
             <Pressable
               style={styles.secondary}
@@ -494,7 +500,9 @@ export default function App() {
             {messages.map((entry) => (
               <View key={entry.id} style={styles.messageItem}>
                 <Text style={styles.messageMeta}>
-                  {entry.sender.displayName} {presenceMap[entry.sender.id] ? "• online" : "• offline"}
+                  {entry.sender.displayName}
+                  {memberRoleByUserId.get(entry.sender.id) === "OWNER" ? " 👑" : ""}
+                  {memberRoleByUserId.get(entry.sender.id) === "ADMIN" ? " ⭐" : ""} {presenceMap[entry.sender.id] ? "• online" : "• offline"}
                 </Text>
                 {editingMessageId === entry.id ? (
                   <View style={styles.newChannelRow}>

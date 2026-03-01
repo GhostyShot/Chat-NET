@@ -264,6 +264,17 @@ button {
   color: var(--text-sub);
 }
 
+.owner-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  border: 1px solid color-mix(in srgb, var(--accent) 65%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--input-bg));
+  color: var(--text-main);
+}
+
 .status-dot {
   width: 8px;
   height: 8px;
