@@ -95,6 +95,7 @@ export function App() {
   const [searchResults, setSearchResults] = useState<MessageItem[]>([]);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState("");
+  const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileNickname, setProfileNickname] = useState("");
@@ -596,7 +597,7 @@ export function App() {
 
   if (auth) {
     return (
-      <main className="app-shell">
+      <main className="app-shell chat-app-shell">
         <section className="chat-shell">
           <header className="chat-topbar">
             <div className="brand-block">
@@ -743,8 +744,13 @@ export function App() {
               <div className="message-list">
                 {messages.map((entry) => {
                   const ownMessage = entry.sender.id === auth.user.id;
+                  const showActions = activeMessageId === entry.id;
                   return (
-                    <article key={entry.id} className={ownMessage ? "message-bubble mine" : "message-bubble"}>
+                    <article
+                      key={entry.id}
+                      className={ownMessage ? "message-bubble mine" : "message-bubble"}
+                      onClick={() => setActiveMessageId((current) => (current === entry.id ? null : entry.id))}
+                    >
                       <p className="message-meta">
                         {entry.sender.displayName}
                         {entry.sender.username ? ` (@${entry.sender.username})` : ""} {presenceMap[entry.sender.id] ? "• online" : "• offline"}
@@ -772,7 +778,7 @@ export function App() {
                       )}
 
                       {ownMessage ? (
-                        <div className="message-actions">
+                        <div className={showActions ? "message-actions visible" : "message-actions"}>
                           <button className="secondary" onClick={() => onEditMessage(entry)}>
                             Bearbeiten
                           </button>
@@ -781,7 +787,10 @@ export function App() {
                           </button>
                         </div>
                       ) : (
-                        <button className="secondary compact" onClick={() => onBlockSender(entry.sender.id)}>
+                        <button
+                          className={showActions ? "secondary compact message-inline-action visible" : "secondary compact message-inline-action"}
+                          onClick={() => onBlockSender(entry.sender.id)}
+                        >
                           Blockieren
                         </button>
                       )}

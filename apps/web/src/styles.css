@@ -65,6 +65,12 @@ body {
   padding: 24px;
 }
 
+.chat-app-shell {
+  padding: 0;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
 .auth-shell {
   align-items: stretch;
 }
@@ -212,13 +218,14 @@ button {
 }
 
 .chat-shell {
-  width: min(1180px, 100%);
-  border-radius: 24px;
+  width: 100%;
+  min-height: 100dvh;
+  border-radius: 0;
   border: 1px solid var(--border-main);
   background: var(--surface-main);
   backdrop-filter: blur(8px);
   box-shadow: var(--shadow-soft);
-  padding: 20px;
+  padding: 16px;
   display: grid;
   gap: 16px;
 }
@@ -377,6 +384,7 @@ button {
   padding: 10px;
   display: grid;
   gap: 8px;
+  cursor: pointer;
 }
 
 .message-bubble.mine {
@@ -415,6 +423,32 @@ button {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.message-actions,
+.message-inline-action {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.message-bubble:hover .message-actions,
+.message-bubble:hover .message-inline-action,
+.message-bubble:focus-within .message-actions,
+.message-bubble:focus-within .message-inline-action,
+.message-actions.visible,
+.message-inline-action.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.message-actions button,
+.message-inline-action {
+  font-size: 12px;
+  padding: 6px 9px;
+  border-radius: 9px;
+  border-color: color-mix(in srgb, var(--input-border) 70%, transparent);
+  background: color-mix(in srgb, var(--btn-secondary) 72%, transparent);
 }
 
 .empty-state {
@@ -484,13 +518,17 @@ button {
     padding: 12px;
   }
 
+  .chat-app-shell {
+    padding: 0;
+  }
+
   .auth-brand,
   .auth-panel {
     padding: 18px;
   }
 
   .chat-shell {
-    padding: 12px;
+    padding: 10px;
   }
 
   .composer {
