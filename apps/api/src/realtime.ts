@@ -8,7 +8,7 @@ import { markConnected, markDisconnected } from "./realtime.presence.js";
 export function setupRealtime(server: HttpServer) {
   const io = new Server(server, {
     cors: {
-      origin: appConfig.webOrigin,
+      origin: appConfig.webOrigins,
       credentials: true
     }
   });
