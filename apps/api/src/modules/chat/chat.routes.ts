@@ -6,7 +6,7 @@ import { requireAuth, type AuthenticatedRequest } from "./chat.auth.js";
 import { chatService } from "./chat.service.js";
 import {
   createChannelSchema,
-  emailTargetSchema,
+  usernameTargetSchema,
   pagingQuerySchema,
   presenceQuerySchema,
   readReceiptSchema,
@@ -101,28 +101,28 @@ chatRouter.post("/channels", async (req: AuthenticatedRequest, res) => {
   );
 });
 
-chatRouter.post("/direct/by-email", async (req: AuthenticatedRequest, res) => {
+chatRouter.post("/direct/by-username", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
     return res.status(401).json({ error: "AUTH_REQUIRED" });
   }
 
-  const parsed = emailTargetSchema.safeParse(req.body);
+  const parsed = usernameTargetSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "INVALID_BODY", details: parsed.error.issues });
   }
 
   return withErrorBoundary(
     () =>
-      chatService.createDirectChannelByEmail({
+      chatService.createDirectChannelByUsername({
         ownerId: userId,
-        email: parsed.data.email
+        username: parsed.data.username
       }),
     res
   );
 });
 
-chatRouter.post("/channels/:channelId/members/by-email", async (req: AuthenticatedRequest, res) => {
+chatRouter.post("/channels/:channelId/members/by-username", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
     return res.status(401).json({ error: "AUTH_REQUIRED" });
@@ -133,17 +133,17 @@ chatRouter.post("/channels/:channelId/members/by-email", async (req: Authenticat
     return res.status(400).json({ error: "INVALID_CHANNEL_ID" });
   }
 
-  const parsed = emailTargetSchema.safeParse(req.body);
+  const parsed = usernameTargetSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "INVALID_BODY", details: parsed.error.issues });
   }
 
   return withErrorBoundary(
     () =>
-      chatService.addGroupMemberByEmail({
+      chatService.addGroupMemberByUsername({
         channelId,
         requesterId: userId,
-        email: parsed.data.email
+        username: parsed.data.username
       }),
     res
   );

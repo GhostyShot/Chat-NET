@@ -33,6 +33,11 @@ export const presenceQuerySchema = z.object({
   userIds: z.string().min(1)
 });
 
-export const emailTargetSchema = z.object({
-  email: z.string().trim().email().max(254)
+export const usernameTargetSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .transform((value) => value.replace(/^@/, ""))
+    .refine((value) => /^[a-z0-9_]{3,24}$/u.test(value), "USERNAME_INVALID_FORMAT")
 });

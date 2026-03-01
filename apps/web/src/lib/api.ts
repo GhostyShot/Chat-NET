@@ -180,11 +180,11 @@ export async function createGroupChannel(
   return payload as ChannelItem;
 }
 
-export async function createDirectByEmail(accessToken: string, email: string): Promise<ChannelItem> {
-  const response = await fetch(`${API_URL}/chat/direct/by-email`, {
+export async function createDirectByUsername(accessToken: string, username: string): Promise<ChannelItem> {
+  const response = await fetch(`${API_URL}/chat/direct/by-username`, {
     method: "POST",
     headers: authHeaders(accessToken),
-    body: JSON.stringify({ email })
+    body: JSON.stringify({ username })
   });
   const payload = await response.json();
   if (!response.ok) {
@@ -193,11 +193,11 @@ export async function createDirectByEmail(accessToken: string, email: string): P
   return payload as ChannelItem;
 }
 
-export async function addGroupMemberByEmail(accessToken: string, channelId: string, email: string): Promise<void> {
-  const response = await fetch(`${API_URL}/chat/channels/${channelId}/members/by-email`, {
+export async function addGroupMemberByUsername(accessToken: string, channelId: string, username: string): Promise<void> {
+  const response = await fetch(`${API_URL}/chat/channels/${channelId}/members/by-username`, {
     method: "POST",
     headers: authHeaders(accessToken),
-    body: JSON.stringify({ email })
+    body: JSON.stringify({ username })
   });
   const payload = await response.json();
   if (!response.ok) {

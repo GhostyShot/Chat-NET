@@ -4,8 +4,8 @@ function dedupeMemberIds(ownerId: string, memberIds: string[]) {
   return Array.from(new Set([ownerId, ...memberIds]));
 }
 
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
+function normalizeUsername(username: string): string {
+  return username.trim().toLowerCase().replace(/^@/, "");
 }
 
 export class ChatService {
@@ -94,20 +94,20 @@ export class ChatService {
     });
   }
 
-  async createDirectChannelByEmail(input: { ownerId: string; email: string }) {
-    const targetEmail = normalizeEmail(input.email);
+  async createDirectChannelByUsername(input: { ownerId: string; username: string }) {
+    const targetUsername = normalizeUsername(input.username);
 
     const owner = await prisma.user.findUnique({ where: { id: input.ownerId } });
     if (!owner) {
       throw new Error("INVALID_TARGET_USER");
     }
 
-    if (normalizeEmail(owner.email) === targetEmail) {
+    if (owner.username === targetUsername) {
       throw new Error("INVALID_TARGET_USER");
     }
 
     const targetUser = await prisma.user.findUnique({
-      where: { email: targetEmail }
+      where: { username: targetUsername }
     });
 
     if (!targetUser) {
@@ -149,10 +149,10 @@ export class ChatService {
     });
   }
 
-  async addGroupMemberByEmail(input: { channelId: string; requesterId: string; email: string }) {
-    const targetEmail = normalizeEmail(input.email);
+  async addGroupMemberByUsername(input: { channelId: string; requesterId: string; username: string }) {
+    const targetUsername = normalizeUsername(input.username);
 
-    const targetUser = await prisma.user.findUnique({ where: { email: targetEmail } });
+    const targetUser = await prisma.user.findUnique({ where: { username: targetUsername } });
     if (!targetUser) {
       throw new Error("USER_NOT_FOUND");
     }

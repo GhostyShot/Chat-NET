@@ -3,9 +3,9 @@ import type { AuthResponse } from "@chatnet/shared";
 import { io, type Socket } from "socket.io-client";
 import {
   API_URL,
-  addGroupMemberByEmail,
+  addGroupMemberByUsername,
   blockUser,
-  createDirectByEmail,
+  createDirectByUsername,
   createGroupChannel,
   deleteMessage,
   forgotPassword,
@@ -96,7 +96,7 @@ export function App() {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState("");
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
-  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteUsername, setInviteUsername] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileNickname, setProfileNickname] = useState("");
   const [profileUsername, setProfileUsername] = useState("");
@@ -496,13 +496,13 @@ export function App() {
     }
   };
 
-  const onStartDirectByEmail = async () => {
-    if (!auth || !inviteEmail.trim()) {
+  const onStartDirectByUsername = async () => {
+    if (!auth || !inviteUsername.trim()) {
       return;
     }
 
     try {
-      const channel = await createDirectByEmail(auth.tokens.accessToken, inviteEmail.trim());
+      const channel = await createDirectByUsername(auth.tokens.accessToken, inviteUsername.trim());
       setChannels((previous) => {
         if (previous.some((entry) => entry.id === channel.id)) {
           return previous;
@@ -510,21 +510,21 @@ export function App() {
         return [channel, ...previous];
       });
       setActiveChannelId(channel.id);
-      setInviteEmail("");
+      setInviteUsername("");
       setMessage("Direktchat wurde erstellt.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Direktchat konnte nicht erstellt werden");
     }
   };
 
-  const onAddMemberByEmail = async () => {
-    if (!auth || !activeChannelId || !activeChannel || activeChannel.type !== "GROUP" || !inviteEmail.trim()) {
+  const onAddMemberByUsername = async () => {
+    if (!auth || !activeChannelId || !activeChannel || activeChannel.type !== "GROUP" || !inviteUsername.trim()) {
       return;
     }
 
     try {
-      await addGroupMemberByEmail(auth.tokens.accessToken, activeChannelId, inviteEmail.trim());
-      setInviteEmail("");
+      await addGroupMemberByUsername(auth.tokens.accessToken, activeChannelId, inviteUsername.trim());
+      setInviteUsername("");
       setMessage("Person wurde zur Gruppe hinzugefügt.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Person konnte nicht hinzugefügt werden");
@@ -681,17 +681,17 @@ export function App() {
 
               <div className="invite-box">
                 <input
-                  value={inviteEmail}
-                  onChange={(event) => setInviteEmail(event.target.value)}
-                  placeholder="person@email.de"
-                  type="email"
+                  value={inviteUsername}
+                  onChange={(event) => setInviteUsername(event.target.value.toLowerCase())}
+                  placeholder="@username"
+                  type="text"
                 />
-                <button className="secondary" onClick={onStartDirectByEmail}>
+                <button className="secondary" onClick={onStartDirectByUsername}>
                   Direktchat
                 </button>
                 <button
                   className="secondary"
-                  onClick={onAddMemberByEmail}
+                  onClick={onAddMemberByUsername}
                   disabled={!activeChannel || activeChannel.type !== "GROUP"}
                 >
                   Zur Gruppe
