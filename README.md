@@ -41,6 +41,9 @@ Chat-Net ist eine Chatplattform für Web und Mobile mit Fokus auf junge Zielgrup
 ## Hinweise
 
 - Google Login prüft ID Tokens über `google-auth-library`; für lokale Entwicklung können `dev_*` Tokens über `GOOGLE_ALLOW_DEV_TOKENS=true` genutzt werden.
+- Für stabile Prod-Validierung zusätzlich setzen:
+	- API: `GOOGLE_CLIENT_ID` (Pflicht), optional `GOOGLE_CLIENT_IDS` (kommasepariert), `GOOGLE_STRICT_AUDIENCE=true`
+	- Web: `VITE_GOOGLE_CLIENT_ID` muss exakt zu einem Client in der API-Konfiguration passen
 - User- und EmailToken-Daten werden über Prisma in PostgreSQL gespeichert.
 - Passwort-Reset läuft über E-Mail-Link: `/auth/forgot-password` verschickt einen persönlichen Link auf die Web-App (`WEB_APP_URL/?mode=reset&token=...`), danach wird nur das neue Passwort gesetzt.
 - Für echten Mailversand SMTP-Variablen setzen (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`).
