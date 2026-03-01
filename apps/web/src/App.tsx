@@ -71,6 +71,7 @@ declare global {
 const GOOGLE_SCRIPT_ID = "google-identity-services";
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 const platformOwnerUserId = (import.meta.env.VITE_PLATFORM_OWNER_USER_ID as string | undefined)?.trim();
+const PLATFORM_OWNER_FALLBACK_USERNAME = "paul_fmp";
 const BADGE_STORAGE_PREFIX = "chat-net-custom-badges";
 const BADGE_OPTIONS: Array<{ key: BadgeKey; label: string; shortLabel: string }> = [
   { key: "verified_blue", label: "Blauer Haken (X Style)", shortLabel: "✓" },
@@ -120,6 +121,7 @@ export function App() {
   const [addMemberUsername, setAddMemberUsername] = useState("");
   const [channelMembers, setChannelMembers] = useState<ChannelMemberItem[]>([]);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [ownerStudioOpen, setOwnerStudioOpen] = useState(false);
   const [profileNickname, setProfileNickname] = useState("");
   const [profileUsername, setProfileUsername] = useState("");
   const [mentionNotice, setMentionNotice] = useState("");
@@ -127,15 +129,21 @@ export function App() {
   const [mentionIndex, setMentionIndex] = useState(0);
   const [googleReady, setGoogleReady] = useState(false);
   const [googleLoadError, setGoogleLoadError] = useState("");
+  const [googleRenderAttempt, setGoogleRenderAttempt] = useState(0);
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
   const [showAuthPage, setShowAuthPage] = useState(false);
   const [customBadgesByUserId, setCustomBadgesByUserId] = useState<Record<string, BadgeKey[]>>({});
   const [badgeTargetUserId, setBadgeTargetUserId] = useState("");
 
-  const isPlatformOwner = (userId?: string) => Boolean(platformOwnerUserId && userId === platformOwnerUserId);
+  const isPlatformOwner = (userId?: string, username?: string) => {
+    const normalizedUsername = username?.toLowerCase();
+    return Boolean((platformOwnerUserId && userId === platformOwnerUserId) || normalizedUsername === PLATFORM_OWNER_FALLBACK_USERNAME);
+  };
 
-  const renderPlatformOwnerBadge = (userId?: string) => {
-    if (!isPlatformOwner(userId)) {
+  const currentUserIsPlatformOwner = isPlatformOwner(auth?.user.id, auth?.user.username);
+
+  const renderPlatformOwnerBadge = (userId?: string, username?: string) => {
+    if (!isPlatformOwner(userId, username)) {
       return null;
     }
     return <img src="/chat-net-logo.svg" alt="Chat-Net Owner" className="owner-logo-badge" />;
@@ -301,7 +309,7 @@ export function App() {
   }, [auth]);
 
   useEffect(() => {
-    if (!auth || !isPlatformOwner(auth.user.id)) {
+    if (!auth || !currentUserIsPlatformOwner) {
       setCustomBadgesByUserId({});
       return;
     }
@@ -316,14 +324,14 @@ export function App() {
     } catch {
       setCustomBadgesByUserId({});
     }
-  }, [auth]);
+  }, [auth, currentUserIsPlatformOwner]);
 
   useEffect(() => {
-    if (!auth || !isPlatformOwner(auth.user.id)) {
+    if (!auth || !currentUserIsPlatformOwner) {
       return;
     }
     window.localStorage.setItem(`${BADGE_STORAGE_PREFIX}:${auth.user.id}`, JSON.stringify(customBadgesByUserId));
-  }, [auth, customBadgesByUserId]);
+  }, [auth, customBadgesByUserId, currentUserIsPlatformOwner]);
 
   useEffect(() => {
     if (!knownUsers.length) {
@@ -579,41 +587,45 @@ export function App() {
         return;
       }
 
-      if (timeoutId) {
-        window.clearTimeout(timeoutId);
-      }
-
-      window.google.accounts.id.initialize({
-        client_id: googleClientId,
-        callback: async (response) => {
-          if (!response.credential) {
-            setMessage("Google Login konnte kein Token liefern.");
-            return;
-          }
-
-          setLoading(true);
-          setMessage("");
-          try {
-            setAuth(await loginWithGoogle(response.credential));
-          } catch (error) {
-            setMessage(error instanceof Error ? error.message : "Google Login fehlgeschlagen");
-          } finally {
-            setLoading(false);
-          }
+      try {
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
         }
-      });
 
-      googleButtonRef.current.innerHTML = "";
-      window.google.accounts.id.renderButton(googleButtonRef.current, {
-        theme: theme === "dark" ? "filled_black" : "outline",
-        size: "large",
-        text: "continue_with",
-        shape: "pill",
-        width: 320
-      });
-      window.google.accounts.id.prompt();
-      setGoogleLoadError("");
-      setGoogleReady(true);
+        window.google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: async (response) => {
+            if (!response.credential) {
+              setMessage("Google Login konnte kein Token liefern.");
+              return;
+            }
+
+            setLoading(true);
+            setMessage("");
+            try {
+              setAuth(await loginWithGoogle(response.credential));
+            } catch (error) {
+              setMessage(error instanceof Error ? error.message : "Google Login fehlgeschlagen");
+            } finally {
+              setLoading(false);
+            }
+          }
+        });
+
+        googleButtonRef.current.innerHTML = "";
+        window.google.accounts.id.renderButton(googleButtonRef.current, {
+          theme: theme === "dark" ? "filled_black" : "outline",
+          size: "large",
+          text: "continue_with",
+          shape: "pill",
+          width: 320
+        });
+        window.google.accounts.id.prompt();
+        setGoogleLoadError("");
+        setGoogleReady(true);
+      } catch {
+        setGoogleUnavailable();
+      }
     };
 
     timeoutId = window.setTimeout(() => {
@@ -663,7 +675,7 @@ export function App() {
         window.clearTimeout(timeoutId);
       }
     };
-  }, [auth, theme, showAuthPage, resetTokenFromLink]);
+  }, [auth, theme, showAuthPage, resetTokenFromLink, googleRenderAttempt]);
 
   const submit = async () => {
     setLoading(true);
@@ -1091,11 +1103,16 @@ export function App() {
                 <span className="status-dot" />
                 <span>
                   {auth.user.displayName}
-                  {renderPlatformOwnerBadge(auth.user.id)}
+                  {renderPlatformOwnerBadge(auth.user.id, auth.user.username)}
                   {renderCustomBadges(auth.user.id)}
                   <small className="chip-handle">@{auth.user.username}</small>
                 </span>
               </div>
+              {currentUserIsPlatformOwner && (
+                <button className="secondary" onClick={() => setOwnerStudioOpen((current) => !current)}>
+                  Owner Menü
+                </button>
+              )}
               <button className="secondary" onClick={() => setProfileOpen((current) => !current)}>
                 Profil
               </button>
@@ -1136,46 +1153,49 @@ export function App() {
                 </button>
               </div>
 
-              {isPlatformOwner(auth.user.id) && (
-                <div className="owner-studio">
-                  <div className="panel-header owner-studio-header">
-                    <h3>Owner Badge Studio</h3>
-                    <span>Secret UI</span>
-                  </div>
-                  <label>
-                    Badge-Zielperson
-                    <select
-                      value={badgeTargetUserId}
-                      onChange={(event) => setBadgeTargetUserId(event.target.value)}
-                      className="owner-studio-select"
-                    >
-                      {knownUsers.map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.displayName} {user.username ? `(@${user.username})` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+            </section>
+          )}
 
-                  {badgeTargetUser && (
-                    <div className="owner-studio-badges">
-                      {BADGE_OPTIONS.map((badge) => {
-                        const active = (customBadgesByUserId[badgeTargetUser.id] ?? []).includes(badge.key);
-                        return (
-                          <label key={badge.key} className={active ? "badge-toggle active" : "badge-toggle"}>
-                            <input
-                              type="checkbox"
-                              checked={active}
-                              onChange={() => toggleBadgeForUser(badgeTargetUser.id, badge.key)}
-                            />
-                            <span>{badge.label}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  )}
+          {currentUserIsPlatformOwner && ownerStudioOpen && (
+            <section className="panel owner-studio-panel">
+              <div className="owner-studio">
+                <div className="panel-header owner-studio-header">
+                  <h3>Owner Badge Studio</h3>
+                  <span>Secret UI</span>
                 </div>
-              )}
+                <label>
+                  Badge-Zielperson
+                  <select
+                    value={badgeTargetUserId}
+                    onChange={(event) => setBadgeTargetUserId(event.target.value)}
+                    className="owner-studio-select"
+                  >
+                    {knownUsers.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.displayName} {user.username ? `(@${user.username})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                {badgeTargetUser && (
+                  <div className="owner-studio-badges">
+                    {BADGE_OPTIONS.map((badge) => {
+                      const active = (customBadgesByUserId[badgeTargetUser.id] ?? []).includes(badge.key);
+                      return (
+                        <label key={badge.key} className={active ? "badge-toggle active" : "badge-toggle"}>
+                          <input
+                            type="checkbox"
+                            checked={active}
+                            onChange={() => toggleBadgeForUser(badgeTargetUser.id, badge.key)}
+                          />
+                          <span>{badge.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </section>
           )}
 
@@ -1218,7 +1238,7 @@ export function App() {
                           <div>
                             <p className="member-name">
                               {member.user.displayName}
-                              {renderPlatformOwnerBadge(member.userId)}
+                              {renderPlatformOwnerBadge(member.userId, member.user.username)}
                               {renderCustomBadges(member.userId)}
                             </p>
                             <p className="member-meta">
@@ -1321,7 +1341,7 @@ export function App() {
                     >
                       <p className="message-meta">
                         {entry.sender.displayName}
-                        {renderPlatformOwnerBadge(entry.sender.id)}
+                        {renderPlatformOwnerBadge(entry.sender.id, entry.sender.username)}
                         {renderCustomBadges(entry.sender.id)}
                         {entry.sender.username ? ` (@${entry.sender.username})` : ""}
                         {memberRoleByUserId.get(entry.sender.id) === "ADMIN" ? " ⭐" : ""} {presenceMap[entry.sender.id] ? "• online" : "• offline"}
@@ -1716,7 +1736,14 @@ export function App() {
             <>
               <div ref={googleButtonRef} className="google-button-slot" />
               {!googleReady && !googleLoadError && <p className="hint">Google Login wird geladen...</p>}
-              {!googleReady && googleLoadError && <p className="hint">{googleLoadError}</p>}
+              {!googleReady && googleLoadError && (
+                <div className="google-fallback">
+                  <p className="hint">{googleLoadError}</p>
+                  <button className="secondary compact" onClick={() => setGoogleRenderAttempt((current) => current + 1)}>
+                    Erneut versuchen
+                  </button>
+                </div>
+              )}
             </>
           ) : (
             <p className="hint">Setze in Vercel zusätzlich `VITE_GOOGLE_CLIENT_ID`, um Google Login zu aktivieren.</p>
