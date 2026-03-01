@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import type { AuthResponse } from "@chatnet/shared";
 import { io, type Socket } from "socket.io-client";
 import {
@@ -26,6 +26,40 @@ import {
 
 type Mode = "login" | "register" | "forgot" | "reset" | "verify";
 
+type GoogleCredentialResponse = {
+  credential?: string;
+};
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (options: {
+            client_id: string;
+            callback: (response: GoogleCredentialResponse) => void;
+          }) => void;
+          renderButton: (
+            element: HTMLElement,
+            options: {
+              type?: "standard";
+              theme?: "outline" | "filled_black" | "filled_blue";
+              size?: "large" | "medium" | "small";
+              text?: "signin_with" | "continue_with" | "signup_with";
+              shape?: "pill" | "rectangular";
+              width?: number;
+            }
+          ) => void;
+          prompt: () => void;
+        };
+      };
+    };
+  }
+}
+
+const GOOGLE_SCRIPT_ID = "google-identity-services";
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+
 export function App() {
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
@@ -47,6 +81,13 @@ export function App() {
   const [searchResults, setSearchResults] = useState<MessageItem[]>([]);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState("");
+  const [googleReady, setGoogleReady] = useState(false);
+  const googleButtonRef = useRef<HTMLDivElement | null>(null);
+
+  const activeChannel = useMemo(
+    () => channels.find((channel) => channel.id === activeChannelId) ?? null,
+    [channels, activeChannelId]
+  );
 
   useEffect(() => {
     const loadChannels = async () => {
@@ -178,6 +219,81 @@ export function App() {
     void markLatestAsRead();
   }, [auth, activeChannelId, messages]);
 
+  useEffect(() => {
+    if (auth || !googleClientId || !googleButtonRef.current) {
+      setGoogleReady(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const renderGoogleButton = () => {
+      if (cancelled || !window.google?.accounts?.id || !googleButtonRef.current) {
+        return;
+      }
+
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: async (response) => {
+          if (!response.credential) {
+            setMessage("Google Login konnte kein Token liefern.");
+            return;
+          }
+
+          setLoading(true);
+          setMessage("");
+          try {
+            setAuth(await loginWithGoogle(response.credential));
+          } catch (error) {
+            setMessage(error instanceof Error ? error.message : "Google Login fehlgeschlagen");
+          } finally {
+            setLoading(false);
+          }
+        }
+      });
+
+      googleButtonRef.current.innerHTML = "";
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: "outline",
+        size: "large",
+        text: "continue_with",
+        shape: "pill",
+        width: 320
+      });
+      window.google.accounts.id.prompt();
+      setGoogleReady(true);
+    };
+
+    if (window.google?.accounts?.id) {
+      renderGoogleButton();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const existingScript = document.getElementById(GOOGLE_SCRIPT_ID) as HTMLScriptElement | null;
+    if (existingScript) {
+      existingScript.addEventListener("load", renderGoogleButton);
+      return () => {
+        cancelled = true;
+        existingScript.removeEventListener("load", renderGoogleButton);
+      };
+    }
+
+    const script = document.createElement("script");
+    script.id = GOOGLE_SCRIPT_ID;
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.addEventListener("load", renderGoogleButton);
+    document.head.appendChild(script);
+
+    return () => {
+      cancelled = true;
+      script.removeEventListener("load", renderGoogleButton);
+    };
+  }, [auth]);
+
   const submit = async () => {
     setLoading(true);
     setMessage("");
@@ -202,18 +318,6 @@ export function App() {
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unbekannter Fehler");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const google = async () => {
-    setLoading(true);
-    setMessage("");
-    try {
-      setAuth(await loginWithGoogle("dev_google_user"));
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Google Login fehlgeschlagen");
     } finally {
       setLoading(false);
     }
@@ -320,54 +424,84 @@ export function App() {
     }
   };
 
+  const onComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      void onSendMessage();
+    }
+  };
+
+  const logout = () => {
+    setAuth(null);
+    setMessages([]);
+    setChannels([]);
+    setActiveChannelId(null);
+    setSearchResults([]);
+    setSearchQuery("");
+    setComposerText("");
+    setMessage("");
+  };
+
   if (auth) {
     return (
-      <main className="layout">
-        <section className="card chat-card">
-          <header className="chat-header">
-            <div>
+      <main className="app-shell">
+        <section className="chat-shell">
+          <header className="chat-topbar">
+            <div className="brand-block">
+              <p className="eyebrow">chat-net.tech</p>
               <h1>Chat-Net</h1>
-              <p className="subtitle">Eingeloggt als {auth.user.displayName}</p>
+              <p className="subtitle">Modern chat for real conversations</p>
             </div>
-            <button
-              className="secondary"
-              onClick={() => {
-                setAuth(null);
-                setMessages([]);
-                setChannels([]);
-                setActiveChannelId(null);
-              }}
-            >
-              Logout
-            </button>
+            <div className="user-block">
+              <div className="user-chip">
+                <span className="status-dot" />
+                <span>{auth.user.displayName}</span>
+              </div>
+              <button className="secondary" onClick={logout}>
+                Logout
+              </button>
+            </div>
           </header>
 
-          <div className="chat-grid">
-            <aside className="channel-list">
-              <h3>Channels</h3>
-              <div className="new-channel">
+          <div className="chat-layout">
+            <aside className="panel channel-panel">
+              <div className="panel-header">
+                <h3>Channels</h3>
+                <span>{channels.length}</span>
+              </div>
+
+              <div className="new-channel-row">
                 <input
                   value={newChannelName}
                   onChange={(event) => setNewChannelName(event.target.value)}
-                  placeholder="Neuer Gruppenname"
+                  placeholder="Neuer Gruppenchat"
                 />
                 <button className="primary" onClick={onCreateChannel}>
-                  Erstellen
+                  +
                 </button>
               </div>
-              {channels.map((channel) => (
-                <button
-                  key={channel.id}
-                  className={channel.id === activeChannelId ? "channel-item active" : "channel-item"}
-                  onClick={() => setActiveChannelId(channel.id)}
-                >
-                  {channel.name ?? (channel.type === "DIRECT" ? "Direktchat" : "Unbenannt")}
-                </button>
-              ))}
+
+              <div className="channel-items">
+                {channels.map((channel) => (
+                  <button
+                    key={channel.id}
+                    className={channel.id === activeChannelId ? "channel-item active" : "channel-item"}
+                    onClick={() => setActiveChannelId(channel.id)}
+                  >
+                    <span>{channel.name ?? (channel.type === "DIRECT" ? "Direktchat" : "Unbenannt")}</span>
+                    <small>{channel.type}</small>
+                  </button>
+                ))}
+                {!channels.length && <p className="empty-hint">Noch keine Channels vorhanden.</p>}
+              </div>
             </aside>
 
-            <section className="messages">
-              <h3>Nachrichten</h3>
+            <section className="panel message-panel">
+              <div className="panel-header">
+                <h3>{activeChannel?.name ?? "Nachrichten"}</h3>
+                <span>{typingHint || "Bereit"}</span>
+              </div>
+
               <div className="search-row">
                 <input
                   value={searchQuery}
@@ -382,59 +516,75 @@ export function App() {
               {!!searchResults.length && (
                 <div className="search-results">
                   {searchResults.slice(0, 5).map((entry) => (
-                    <p key={`search-${entry.id}`} className="subtitle">
-                      {entry.sender.displayName}: {entry.content}
+                    <p key={`search-${entry.id}`} className="result-item">
+                      <strong>{entry.sender.displayName}:</strong> {entry.content}
                     </p>
                   ))}
                 </div>
               )}
 
               <div className="message-list">
-                {messages.map((entry) => (
-                  <article key={entry.id} className="message-bubble">
-                    <p className="message-meta">
-                      {entry.sender.displayName} {presenceMap[entry.sender.id] ? "• online" : "• offline"}
-                    </p>
-                    {editingMessageId === entry.id ? (
-                      <div className="edit-row">
-                        <input value={editingContent} onChange={(event) => setEditingContent(event.target.value)} />
-                        <button className="primary" onClick={() => onSaveEdit(entry.id)}>
-                          Speichern
-                        </button>
-                      </div>
-                    ) : (
-                      <p>{entry.content}</p>
-                    )}
-                    {entry.content.startsWith("http") && (
-                      <p>
-                        <a href={entry.content} target="_blank" rel="noreferrer">
+                {messages.map((entry) => {
+                  const ownMessage = entry.sender.id === auth.user.id;
+                  return (
+                    <article key={entry.id} className={ownMessage ? "message-bubble mine" : "message-bubble"}>
+                      <p className="message-meta">
+                        {entry.sender.displayName} {presenceMap[entry.sender.id] ? "• online" : "• offline"}
+                      </p>
+
+                      {editingMessageId === entry.id ? (
+                        <div className="edit-row">
+                          <input
+                            value={editingContent}
+                            onChange={(event) => setEditingContent(event.target.value)}
+                            placeholder="Neue Nachricht"
+                          />
+                          <button className="primary" onClick={() => onSaveEdit(entry.id)}>
+                            Speichern
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="message-content">{entry.content}</p>
+                      )}
+
+                      {entry.content.startsWith("http") && (
+                        <a className="file-link" href={entry.content} target="_blank" rel="noreferrer">
                           Datei öffnen
                         </a>
-                      </p>
-                    )}
-                    {entry.sender.id !== auth.user.id && (
-                      <button className="secondary" onClick={() => onBlockSender(entry.sender.id)}>
-                        Blockieren
-                      </button>
-                    )}
-                    {entry.sender.id === auth.user.id && (
-                      <div className="message-actions">
-                        <button className="secondary" onClick={() => onEditMessage(entry)}>
-                          Bearbeiten
+                      )}
+
+                      {ownMessage ? (
+                        <div className="message-actions">
+                          <button className="secondary" onClick={() => onEditMessage(entry)}>
+                            Bearbeiten
+                          </button>
+                          <button className="secondary" onClick={() => onDeleteMessage(entry.id)}>
+                            Löschen
+                          </button>
+                        </div>
+                      ) : (
+                        <button className="secondary compact" onClick={() => onBlockSender(entry.sender.id)}>
+                          Blockieren
                         </button>
-                        <button className="secondary" onClick={() => onDeleteMessage(entry.id)}>
-                          Löschen
-                        </button>
-                      </div>
-                    )}
-                  </article>
-                ))}
-                {!messages.length && <p className="subtitle">Noch keine Nachrichten in diesem Channel.</p>}
+                      )}
+                    </article>
+                  );
+                })}
+
+                {!messages.length && (
+                  <div className="empty-state">
+                    <p>Noch keine Nachrichten in diesem Channel.</p>
+                    <span>Starte die Unterhaltung mit deiner ersten Nachricht.</span>
+                  </div>
+                )}
               </div>
 
               <div className="composer">
-                <input type="file" onChange={onUploadSelected} />
-                <input
+                <label className="upload-button" htmlFor="upload-input">
+                  Datei
+                </label>
+                <input id="upload-input" className="file-input" type="file" onChange={onUploadSelected} />
+                <textarea
                   value={composerText}
                   onChange={(event) => {
                     const next = event.target.value;
@@ -443,79 +593,113 @@ export function App() {
                       socketRef.current.emit("typing", { roomId: activeChannelId, userId: auth.user.id });
                     }
                   }}
-                  placeholder="Nachricht schreiben"
+                  onKeyDown={onComposerKeyDown}
+                  placeholder="Schreibe eine Nachricht... (Enter = senden, Shift+Enter = Zeilenumbruch)"
                 />
                 <button className="primary" onClick={onSendMessage}>
                   Senden
                 </button>
               </div>
-
-              {typingHint && <p className="subtitle">{typingHint}</p>}
             </section>
           </div>
 
-          {message && <p className="message">{message}</p>}
+          {message && <p className="message-banner">{message}</p>}
         </section>
       </main>
     );
   }
 
   return (
-    <main className="layout">
-      <section className="card">
-        <h1>Chat-Net</h1>
-        <p className="subtitle">chat-net.tech</p>
-
-        <div className="tabs">
-          <button onClick={() => setMode("login")}>Login</button>
-          <button onClick={() => setMode("register")}>Registrieren</button>
-          <button onClick={() => setMode("forgot")}>Passwort vergessen</button>
-          <button onClick={() => setMode("reset")}>Passwort zurücksetzen</button>
-          <button onClick={() => setMode("verify")}>E-Mail verifizieren</button>
+    <main className="app-shell auth-shell">
+      <section className="auth-card">
+        <div className="auth-brand">
+          <p className="eyebrow">chat-net.tech</p>
+          <h1>Chat-Net</h1>
+          <p className="subtitle">Schnell, klar, modern – dein Space für Chats und Communities.</p>
         </div>
 
-        {(mode === "login" || mode === "register" || mode === "forgot") && (
-          <label>
-            E-Mail
-            <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" />
-          </label>
-        )}
+        <div className="auth-panel">
+          <div className="mode-tabs">
+            <button className={mode === "login" ? "tab active" : "tab"} onClick={() => setMode("login")}>
+              Login
+            </button>
+            <button className={mode === "register" ? "tab active" : "tab"} onClick={() => setMode("register")}>
+              Registrieren
+            </button>
+            <button className={mode === "forgot" ? "tab active" : "tab"} onClick={() => setMode("forgot")}>
+              Passwort vergessen
+            </button>
+            <button className={mode === "reset" ? "tab active" : "tab"} onClick={() => setMode("reset")}>
+              Passwort zurücksetzen
+            </button>
+            <button className={mode === "verify" ? "tab active" : "tab"} onClick={() => setMode("verify")}>
+              E-Mail verifizieren
+            </button>
+          </div>
 
-        {(mode === "login" || mode === "register" || mode === "reset") && (
-          <label>
-            Passwort
-            <input
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              type="password"
-              autoComplete="current-password"
-            />
-          </label>
-        )}
+          {(mode === "login" || mode === "register" || mode === "forgot") && (
+            <label>
+              E-Mail
+              <input
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                type="email"
+                placeholder="name@email.de"
+              />
+            </label>
+          )}
 
-        {mode === "register" && (
-          <label>
-            Anzeigename
-            <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} type="text" />
-          </label>
-        )}
+          {(mode === "login" || mode === "register" || mode === "reset") && (
+            <label>
+              Passwort
+              <input
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                type="password"
+                autoComplete="current-password"
+                placeholder="Mindestens 8 Zeichen"
+              />
+            </label>
+          )}
 
-        {(mode === "reset" || mode === "verify") && (
-          <label>
-            Token
-            <input value={token} onChange={(event) => setToken(event.target.value)} type="text" />
-          </label>
-        )}
+          {mode === "register" && (
+            <label>
+              Anzeigename
+              <input
+                value={displayName}
+                onChange={(event) => setDisplayName(event.target.value)}
+                type="text"
+                placeholder="Dein Name"
+              />
+            </label>
+          )}
 
-        <button onClick={submit} disabled={loading} className="primary">
-          {loading ? "Lädt..." : "Absenden"}
-        </button>
+          {(mode === "reset" || mode === "verify") && (
+            <label>
+              Token
+              <input value={token} onChange={(event) => setToken(event.target.value)} type="text" placeholder="Token" />
+            </label>
+          )}
 
-        <button onClick={google} disabled={loading} className="secondary">
-          Mit Google fortfahren
-        </button>
+          <button onClick={submit} disabled={loading} className="primary wide">
+            {loading ? "Lädt..." : "Absenden"}
+          </button>
 
-        {message && <p className="message">{message}</p>}
+          <div className="auth-divider">
+            <span>oder</span>
+          </div>
+
+          {googleClientId ? (
+            <>
+              <div ref={googleButtonRef} className="google-button-slot" />
+              {!googleReady && <p className="hint">Google Login wird geladen...</p>}
+            </>
+          ) : (
+            <p className="hint">Setze in Vercel zusätzlich `VITE_GOOGLE_CLIENT_ID`, um Google Login zu aktivieren.</p>
+          )}
+
+          {message && <p className="message-banner">{message}</p>}
+        </div>
       </section>
     </main>
   );

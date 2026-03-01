@@ -51,6 +51,7 @@ Chat-Net ist eine Chatplattform für Web und Mobile mit Fokus auf junge Zielgrup
 4. Vercel Projekt für `apps/web` erstellen.
 5. In Vercel setzen:
 	- `VITE_API_URL=https://api.chat-net.tech`
+	- `VITE_GOOGLE_CLIENT_ID=<deine-google-oauth-client-id>`
 6. Domain verbinden:
 	- `chat-net.tech` -> Vercel
 	- `api.chat-net.tech` -> API-Hosting
