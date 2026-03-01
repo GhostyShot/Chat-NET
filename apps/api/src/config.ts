@@ -61,6 +61,7 @@ export const appConfig = {
   googleClientIds,
   googleStrictAudience: (resolveSecretValue(process.env.GOOGLE_STRICT_AUDIENCE) ?? "false") === "true",
   googleAllowDevTokens: (process.env.GOOGLE_ALLOW_DEV_TOKENS ?? "true") === "true",
+  platformOwnerUserId: resolveSecretValue(process.env.PLATFORM_OWNER_USER_ID),
   smtpHost: resolveSecretValue(process.env.SMTP_HOST),
   smtpPort: Number(resolveSecretValue(process.env.SMTP_PORT) ?? 587),
   smtpSecure: (resolveSecretValue(process.env.SMTP_SECURE) ?? "false") === "true",

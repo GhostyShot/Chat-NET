@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { Response } from "express";
+import type { NextFunction } from "express";
 import fs from "node:fs";
 import multer from "multer";
 import { requireAuth, type AuthenticatedRequest } from "./chat.auth.js";
@@ -19,6 +20,8 @@ import {
 import { getRealtimeServer } from "../../realtime.state.js";
 import { getBulkPresence } from "../../realtime.presence.js";
 import { appConfig } from "../../config.js";
+import { prisma } from "../../lib/prisma.js";
+import { platformSettingsStore } from "./chat.platform-settings.js";
 
 function singleParam(value: string | string[] | undefined): string | undefined {
   if (!value) {
@@ -70,6 +73,65 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: { fileSize: 8 * 1024 * 1024 }
+});
+
+async function isPlatformOwner(userId: string): Promise<boolean> {
+  if (appConfig.platformOwnerUserId && userId === appConfig.platformOwnerUserId) {
+    return true;
+  }
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
+  return user?.username?.toLowerCase() === "paul_fmp";
+}
+
+async function requirePlatformOwner(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "AUTH_REQUIRED" });
+    }
+    if (!(await isPlatformOwner(userId))) {
+      return res.status(403).json({ error: "FORBIDDEN_OWNER_ONLY" });
+    }
+    return next();
+  } catch {
+    return res.status(500).json({ error: "UNEXPECTED_ERROR" });
+  }
+}
+
+async function requireUploadsEnabled(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    const settings = await platformSettingsStore.getSettings();
+    if (!settings.uploadsEnabled) {
+      return res.status(403).json({ error: "UPLOADS_DISABLED" });
+    }
+    return next();
+  } catch {
+    return res.status(500).json({ error: "UNEXPECTED_ERROR" });
+  }
+}
+
+chatRouter.get("/platform-settings", async (req: AuthenticatedRequest, res) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "AUTH_REQUIRED" });
+    }
+
+    const settings = await platformSettingsStore.getSettings();
+    const canManage = await isPlatformOwner(userId);
+    return res.json({ ...settings, canManage });
+  } catch {
+    return res.status(500).json({ error: "UNEXPECTED_ERROR" });
+  }
+});
+
+chatRouter.patch("/platform-settings/uploads", requirePlatformOwner, async (req: AuthenticatedRequest, res) => {
+  const value = req.body?.uploadsEnabled;
+  if (typeof value !== "boolean") {
+    return res.status(400).json({ error: "INVALID_BODY" });
+  }
+  const updated = await platformSettingsStore.setUploadsEnabled(value);
+  return res.json(updated);
 });
 
 chatRouter.get("/channels", async (req: AuthenticatedRequest, res) => {
@@ -563,7 +625,7 @@ chatRouter.delete("/block/:targetUserId", async (req: AuthenticatedRequest, res)
   );
 });
 
-chatRouter.post("/upload", upload.single("file"), async (req: AuthenticatedRequest, res) => {
+chatRouter.post("/upload", requireUploadsEnabled, upload.single("file"), async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
     return res.status(401).json({ error: "AUTH_REQUIRED" });

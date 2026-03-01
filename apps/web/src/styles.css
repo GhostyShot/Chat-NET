@@ -606,6 +606,12 @@ button:hover {
   gap: 8px;
 }
 
+.owner-studio-toggle-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .badge-toggle {
   display: flex;
   align-items: center;
@@ -945,6 +951,11 @@ button:hover {
   padding: 11px 12px;
   cursor: pointer;
   user-select: none;
+}
+
+.upload-button.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .file-input {

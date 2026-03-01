@@ -61,6 +61,11 @@ export interface ProfileItem {
   provider: "google" | "password";
 }
 
+export interface PlatformSettingsItem {
+  uploadsEnabled: boolean;
+  canManage: boolean;
+}
+
 function authHeaders(accessToken: string) {
   return {
     "Content-Type": "application/json",
@@ -426,5 +431,29 @@ export async function unblockUser(accessToken: string, targetUserId: string): Pr
   const payload = await response.json();
   if (!response.ok) {
     throw new Error(payload.error ?? "UNBLOCK_FAILED");
+  }
+}
+
+export async function getPlatformSettings(accessToken: string): Promise<PlatformSettingsItem> {
+  const response = await fetch(`${API_URL}/chat/platform-settings`, {
+    method: "GET",
+    headers: authHeaders(accessToken)
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error ?? "PLATFORM_SETTINGS_FAILED");
+  }
+  return payload as PlatformSettingsItem;
+}
+
+export async function setPlatformUploadsEnabled(accessToken: string, uploadsEnabled: boolean): Promise<void> {
+  const response = await fetch(`${API_URL}/chat/platform-settings/uploads`, {
+    method: "PATCH",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ uploadsEnabled })
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error ?? "UPDATE_PLATFORM_UPLOADS_FAILED");
   }
 }

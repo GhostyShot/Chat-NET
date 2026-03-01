@@ -19,12 +19,14 @@ import {
   loginWithGoogle,
   markRead,
   leaveChannel,
+  getPlatformSettings,
   removeChannelMember,
   searchMessages,
   register,
   resetPassword,
   sendMessage,
   transferChannelOwnership,
+  setPlatformUploadsEnabled,
   updateChannelMemberRole,
   updateProfile,
   updateMessage,
@@ -144,6 +146,9 @@ export function App() {
   const [badgeTargetUserId, setBadgeTargetUserId] = useState("");
   const [newBadgeLabel, setNewBadgeLabel] = useState("");
   const [newBadgeShortLabel, setNewBadgeShortLabel] = useState("");
+  const [uploadsEnabledForAll, setUploadsEnabledForAll] = useState(true);
+  const [canManagePlatformSettings, setCanManagePlatformSettings] = useState(false);
+  const [platformToggleLoading, setPlatformToggleLoading] = useState(false);
 
   const isPlatformOwner = (userId?: string, username?: string) => {
     const normalizedUsername = username?.toLowerCase();
@@ -420,6 +425,26 @@ export function App() {
     });
   }, [knownUsers]);
 
+  useEffect(() => {
+    const loadPlatformSettings = async () => {
+      if (!auth) {
+        setUploadsEnabledForAll(true);
+        setCanManagePlatformSettings(false);
+        return;
+      }
+      try {
+        const settings = await getPlatformSettings(auth.tokens.accessToken);
+        setUploadsEnabledForAll(settings.uploadsEnabled);
+        setCanManagePlatformSettings(settings.canManage);
+      } catch {
+        setUploadsEnabledForAll(true);
+        setCanManagePlatformSettings(false);
+      }
+    };
+
+    void loadPlatformSettings();
+  }, [auth]);
+
   const toggleBadgeForUser = (userId: string, badge: BadgeId) => {
     setCustomBadgesByUserId((previous) => {
       const current = previous[userId] ?? [];
@@ -455,6 +480,22 @@ export function App() {
     setNewBadgeLabel("");
     setNewBadgeShortLabel("");
     setMessage("Neues Badge erstellt und dir zugewiesen.");
+  };
+
+  const onToggleGlobalUploads = async (enabled: boolean) => {
+    if (!auth || !canManagePlatformSettings) {
+      return;
+    }
+    setPlatformToggleLoading(true);
+    try {
+      await setPlatformUploadsEnabled(auth.tokens.accessToken, enabled);
+      setUploadsEnabledForAll(enabled);
+      setMessage(enabled ? "Datei-Uploads wurden für alle aktiviert." : "Datei-Uploads wurden für alle deaktiviert.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Upload-Einstellung konnte nicht geändert werden");
+    } finally {
+      setPlatformToggleLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -894,6 +935,11 @@ export function App() {
     if (!auth) {
       return;
     }
+    if (!uploadsEnabledForAll) {
+      setMessage("Datei-Uploads sind aktuell vom Owner deaktiviert.");
+      event.target.value = "";
+      return;
+    }
     const file = event.target.files?.[0];
     if (!file) {
       return;
@@ -1313,6 +1359,28 @@ export function App() {
                     </button>
                   </div>
                 </div>
+
+                {canManagePlatformSettings && (
+                  <div className="owner-studio-create">
+                    <p className="inline-note">Globale Plattform-Einstellungen</p>
+                    <div className="owner-studio-toggle-row">
+                      <button
+                        className={uploadsEnabledForAll ? "primary" : "secondary"}
+                        disabled={platformToggleLoading}
+                        onClick={() => onToggleGlobalUploads(true)}
+                      >
+                        Uploads für alle AN
+                      </button>
+                      <button
+                        className={!uploadsEnabledForAll ? "primary" : "secondary"}
+                        disabled={platformToggleLoading}
+                        onClick={() => onToggleGlobalUploads(false)}
+                      >
+                        Uploads für alle AUS
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
           )}
@@ -1516,10 +1584,16 @@ export function App() {
               </div>
 
               <div className="composer">
-                <label className="upload-button" htmlFor="upload-input">
+                <label className={uploadsEnabledForAll ? "upload-button" : "upload-button disabled"} htmlFor="upload-input">
                   Datei
                 </label>
-                <input id="upload-input" className="file-input" type="file" onChange={onUploadSelected} />
+                <input
+                  id="upload-input"
+                  className="file-input"
+                  type="file"
+                  onChange={onUploadSelected}
+                  disabled={!uploadsEnabledForAll}
+                />
                 <div className="composer-input-wrap">
                   <textarea
                     ref={composerRef}
