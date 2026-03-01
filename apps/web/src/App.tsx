@@ -878,7 +878,7 @@ export function App() {
         <section className="chat-shell">
           <header className="chat-topbar">
             <div className="brand-block">
-              <img src="/chat-net-logo.png" alt="Chat-Net Logo" className="brand-logo" />
+              <img src="/chat-net-logo.svg" alt="Chat-Net Logo" className="brand-logo" />
               <p className="eyebrow">chat-net.tech</p>
               <h1>Chat-Net</h1>
               <p className="subtitle">Modern chat for real conversations</p>
@@ -1255,7 +1255,7 @@ export function App() {
     <main className="app-shell auth-shell">
       <section className={resetTokenFromLink ? "auth-card reset-card" : "auth-card"}>
         <div className="auth-brand">
-          <img src="/chat-net-logo.png" alt="Chat-Net Logo" className="auth-logo" />
+          <img src="/chat-net-logo.svg" alt="Chat-Net Logo" className="auth-logo" />
           <p className="eyebrow">chat-net.tech</p>
           <h1>Chat-Net</h1>
           <p className="subtitle">Schnell, klar, modern – dein Space für Chats und Communities.</p>

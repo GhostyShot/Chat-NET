@@ -9,7 +9,7 @@ function buildResetUrl(token: string): string {
 
 function buildLogoUrl(): string {
   const base = appConfig.webAppUrl.replace(/\/$/, "");
-  return `${base}/chat-net-logo.png`;
+  return `${base}/chat-net-logo.svg`;
 }
 
 function hasSmtpConfig(): boolean {
