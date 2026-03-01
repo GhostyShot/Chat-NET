@@ -8,6 +8,15 @@ export interface ChannelItem {
   type: "DIRECT" | "GROUP";
   name: string | null;
   updatedAt: string;
+  memberships?: Array<{
+    role: "OWNER" | "ADMIN" | "MEMBER";
+    user: {
+      id: string;
+      username?: string;
+      displayName: string;
+      avatarUrl?: string | null;
+    };
+  }>;
 }
 
 export interface MessageItem {
@@ -26,6 +35,19 @@ export interface PresenceItem {
   userId: string;
   online: boolean;
   lastSeenAt: number | null;
+}
+
+export interface ChannelMemberItem {
+  userId: string;
+  channelId: string;
+  role: "OWNER" | "ADMIN" | "MEMBER";
+  createdAt: string;
+  user: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl?: string | null;
+  };
 }
 
 async function request<T>(path: string, options?: { method?: "GET" | "POST" | "PATCH" | "DELETE"; body?: unknown; accessToken?: string }) {
@@ -67,6 +89,34 @@ export const api = {
       method: "POST",
       accessToken,
       body: { type: "group", name, memberIds: [] }
+    }),
+  createDirectByUsername: (accessToken: string, username: string) =>
+    request<ChannelItem>("/chat/direct/by-username", {
+      method: "POST",
+      accessToken,
+      body: { username }
+    }),
+  addGroupMemberByUsername: (accessToken: string, channelId: string, username: string) =>
+    request(`/chat/channels/${channelId}/members/by-username`, {
+      method: "POST",
+      accessToken,
+      body: { username }
+    }),
+  listChannelMembers: (accessToken: string, channelId: string) =>
+    request<ChannelMemberItem[]>(`/chat/channels/${channelId}/members`, {
+      method: "GET",
+      accessToken
+    }),
+  updateChannelMemberRole: (accessToken: string, channelId: string, targetUserId: string, role: "admin" | "member") =>
+    request<ChannelMemberItem>(`/chat/channels/${channelId}/members/${targetUserId}/role`, {
+      method: "PATCH",
+      accessToken,
+      body: { role }
+    }),
+  removeChannelMember: (accessToken: string, channelId: string, targetUserId: string) =>
+    request<{ ok: boolean }>(`/chat/channels/${channelId}/members/${targetUserId}`, {
+      method: "DELETE",
+      accessToken
     }),
   listMessages: (accessToken: string, channelId: string) =>
     request<{ items: MessageItem[] }>(`/chat/channels/${channelId}/messages?limit=50`, {

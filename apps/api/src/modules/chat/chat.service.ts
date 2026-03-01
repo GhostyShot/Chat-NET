@@ -9,6 +9,21 @@ function normalizeUsername(username: string): string {
 }
 
 export class ChatService {
+  private async getMembershipRole(channelId: string, userId: string): Promise<"OWNER" | "ADMIN" | "MEMBER" | null> {
+    const membership = await prisma.channelMembership.findUnique({
+      where: {
+        userId_channelId: {
+          userId,
+          channelId
+        }
+      },
+      select: {
+        role: true
+      }
+    });
+    return membership?.role ?? null;
+  }
+
   private async areUsersBlocked(a: string, b: string): Promise<boolean> {
     const block = await prisma.userBlock.findFirst({
       where: {
@@ -216,6 +231,146 @@ export class ChatService {
     });
 
     return created;
+  }
+
+  async listChannelMembers(input: { channelId: string; requesterId: string }) {
+    const requesterRole = await this.getMembershipRole(input.channelId, input.requesterId);
+    if (!requesterRole) {
+      throw new Error("FORBIDDEN_CHANNEL");
+    }
+
+    const channel = await prisma.channel.findUnique({ where: { id: input.channelId } });
+    if (!channel) {
+      throw new Error("FORBIDDEN_CHANNEL");
+    }
+
+    return prisma.channelMembership.findMany({
+      where: { channelId: input.channelId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true
+          }
+        }
+      },
+      orderBy: [{ role: "asc" }, { createdAt: "asc" }]
+    });
+  }
+
+  async updateChannelMemberRole(input: {
+    channelId: string;
+    requesterId: string;
+    targetUserId: string;
+    role: "admin" | "member";
+  }) {
+    const channel = await prisma.channel.findUnique({ where: { id: input.channelId } });
+    if (!channel) {
+      throw new Error("FORBIDDEN_CHANNEL");
+    }
+
+    if (channel.type !== "GROUP") {
+      throw new Error("GROUP_ONLY");
+    }
+
+    const requesterRole = await this.getMembershipRole(input.channelId, input.requesterId);
+    if (requesterRole !== "OWNER") {
+      throw new Error("FORBIDDEN_CHANNEL");
+    }
+
+    const targetMembership = await prisma.channelMembership.findUnique({
+      where: {
+        userId_channelId: {
+          userId: input.targetUserId,
+          channelId: input.channelId
+        }
+      }
+    });
+
+    if (!targetMembership) {
+      throw new Error("USER_NOT_FOUND");
+    }
+
+    if (targetMembership.role === "OWNER" || input.targetUserId === input.requesterId) {
+      throw new Error("INVALID_TARGET_USER");
+    }
+
+    const nextRole = input.role === "admin" ? "ADMIN" : "MEMBER";
+    return prisma.channelMembership.update({
+      where: {
+        userId_channelId: {
+          userId: input.targetUserId,
+          channelId: input.channelId
+        }
+      },
+      data: {
+        role: nextRole
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true
+          }
+        }
+      }
+    });
+  }
+
+  async removeChannelMember(input: { channelId: string; requesterId: string; targetUserId: string }) {
+    const channel = await prisma.channel.findUnique({ where: { id: input.channelId } });
+    if (!channel) {
+      throw new Error("FORBIDDEN_CHANNEL");
+    }
+
+    if (channel.type !== "GROUP") {
+      throw new Error("GROUP_ONLY");
+    }
+
+    const requesterRole = await this.getMembershipRole(input.channelId, input.requesterId);
+    if (!requesterRole || (requesterRole !== "OWNER" && requesterRole !== "ADMIN")) {
+      throw new Error("FORBIDDEN_CHANNEL");
+    }
+
+    const targetMembership = await prisma.channelMembership.findUnique({
+      where: {
+        userId_channelId: {
+          userId: input.targetUserId,
+          channelId: input.channelId
+        }
+      }
+    });
+
+    if (!targetMembership) {
+      throw new Error("USER_NOT_FOUND");
+    }
+
+    if (targetMembership.role === "OWNER") {
+      throw new Error("INVALID_TARGET_USER");
+    }
+
+    if (input.targetUserId === input.requesterId) {
+      throw new Error("INVALID_TARGET_USER");
+    }
+
+    if (requesterRole === "ADMIN" && targetMembership.role !== "MEMBER") {
+      throw new Error("FORBIDDEN_CHANNEL");
+    }
+
+    await prisma.channelMembership.delete({
+      where: {
+        userId_channelId: {
+          userId: input.targetUserId,
+          channelId: input.channelId
+        }
+      }
+    });
+
+    return { ok: true, removedUserId: input.targetUserId };
   }
 
   async sendMessage(input: { channelId: string; userId: string; content: string }) {

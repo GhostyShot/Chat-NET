@@ -11,19 +11,23 @@ import {
   forgotPassword,
   getProfile,
   getPresence,
+  listChannelMembers,
   listChannels,
   listMessages,
   login,
   loginWithGoogle,
   markRead,
+  removeChannelMember,
   searchMessages,
   register,
   resetPassword,
   sendMessage,
+  updateChannelMemberRole,
   updateProfile,
   updateMessage,
   uploadFile,
   verifyEmail,
+  type ChannelMemberItem,
   type ChannelItem,
   type MessageItem
 } from "./lib/api";
@@ -98,6 +102,7 @@ export function App() {
   const [editingContent, setEditingContent] = useState("");
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const [inviteUsername, setInviteUsername] = useState("");
+  const [channelMembers, setChannelMembers] = useState<ChannelMemberItem[]>([]);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileNickname, setProfileNickname] = useState("");
   const [profileUsername, setProfileUsername] = useState("");
@@ -111,6 +116,16 @@ export function App() {
     () => channels.find((channel) => channel.id === activeChannelId) ?? null,
     [channels, activeChannelId]
   );
+
+  const ownMembershipRole = useMemo(() => {
+    if (!activeChannel || !auth) {
+      return null;
+    }
+    return activeChannel.memberships?.find((membership) => membership.user.id === auth.user.id)?.role ?? null;
+  }, [activeChannel, auth]);
+
+  const canModerateMembers = ownMembershipRole === "OWNER" || ownMembershipRole === "ADMIN";
+  const canManageRoles = ownMembershipRole === "OWNER";
 
   const mentionCandidates = useMemo(() => {
     const candidates = new Map<string, string>();
@@ -229,6 +244,24 @@ export function App() {
 
     void loadMessages();
   }, [auth, activeChannelId]);
+
+  useEffect(() => {
+    const loadMembers = async () => {
+      if (!auth || !activeChannelId || !activeChannel || activeChannel.type !== "GROUP") {
+        setChannelMembers([]);
+        return;
+      }
+
+      try {
+        const members = await listChannelMembers(auth.tokens.accessToken, activeChannelId);
+        setChannelMembers(members);
+      } catch {
+        setChannelMembers([]);
+      }
+    };
+
+    void loadMembers();
+  }, [auth, activeChannelId, activeChannel?.id, activeChannel?.type]);
 
   useEffect(() => {
     if (!auth) {
@@ -608,6 +641,37 @@ export function App() {
     }
   };
 
+  const onToggleMemberRole = async (member: ChannelMemberItem) => {
+    if (!auth || !activeChannelId || !canManageRoles) {
+      return;
+    }
+
+    const nextRole = member.role === "ADMIN" ? "member" : "admin";
+    try {
+      const updated = await updateChannelMemberRole(auth.tokens.accessToken, activeChannelId, member.userId, nextRole);
+      setChannelMembers((previous) =>
+        previous.map((entry) => (entry.userId === member.userId ? { ...entry, role: updated.role } : entry))
+      );
+      setMessage(`Rolle von @${member.user.username} wurde aktualisiert.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Rolle konnte nicht geändert werden");
+    }
+  };
+
+  const onRemoveMember = async (member: ChannelMemberItem) => {
+    if (!auth || !activeChannelId || !canModerateMembers) {
+      return;
+    }
+
+    try {
+      await removeChannelMember(auth.tokens.accessToken, activeChannelId, member.userId);
+      setChannelMembers((previous) => previous.filter((entry) => entry.userId !== member.userId));
+      setMessage(`@${member.user.username} wurde entfernt.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Mitglied konnte nicht entfernt werden");
+    }
+  };
+
   const onComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (mentionQuery !== null && filteredMentionCandidates.length > 0) {
       if (event.key === "ArrowDown") {
@@ -797,6 +861,43 @@ export function App() {
                 </button>
                 <p className="inline-note">Für "Zur Gruppe" musst du Owner eines Gruppenchats sein.</p>
               </div>
+
+              {activeChannel?.type === "GROUP" && (
+                <div className="member-panel">
+                  <div className="panel-header">
+                    <h3>Mitglieder</h3>
+                    <span>{channelMembers.length}</span>
+                  </div>
+                  <div className="member-list">
+                    {channelMembers.map((member) => {
+                      const isSelf = member.userId === auth.user.id;
+                      return (
+                        <div key={member.userId} className="member-item">
+                          <div>
+                            <p className="member-name">{member.user.displayName}</p>
+                            <p className="member-meta">
+                              @{member.user.username} • {member.role}
+                            </p>
+                          </div>
+                          <div className="member-actions">
+                            {canManageRoles && member.role !== "OWNER" && !isSelf && (
+                              <button className="secondary compact" onClick={() => onToggleMemberRole(member)}>
+                                {member.role === "ADMIN" ? "Zu Member" : "Zu Admin"}
+                              </button>
+                            )}
+                            {canModerateMembers && member.role !== "OWNER" && !isSelf && (
+                              <button className="secondary compact" onClick={() => onRemoveMember(member)}>
+                                Entfernen
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {!channelMembers.length && <p className="inline-note">Keine Mitgliederdaten verfügbar.</p>}
+                  </div>
+                </div>
+              )}
 
               <div className="channel-items">
                 {channels.map((channel) => (

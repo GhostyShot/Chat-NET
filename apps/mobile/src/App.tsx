@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { AuthResponse } from "@chatnet/shared";
 import { io, type Socket } from "socket.io-client";
-import { API_URL, api, type ChannelItem, type MessageItem } from "./api";
+import { API_URL, api, type ChannelItem, type ChannelMemberItem, type MessageItem } from "./api";
 
 type Mode = "login" | "register" | "forgot" | "reset" | "verify";
 
@@ -28,6 +28,13 @@ export default function App() {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState("");
   const [attachmentUrl, setAttachmentUrl] = useState("");
+  const [inviteUsername, setInviteUsername] = useState("");
+  const [channelMembers, setChannelMembers] = useState<ChannelMemberItem[]>([]);
+
+  const activeChannel = channels.find((channel) => channel.id === activeChannelId) ?? null;
+  const ownRole = activeChannel?.memberships?.find((membership) => membership.user.id === auth?.user.id)?.role ?? null;
+  const canModerateMembers = ownRole === "OWNER" || ownRole === "ADMIN";
+  const canManageRoles = ownRole === "OWNER";
 
   useEffect(() => {
     const loadChannels = async () => {
@@ -66,6 +73,24 @@ export default function App() {
 
     void loadMessages();
   }, [auth, activeChannelId]);
+
+  useEffect(() => {
+    const loadMembers = async () => {
+      if (!auth || !activeChannelId || !activeChannel || activeChannel.type !== "GROUP") {
+        setChannelMembers([]);
+        return;
+      }
+
+      try {
+        const members = await api.listChannelMembers(auth.tokens.accessToken, activeChannelId);
+        setChannelMembers(members);
+      } catch {
+        setChannelMembers([]);
+      }
+    };
+
+    void loadMembers();
+  }, [auth, activeChannelId, activeChannel?.id, activeChannel?.type]);
 
   useEffect(() => {
     if (!auth) {
@@ -210,6 +235,72 @@ export default function App() {
     }
   };
 
+  const onStartDirectByUsername = async () => {
+    if (!auth || !inviteUsername.trim()) {
+      return;
+    }
+
+    try {
+      const channel = await api.createDirectByUsername(auth.tokens.accessToken, inviteUsername.trim());
+      setChannels((previous) => {
+        if (previous.some((entry) => entry.id === channel.id)) {
+          return previous;
+        }
+        return [channel, ...previous];
+      });
+      setActiveChannelId(channel.id);
+      setInviteUsername("");
+      setMessage("Direktchat erstellt.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Direktchat fehlgeschlagen");
+    }
+  };
+
+  const onAddMemberByUsername = async () => {
+    if (!auth || !activeChannelId || !activeChannel || activeChannel.type !== "GROUP" || !inviteUsername.trim()) {
+      return;
+    }
+
+    try {
+      await api.addGroupMemberByUsername(auth.tokens.accessToken, activeChannelId, inviteUsername.trim());
+      const members = await api.listChannelMembers(auth.tokens.accessToken, activeChannelId);
+      setChannelMembers(members);
+      setInviteUsername("");
+      setMessage("Mitglied hinzugefügt.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Hinzufügen fehlgeschlagen");
+    }
+  };
+
+  const onToggleMemberRole = async (member: ChannelMemberItem) => {
+    if (!auth || !activeChannelId || !canManageRoles) {
+      return;
+    }
+
+    const role = member.role === "ADMIN" ? "member" : "admin";
+    try {
+      const updated = await api.updateChannelMemberRole(auth.tokens.accessToken, activeChannelId, member.userId, role);
+      setChannelMembers((previous) =>
+        previous.map((entry) => (entry.userId === member.userId ? { ...entry, role: updated.role } : entry))
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Rolle konnte nicht geändert werden");
+    }
+  };
+
+  const onRemoveMember = async (member: ChannelMemberItem) => {
+    if (!auth || !activeChannelId || !canModerateMembers) {
+      return;
+    }
+
+    try {
+      await api.removeChannelMember(auth.tokens.accessToken, activeChannelId, member.userId);
+      setChannelMembers((previous) => previous.filter((entry) => entry.userId !== member.userId));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Mitglied konnte nicht entfernt werden");
+    }
+  };
+
   const onSend = async () => {
     if (!auth || !activeChannelId || !composerText.trim()) {
       return;
@@ -316,6 +407,50 @@ export default function App() {
               <Text style={styles.primaryText}>Erstellen</Text>
             </Pressable>
           </View>
+
+          <View style={styles.newChannelRow}>
+            <TextInput
+              value={inviteUsername}
+              onChangeText={(value) => setInviteUsername(value.toLowerCase())}
+              placeholder="@username"
+              placeholderTextColor="#9fb0e3"
+              style={[styles.input, styles.inputFlex]}
+            />
+            <Pressable style={styles.secondary} onPress={onStartDirectByUsername}>
+              <Text style={styles.primaryText}>Direkt</Text>
+            </Pressable>
+            <Pressable
+              style={styles.secondary}
+              onPress={onAddMemberByUsername}
+              disabled={!activeChannel || activeChannel.type !== "GROUP"}
+            >
+              <Text style={styles.primaryText}>Add</Text>
+            </Pressable>
+          </View>
+
+          {activeChannel?.type === "GROUP" && (
+            <View style={styles.messagesBox}>
+              <Text style={styles.sectionTitle}>Mitglieder</Text>
+              {channelMembers.map((member) => (
+                <View key={member.userId} style={styles.memberRow}>
+                  <View style={styles.inputFlex}>
+                    <Text style={styles.channelText}>{member.user.displayName}</Text>
+                    <Text style={styles.messageMeta}>@{member.user.username} • {member.role}</Text>
+                  </View>
+                  {canManageRoles && member.role !== "OWNER" && member.userId !== auth.user.id && (
+                    <Pressable style={styles.secondarySmall} onPress={() => onToggleMemberRole(member)}>
+                      <Text style={styles.primaryText}>{member.role === "ADMIN" ? "Member" : "Admin"}</Text>
+                    </Pressable>
+                  )}
+                  {canModerateMembers && member.role !== "OWNER" && member.userId !== auth.user.id && (
+                    <Pressable style={styles.secondarySmall} onPress={() => onRemoveMember(member)}>
+                      <Text style={styles.primaryText}>Entfernen</Text>
+                    </Pressable>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
 
           <View style={styles.channelWrap}>
             {channels.map((channel) => (
@@ -522,6 +657,7 @@ const styles = StyleSheet.create({
   inputFlex: { flex: 1 },
   primary: { backgroundColor: "#3a71ff", borderRadius: 10, padding: 12, alignItems: "center" },
   secondary: { backgroundColor: "#1e2c57", borderRadius: 10, padding: 12, alignItems: "center" },
+  secondarySmall: { backgroundColor: "#1e2c57", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, alignItems: "center" },
   newChannelRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   channelWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   channelItem: { backgroundColor: "#15244a", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
@@ -537,6 +673,14 @@ const styles = StyleSheet.create({
     minHeight: 180
   },
   messageItem: { backgroundColor: "#15244a", borderRadius: 10, padding: 8 },
+  memberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#15244a",
+    borderRadius: 10,
+    padding: 8
+  },
   messageMeta: { color: "#9fb0e3", fontSize: 12, marginBottom: 4 },
   messageText: { color: "#fff" },
   primaryText: { color: "#fff", fontWeight: "600" },

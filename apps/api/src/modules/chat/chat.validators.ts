@@ -41,3 +41,7 @@ export const usernameTargetSchema = z.object({
     .transform((value) => value.replace(/^@/, ""))
     .refine((value) => /^[a-z0-9_]{3,24}$/u.test(value), "USERNAME_INVALID_FORMAT")
 });
+
+export const updateMemberRoleSchema = z.object({
+  role: z.enum(["admin", "member"])
+});

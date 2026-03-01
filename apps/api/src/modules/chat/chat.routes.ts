@@ -12,6 +12,7 @@ import {
   readReceiptSchema,
   searchQuerySchema,
   sendMessageSchema,
+  updateMemberRoleSchema,
   updateMessageSchema
 } from "./chat.validators.js";
 import { getRealtimeServer } from "../../realtime.state.js";
@@ -144,6 +145,79 @@ chatRouter.post("/channels/:channelId/members/by-username", async (req: Authenti
         channelId,
         requesterId: userId,
         username: parsed.data.username
+      }),
+    res
+  );
+});
+
+chatRouter.get("/channels/:channelId/members", async (req: AuthenticatedRequest, res) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    return res.status(401).json({ error: "AUTH_REQUIRED" });
+  }
+
+  const channelId = singleParam(req.params.channelId);
+  if (!channelId) {
+    return res.status(400).json({ error: "INVALID_CHANNEL_ID" });
+  }
+
+  return withErrorBoundary(
+    () =>
+      chatService.listChannelMembers({
+        channelId,
+        requesterId: userId
+      }),
+    res
+  );
+});
+
+chatRouter.patch("/channels/:channelId/members/:targetUserId/role", async (req: AuthenticatedRequest, res) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    return res.status(401).json({ error: "AUTH_REQUIRED" });
+  }
+
+  const channelId = singleParam(req.params.channelId);
+  const targetUserId = singleParam(req.params.targetUserId);
+  if (!channelId || !targetUserId) {
+    return res.status(400).json({ error: "INVALID_PATH_PARAMS" });
+  }
+
+  const parsed = updateMemberRoleSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "INVALID_BODY", details: parsed.error.issues });
+  }
+
+  return withErrorBoundary(
+    () =>
+      chatService.updateChannelMemberRole({
+        channelId,
+        requesterId: userId,
+        targetUserId,
+        role: parsed.data.role
+      }),
+    res
+  );
+});
+
+chatRouter.delete("/channels/:channelId/members/:targetUserId", async (req: AuthenticatedRequest, res) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    return res.status(401).json({ error: "AUTH_REQUIRED" });
+  }
+
+  const channelId = singleParam(req.params.channelId);
+  const targetUserId = singleParam(req.params.targetUserId);
+  if (!channelId || !targetUserId) {
+    return res.status(400).json({ error: "INVALID_PATH_PARAMS" });
+  }
+
+  return withErrorBoundary(
+    () =>
+      chatService.removeChannelMember({
+        channelId,
+        requesterId: userId,
+        targetUserId
       }),
     res
   );

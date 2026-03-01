@@ -8,6 +8,7 @@ export interface ChannelItem {
   name: string | null;
   updatedAt: string;
   memberships?: Array<{
+    role: "OWNER" | "ADMIN" | "MEMBER";
     user: {
       id: string;
       username?: string;
@@ -33,6 +34,19 @@ export interface PresenceItem {
   userId: string;
   online: boolean;
   lastSeenAt: number | null;
+}
+
+export interface ChannelMemberItem {
+  userId: string;
+  channelId: string;
+  role: "OWNER" | "ADMIN" | "MEMBER";
+  createdAt: string;
+  user: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl?: string | null;
+  };
 }
 
 export interface ProfileItem {
@@ -209,6 +223,47 @@ export async function addGroupMemberByUsername(accessToken: string, channelId: s
   const payload = await response.json();
   if (!response.ok) {
     throw new Error(payload.error ?? "ADD_MEMBER_FAILED");
+  }
+}
+
+export async function listChannelMembers(accessToken: string, channelId: string): Promise<ChannelMemberItem[]> {
+  const response = await fetch(`${API_URL}/chat/channels/${channelId}/members`, {
+    method: "GET",
+    headers: authHeaders(accessToken)
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error ?? "MEMBERS_FAILED");
+  }
+  return payload as ChannelMemberItem[];
+}
+
+export async function updateChannelMemberRole(
+  accessToken: string,
+  channelId: string,
+  targetUserId: string,
+  role: "admin" | "member"
+): Promise<ChannelMemberItem> {
+  const response = await fetch(`${API_URL}/chat/channels/${channelId}/members/${targetUserId}/role`, {
+    method: "PATCH",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ role })
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error ?? "UPDATE_MEMBER_ROLE_FAILED");
+  }
+  return payload as ChannelMemberItem;
+}
+
+export async function removeChannelMember(accessToken: string, channelId: string, targetUserId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/chat/channels/${channelId}/members/${targetUserId}`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken)
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error ?? "REMOVE_MEMBER_FAILED");
   }
 }
 
