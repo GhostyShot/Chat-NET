@@ -4,11 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chat-Net – Moderner Realtime Chat für Communities & Teams</title>
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
+    <meta name="googlebot" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
+    <meta name="theme-color" content="#1f1f26" />
+    <meta name="author" content="Chat-Net" />
     <meta
       name="description"
       content="Chat-Net ist eine moderne Realtime-Chat Plattform mit Gruppen, Direktchats, Moderation und sauberem UI für Communities und Teams."
     />
     <link rel="canonical" href="https://chat-net.tech/" />
+    <link rel="alternate" href="https://chat-net.tech/" hreflang="de" />
+    <link rel="alternate" href="https://chat-net.tech/" hreflang="x-default" />
+    <link rel="manifest" href="/site.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260301" />
     <link rel="shortcut icon" type="image/svg+xml" href="/favicon.svg?v=20260301" />
     <meta property="og:type" content="website" />
@@ -30,14 +37,36 @@
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "Chat-Net",
-        "url": "https://chat-net.tech/",
-        "description": "Moderne Realtime-Chat Plattform für Communities und Teams."
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "name": "Chat-Net",
+            "url": "https://chat-net.tech/",
+            "description": "Moderne Realtime-Chat Plattform für Communities und Teams."
+          },
+          {
+            "@type": "Organization",
+            "name": "Chat-Net",
+            "url": "https://chat-net.tech/",
+            "logo": "https://chat-net.tech/chat-net-logo.svg"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "name": "Chat-Net",
+            "applicationCategory": "CommunicationApplication",
+            "operatingSystem": "Web",
+            "url": "https://chat-net.tech/",
+            "description": "Realtime Chat für Communities und Teams mit Gruppen, Direktchats und Moderation."
+          }
+        ]
       }
     </script>
   </head>
   <body>
+    <noscript>
+      Chat-Net ist eine moderne Realtime-Chat Plattform für Communities und Teams. Aktiviere JavaScript, um Chat-Net
+      vollständig zu nutzen.
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

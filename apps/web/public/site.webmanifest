@@ -1,0 +1,16 @@
+{
+  "name": "Chat-Net",
+  "short_name": "Chat-Net",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111216",
+  "theme_color": "#1f1f26",
+  "description": "Moderne Realtime-Chat Plattform für Communities und Teams.",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
