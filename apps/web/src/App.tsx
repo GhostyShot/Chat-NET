@@ -118,6 +118,7 @@ export function App() {
   const [mentionIndex, setMentionIndex] = useState(0);
   const [googleReady, setGoogleReady] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
+  const [showAuthPage, setShowAuthPage] = useState(false);
 
   const activeChannel = useMemo(
     () => channels.find((channel) => channel.id === activeChannelId) ?? null,
@@ -205,6 +206,7 @@ export function App() {
       setMode("reset");
       setToken(resetToken);
       setResetTokenFromLink(resetToken);
+      setShowAuthPage(true);
     }
   }, [auth]);
 
@@ -1251,6 +1253,106 @@ export function App() {
     );
   }
 
+  if (!resetTokenFromLink && !showAuthPage) {
+    return (
+      <main className="app-shell landing-shell">
+        <section className="landing-page">
+          <header className="landing-topbar">
+            <div className="landing-brand">
+              <img src="/chat-net-logo.svg" alt="Chat-Net Logo" className="landing-logo" />
+              <div>
+                <p className="eyebrow">chat-net.tech</p>
+                <h1>Chat-Net</h1>
+              </div>
+            </div>
+            <div className="landing-auth-actions">
+              <button
+                className="secondary compact"
+                onClick={() => {
+                  setMode("login");
+                  setShowAuthPage(true);
+                }}
+              >
+                Login
+              </button>
+              <button
+                className="primary compact"
+                onClick={() => {
+                  setMode("register");
+                  setShowAuthPage(true);
+                }}
+              >
+                Registrieren
+              </button>
+            </div>
+          </header>
+
+          <div className="landing-hero">
+            <p className="eyebrow">Warum Chat-Net?</p>
+            <h2>Ein moderner Chat für Communities, Teams und Gamer.</h2>
+            <p className="subtitle">
+              Schneller Realtime-Chat, starke Gruppenfeatures, klare Rollen und ein UX, das sich wie eine moderne
+              Community-Plattform anfühlt.
+            </p>
+          </div>
+
+          <div className="landing-visual-strip" aria-hidden="true">
+            <article className="landing-visual-card">
+              <img src="/chat-net-logo.svg" alt="" />
+              <p>Glow Feed</p>
+            </article>
+            <article className="landing-visual-card">
+              <img src="/chat-net-logo.svg" alt="" />
+              <p>Neon Pulse</p>
+            </article>
+            <article className="landing-visual-card">
+              <img src="/chat-net-logo.svg" alt="" />
+              <p>Frost View</p>
+            </article>
+          </div>
+
+          <div className="landing-feature-grid">
+            <article className="landing-feature-card">
+              <h3>Realtime by Default</h3>
+              <p>Tippindikatoren, Presence, Read Receipts und direkte Antworten ohne Page-Reload.</p>
+            </article>
+            <article className="landing-feature-card">
+              <h3>Community-Fokus</h3>
+              <p>Owner/Admin-Moderation, Gruppenverwaltung, Mentions und klare Rollenstruktur.</p>
+            </article>
+            <article className="landing-feature-card">
+              <h3>Modernes Interface</h3>
+              <p>Dark/Light Themes, cleaner Glas-Look und mobile + web konsistent aus einem Guss.</p>
+            </article>
+          </div>
+
+          <div className="landing-store-row">
+            <a
+              href="#"
+              className="store-badge"
+              onClick={(event) => event.preventDefault()}
+              aria-label="App Store Coming soon"
+            >
+              <span className="store-badge-label">Download on the</span>
+              <strong>App Store</strong>
+              <span className="store-soon">Coming soon</span>
+            </a>
+            <a
+              href="#"
+              className="store-badge"
+              onClick={(event) => event.preventDefault()}
+              aria-label="Google Play Coming soon"
+            >
+              <span className="store-badge-label">Get it on</span>
+              <strong>Google Play</strong>
+              <span className="store-soon">Coming soon</span>
+            </a>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="app-shell auth-shell">
       <section className={resetTokenFromLink ? "auth-card reset-card" : "auth-card"}>
@@ -1304,9 +1406,6 @@ export function App() {
             <button className={mode === "forgot" ? "tab active" : "tab"} onClick={() => setMode("forgot")}>
               Passwort vergessen
             </button>
-            <button className={mode === "reset" ? "tab active" : "tab"} onClick={() => setMode("reset")}>
-              Passwort zurücksetzen
-            </button>
           </div>
 
           {(mode === "login" || mode === "register" || mode === "forgot") && (
@@ -1321,7 +1420,7 @@ export function App() {
             </label>
           )}
 
-          {(mode === "login" || mode === "register" || mode === "reset") && (
+          {(mode === "login" || mode === "register") && (
             <label>
               Passwort
               <input
