@@ -7,6 +7,21 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "platforms": ["ios", "android", "web"]
+    "platforms": ["ios", "android", "web"],
+    "icon": "./assets/chat-net-logo.png",
+    "splash": {
+      "image": "./assets/chat-net-logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0b1020"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/chat-net-logo.png",
+        "backgroundColor": "#0b1020"
+      }
+    },
+    "web": {
+      "favicon": "./assets/chat-net-logo.png"
+    }
   }
 }

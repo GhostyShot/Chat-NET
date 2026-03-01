@@ -1,11 +1,12 @@
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { AuthResponse } from "@chatnet/shared";
 import { io, type Socket } from "socket.io-client";
 import { API_URL, api, type ChannelItem, type ChannelMemberItem, type MessageItem } from "./api";
 
 type Mode = "login" | "register" | "forgot" | "reset";
+const chatNetLogo = require("../assets/chat-net-logo.png");
 
 export default function App() {
   const [mode, setMode] = useState<Mode>("login");
@@ -451,6 +452,7 @@ export default function App() {
         <ScrollView contentContainerStyle={styles.container}>
           <View style={styles.headerRow}>
             <View>
+              <Image source={chatNetLogo} style={styles.logo} resizeMode="contain" />
               <Text style={styles.title}>Chat-Net</Text>
               <Text style={styles.subtitle}>
                 {auth.user.displayName}
@@ -677,6 +679,7 @@ export default function App() {
     <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.container}>
+        <Image source={chatNetLogo} style={styles.authLogo} resizeMode="contain" />
         <Text style={styles.title}>Chat-Net</Text>
         <Text style={styles.subtitle}>chat-net.tech</Text>
 
@@ -735,6 +738,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#0b1020" },
   container: { padding: 20, gap: 10 },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 },
+  logo: { width: 56, height: 56, marginBottom: 6 },
+  authLogo: { width: 84, height: 84, marginBottom: 8 },
   title: { fontSize: 28, color: "#fff", fontWeight: "700" },
   subtitle: { color: "#9fb0e3", marginBottom: 12 },
   sectionTitle: { color: "#dce5ff", fontSize: 16, fontWeight: "700", marginTop: 6 },
