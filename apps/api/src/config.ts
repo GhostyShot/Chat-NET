@@ -1,9 +1,23 @@
 import "dotenv/config";
+import fs from "node:fs";
 import path from "node:path";
 
+function resolveSecretValue(rawValue?: string): string | undefined {
+  const normalized = rawValue?.trim();
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (normalized.startsWith("/") && fs.existsSync(normalized)) {
+    const fileValue = fs.readFileSync(normalized, "utf8").trim();
+    return fileValue || undefined;
+  }
+
+  return normalized;
+}
+
 function required(name: string, fallback?: string): string {
-  const value = process.env[name] ?? fallback;
-  const normalized = value?.trim();
+  const normalized = resolveSecretValue(process.env[name]) ?? resolveSecretValue(fallback);
   if (!normalized) {
     throw new Error(`Missing environment variable: ${name}`);
   }
@@ -12,7 +26,7 @@ function required(name: string, fallback?: string): string {
 
 function parseWebOrigins(): string[] {
   const defaults = ["http://localhost:5173", "https://chat-net.tech"];
-  const raw = process.env.WEB_ORIGIN;
+  const raw = resolveSecretValue(process.env.WEB_ORIGIN);
   if (!raw) {
     return defaults;
   }
@@ -27,7 +41,7 @@ const webOrigins = parseWebOrigins();
 
 function parseGoogleClientIds(): string[] {
   const single = required("GOOGLE_CLIENT_ID", "dev-google-client-id");
-  const fromList = (process.env.GOOGLE_CLIENT_IDS ?? "")
+  const fromList = (resolveSecretValue(process.env.GOOGLE_CLIENT_IDS) ?? "")
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean);
