@@ -6,6 +6,7 @@ import { requireAuth, type AuthenticatedRequest } from "./chat.auth.js";
 import { chatService } from "./chat.service.js";
 import {
   createChannelSchema,
+  emailTargetSchema,
   pagingQuerySchema,
   presenceQuerySchema,
   readReceiptSchema,
@@ -33,7 +34,11 @@ function withErrorBoundary<T>(fn: () => Promise<T>, res: Response) {
         message === "DIRECT_REQUIRES_TWO_MEMBERS" ||
         message === "GROUP_NAME_REQUIRED" ||
         message === "MESSAGE_NOT_FOUND" ||
-        message === "INVALID_BLOCK_TARGET"
+        message === "INVALID_BLOCK_TARGET" ||
+        message === "USER_NOT_FOUND" ||
+        message === "GROUP_ONLY" ||
+        message === "MEMBER_EXISTS" ||
+        message === "INVALID_TARGET_USER"
           ? 400
           : message === "FORBIDDEN_CHANNEL" || message === "USER_BLOCKED"
             ? 403
@@ -91,6 +96,54 @@ chatRouter.post("/channels", async (req: AuthenticatedRequest, res) => {
         type: parsed.data.type,
         name: parsed.data.name,
         memberIds: parsed.data.memberIds
+      }),
+    res
+  );
+});
+
+chatRouter.post("/direct/by-email", async (req: AuthenticatedRequest, res) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    return res.status(401).json({ error: "AUTH_REQUIRED" });
+  }
+
+  const parsed = emailTargetSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "INVALID_BODY", details: parsed.error.issues });
+  }
+
+  return withErrorBoundary(
+    () =>
+      chatService.createDirectChannelByEmail({
+        ownerId: userId,
+        email: parsed.data.email
+      }),
+    res
+  );
+});
+
+chatRouter.post("/channels/:channelId/members/by-email", async (req: AuthenticatedRequest, res) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    return res.status(401).json({ error: "AUTH_REQUIRED" });
+  }
+
+  const channelId = singleParam(req.params.channelId);
+  if (!channelId) {
+    return res.status(400).json({ error: "INVALID_CHANNEL_ID" });
+  }
+
+  const parsed = emailTargetSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "INVALID_BODY", details: parsed.error.issues });
+  }
+
+  return withErrorBoundary(
+    () =>
+      chatService.addGroupMemberByEmail({
+        channelId,
+        requesterId: userId,
+        email: parsed.data.email
       }),
     res
   );

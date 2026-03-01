@@ -1,8 +1,50 @@
 :root {
   color-scheme: dark;
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  background: radial-gradient(circle at 20% 10%, #1d2d67 0%, #0b1020 40%, #080c18 100%);
-  color: #e6ecff;
+  --bg-main: radial-gradient(circle at 20% 10%, #1d2d67 0%, #0b1020 40%, #080c18 100%);
+  --text-main: #e6ecff;
+  --text-sub: #a4b4e8;
+  --border-main: #2e4078;
+  --surface-main: rgba(10, 18, 40, 0.86);
+  --surface-panel: #0d1735;
+  --surface-brand: linear-gradient(160deg, #192a64 0%, #0f1a3b 60%, #0a1128 100%);
+  --input-bg: #121d3d;
+  --input-border: #3f518c;
+  --btn-primary: linear-gradient(140deg, #4f81ff, #3b62df);
+  --btn-primary-border: #4f81ff;
+  --btn-secondary: #1d2c57;
+  --accent: #5e8dff;
+  --bubble-bg: #132349;
+  --bubble-own-bg: #1a3270;
+  --bubble-border: #2d4277;
+  --banner-bg: #152b5e;
+  --banner-border: #4160ac;
+  --shadow-soft: 0 18px 48px rgba(0, 0, 0, 0.28);
+  background: var(--bg-main);
+  color: var(--text-main);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg-main: radial-gradient(circle at 20% 10%, #eff4ff 0%, #e8eefb 45%, #dde6f8 100%);
+  --text-main: #1a233a;
+  --text-sub: #42507a;
+  --border-main: #c5d2f3;
+  --surface-main: rgba(255, 255, 255, 0.88);
+  --surface-panel: #f7f9ff;
+  --surface-brand: linear-gradient(160deg, #dfe8ff 0%, #d4e0ff 55%, #cfdcff 100%);
+  --input-bg: #ffffff;
+  --input-border: #bcccf3;
+  --btn-primary: linear-gradient(140deg, #3f6df0, #3555c8);
+  --btn-primary-border: #3f6df0;
+  --btn-secondary: #e8eefc;
+  --accent: #3555c8;
+  --bubble-bg: #eef3ff;
+  --bubble-own-bg: #dce7ff;
+  --bubble-border: #c0d0f8;
+  --banner-bg: #e8f0ff;
+  --banner-border: #b8cbf7;
+  --shadow-soft: 0 14px 34px rgba(50, 80, 150, 0.16);
 }
 
 * {
@@ -11,7 +53,8 @@
 
 body {
   margin: 0;
-  background: transparent;
+  background: var(--bg-main);
+  color: var(--text-main);
 }
 
 .app-shell {
@@ -29,9 +72,10 @@ body {
 .auth-card {
   width: min(1050px, 100%);
   border-radius: 24px;
-  border: 1px solid #2f3f7d;
-  background: rgba(11, 18, 38, 0.86);
+  border: 1px solid var(--border-main);
+  background: var(--surface-main);
   backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-soft);
   display: grid;
   grid-template-columns: 1fr 1fr;
   overflow: hidden;
@@ -42,7 +86,7 @@ body {
   display: grid;
   align-content: center;
   gap: 10px;
-  background: linear-gradient(160deg, #192a64 0%, #0f1a3b 60%, #0a1128 100%);
+  background: var(--surface-brand);
 }
 
 .auth-panel {
@@ -57,7 +101,7 @@ body {
   font-size: 12px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #9fb5ff;
+  color: var(--text-sub);
 }
 
 h1,
@@ -71,7 +115,7 @@ h1 {
 }
 
 .subtitle {
-  color: #a4b4e8;
+  color: var(--text-sub);
 }
 
 .mode-tabs {
@@ -81,14 +125,14 @@ h1 {
 }
 
 .tab {
-  border: 1px solid #3a4f93;
-  background: #141f42;
-  color: #d9e2ff;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-main);
 }
 
 .tab.active {
-  border-color: #5a84ff;
-  background: #2443a8;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--input-bg));
 }
 
 label {
@@ -101,10 +145,10 @@ input,
 textarea,
 button {
   border-radius: 12px;
-  border: 1px solid #3f518c;
+  border: 1px solid var(--input-border);
   padding: 11px 12px;
-  background: #121d3d;
-  color: #e6ecff;
+  background: var(--input-bg);
+  color: var(--text-main);
   font: inherit;
 }
 
@@ -123,12 +167,13 @@ button {
 }
 
 .primary {
-  background: linear-gradient(140deg, #4f81ff, #3b62df);
-  border-color: #4f81ff;
+  background: var(--btn-primary);
+  border-color: var(--btn-primary-border);
+  color: #fff;
 }
 
 .secondary {
-  background: #1d2c57;
+  background: var(--btn-secondary);
 }
 
 .compact {
@@ -144,14 +189,14 @@ button {
   content: "";
   position: absolute;
   inset: 50% 0 auto;
-  border-top: 1px solid #33457f;
+  border-top: 1px solid var(--input-border);
 }
 
 .auth-divider span {
   position: relative;
   padding: 0 10px;
-  color: #99aadf;
-  background: #111a38;
+  color: var(--text-sub);
+  background: var(--surface-main);
 }
 
 .google-button-slot {
@@ -162,16 +207,17 @@ button {
 
 .hint {
   text-align: center;
-  color: #9bb0ea;
+  color: var(--text-sub);
   font-size: 13px;
 }
 
 .chat-shell {
   width: min(1180px, 100%);
   border-radius: 24px;
-  border: 1px solid #2e4078;
-  background: rgba(10, 18, 40, 0.86);
+  border: 1px solid var(--border-main);
+  background: var(--surface-main);
   backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-soft);
   padding: 20px;
   display: grid;
   gap: 16px;
@@ -199,8 +245,8 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid #3b5197;
-  background: #14224b;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
   border-radius: 999px;
   padding: 8px 12px;
 }
@@ -219,9 +265,9 @@ button {
 }
 
 .panel {
-  border: 1px solid #2f437f;
+  border: 1px solid var(--border-main);
   border-radius: 16px;
-  background: #0d1735;
+  background: var(--surface-panel);
   padding: 14px;
   display: grid;
   gap: 12px;
@@ -231,7 +277,7 @@ button {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: #adc1fb;
+  color: var(--text-sub);
   font-size: 13px;
 }
 
@@ -262,8 +308,21 @@ button {
 }
 
 .channel-item.active {
-  border-color: #5e8dff;
-  background: #1d3476;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--input-bg));
+}
+
+.invite-box {
+  border: 1px dashed var(--input-border);
+  border-radius: 12px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.inline-note {
+  font-size: 12px;
+  color: var(--text-sub);
 }
 
 .search-row {
@@ -273,10 +332,10 @@ button {
 }
 
 .search-results {
-  border: 1px solid #36539b;
+  border: 1px solid var(--input-border);
   border-radius: 12px;
   padding: 10px;
-  background: #132452;
+  background: color-mix(in srgb, var(--surface-panel) 80%, var(--accent) 20%);
   display: grid;
   gap: 6px;
 }
@@ -295,17 +354,17 @@ button {
 }
 
 .message-bubble {
-  border: 1px solid #2d4277;
+  border: 1px solid var(--bubble-border);
   border-radius: 12px;
-  background: #132349;
+  background: var(--bubble-bg);
   padding: 10px;
   display: grid;
   gap: 8px;
 }
 
 .message-bubble.mine {
-  border-color: #4971e8;
-  background: #1a3270;
+  border-color: var(--accent);
+  background: var(--bubble-own-bg);
 }
 
 .message-meta {
@@ -318,7 +377,7 @@ button {
 }
 
 .file-link {
-  color: #a4bfff;
+  color: var(--accent);
 }
 
 .edit-row,
@@ -329,18 +388,18 @@ button {
 }
 
 .empty-state {
-  border: 1px dashed #425ea2;
+  border: 1px dashed var(--input-border);
   border-radius: 12px;
   padding: 16px;
   text-align: center;
-  color: #b0c1ef;
+  color: var(--text-sub);
   display: grid;
   gap: 6px;
 }
 
 .empty-hint {
   font-size: 13px;
-  color: #9eb2e8;
+  color: var(--text-sub);
 }
 
 .composer {
@@ -351,8 +410,8 @@ button {
 }
 
 .upload-button {
-  border: 1px solid #3f518c;
-  background: #1d2c57;
+  border: 1px solid var(--input-border);
+  background: var(--btn-secondary);
   border-radius: 12px;
   padding: 11px 12px;
   cursor: pointer;
@@ -364,10 +423,10 @@ button {
 }
 
 .message-banner {
-  border: 1px solid #4160ac;
+  border: 1px solid var(--banner-border);
   border-radius: 12px;
-  background: #152b5e;
-  color: #dce6ff;
+  background: var(--banner-bg);
+  color: var(--text-main);
   padding: 10px 12px;
   margin: 0;
 }

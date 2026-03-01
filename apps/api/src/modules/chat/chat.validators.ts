@@ -32,3 +32,7 @@ export const searchQuerySchema = z.object({
 export const presenceQuerySchema = z.object({
   userIds: z.string().min(1)
 });
+
+export const emailTargetSchema = z.object({
+  email: z.string().trim().email().max(254)
+});

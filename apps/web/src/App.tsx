@@ -3,7 +3,9 @@ import type { AuthResponse } from "@chatnet/shared";
 import { io, type Socket } from "socket.io-client";
 import {
   API_URL,
+  addGroupMemberByEmail,
   blockUser,
+  createDirectByEmail,
   createGroupChannel,
   deleteMessage,
   forgotPassword,
@@ -61,6 +63,16 @@ const GOOGLE_SCRIPT_ID = "google-identity-services";
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
 export function App() {
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    if (typeof window === "undefined") {
+      return "dark";
+    }
+    const stored = window.localStorage.getItem("chat-net-theme");
+    if (stored === "dark" || stored === "light") {
+      return stored;
+    }
+    return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  });
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -81,6 +93,7 @@ export function App() {
   const [searchResults, setSearchResults] = useState<MessageItem[]>([]);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
   const [googleReady, setGoogleReady] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
 
@@ -88,6 +101,11 @@ export function App() {
     () => channels.find((channel) => channel.id === activeChannelId) ?? null,
     [channels, activeChannelId]
   );
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    window.localStorage.setItem("chat-net-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     const loadChannels = async () => {
@@ -424,6 +442,41 @@ export function App() {
     }
   };
 
+  const onStartDirectByEmail = async () => {
+    if (!auth || !inviteEmail.trim()) {
+      return;
+    }
+
+    try {
+      const channel = await createDirectByEmail(auth.tokens.accessToken, inviteEmail.trim());
+      setChannels((previous) => {
+        if (previous.some((entry) => entry.id === channel.id)) {
+          return previous;
+        }
+        return [channel, ...previous];
+      });
+      setActiveChannelId(channel.id);
+      setInviteEmail("");
+      setMessage("Direktchat wurde erstellt.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Direktchat konnte nicht erstellt werden");
+    }
+  };
+
+  const onAddMemberByEmail = async () => {
+    if (!auth || !activeChannelId || !activeChannel || activeChannel.type !== "GROUP" || !inviteEmail.trim()) {
+      return;
+    }
+
+    try {
+      await addGroupMemberByEmail(auth.tokens.accessToken, activeChannelId, inviteEmail.trim());
+      setInviteEmail("");
+      setMessage("Person wurde zur Gruppe hinzugefügt.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Person konnte nicht hinzugefügt werden");
+    }
+  };
+
   const onComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
@@ -453,6 +506,12 @@ export function App() {
               <p className="subtitle">Modern chat for real conversations</p>
             </div>
             <div className="user-block">
+              <button
+                className="secondary"
+                onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+              >
+                {theme === "dark" ? "Light" : "Dark"}
+              </button>
               <div className="user-chip">
                 <span className="status-dot" />
                 <span>{auth.user.displayName}</span>
@@ -479,6 +538,26 @@ export function App() {
                 <button className="primary" onClick={onCreateChannel}>
                   +
                 </button>
+              </div>
+
+              <div className="invite-box">
+                <input
+                  value={inviteEmail}
+                  onChange={(event) => setInviteEmail(event.target.value)}
+                  placeholder="person@email.de"
+                  type="email"
+                />
+                <button className="secondary" onClick={onStartDirectByEmail}>
+                  Direktchat
+                </button>
+                <button
+                  className="secondary"
+                  onClick={onAddMemberByEmail}
+                  disabled={!activeChannel || activeChannel.type !== "GROUP"}
+                >
+                  Zur Gruppe
+                </button>
+                <p className="inline-note">Für "Zur Gruppe" musst du Owner eines Gruppenchats sein.</p>
               </div>
 
               <div className="channel-items">

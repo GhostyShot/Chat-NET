@@ -4,6 +4,10 @@ function dedupeMemberIds(ownerId: string, memberIds: string[]) {
   return Array.from(new Set([ownerId, ...memberIds]));
 }
 
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
 export class ChatService {
   private async areUsersBlocked(a: string, b: string): Promise<boolean> {
     const block = await prisma.userBlock.findFirst({
@@ -87,6 +91,129 @@ export class ChatService {
         memberships: true
       }
     });
+  }
+
+  async createDirectChannelByEmail(input: { ownerId: string; email: string }) {
+    const targetEmail = normalizeEmail(input.email);
+
+    const owner = await prisma.user.findUnique({ where: { id: input.ownerId } });
+    if (!owner) {
+      throw new Error("INVALID_TARGET_USER");
+    }
+
+    if (normalizeEmail(owner.email) === targetEmail) {
+      throw new Error("INVALID_TARGET_USER");
+    }
+
+    const targetUser = await prisma.user.findUnique({
+      where: { email: targetEmail }
+    });
+
+    if (!targetUser) {
+      throw new Error("USER_NOT_FOUND");
+    }
+
+    if (await this.areUsersBlocked(input.ownerId, targetUser.id)) {
+      throw new Error("USER_BLOCKED");
+    }
+
+    const existing = await prisma.channel.findFirst({
+      where: {
+        type: "DIRECT",
+        AND: [
+          { memberships: { some: { userId: input.ownerId } } },
+          { memberships: { some: { userId: targetUser.id } } }
+        ]
+      }
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    return prisma.channel.create({
+      data: {
+        type: "DIRECT",
+        name: null,
+        createdById: input.ownerId,
+        memberships: {
+          createMany: {
+            data: [
+              { userId: input.ownerId, role: "OWNER" },
+              { userId: targetUser.id, role: "MEMBER" }
+            ]
+          }
+        }
+      }
+    });
+  }
+
+  async addGroupMemberByEmail(input: { channelId: string; requesterId: string; email: string }) {
+    const targetEmail = normalizeEmail(input.email);
+
+    const targetUser = await prisma.user.findUnique({ where: { email: targetEmail } });
+    if (!targetUser) {
+      throw new Error("USER_NOT_FOUND");
+    }
+
+    const channel = await prisma.channel.findUnique({
+      where: { id: input.channelId },
+      include: {
+        memberships: true
+      }
+    });
+
+    if (!channel) {
+      throw new Error("FORBIDDEN_CHANNEL");
+    }
+
+    if (channel.type !== "GROUP") {
+      throw new Error("GROUP_ONLY");
+    }
+
+    const requesterMembership = channel.memberships.find((item) => item.userId === input.requesterId);
+    if (!requesterMembership || requesterMembership.role !== "OWNER") {
+      throw new Error("FORBIDDEN_CHANNEL");
+    }
+
+    if (targetUser.id === input.requesterId) {
+      throw new Error("INVALID_TARGET_USER");
+    }
+
+    const alreadyMember = channel.memberships.some((item) => item.userId === targetUser.id);
+    if (alreadyMember) {
+      throw new Error("MEMBER_EXISTS");
+    }
+
+    for (const membership of channel.memberships) {
+      if (await this.areUsersBlocked(targetUser.id, membership.userId)) {
+        throw new Error("USER_BLOCKED");
+      }
+    }
+
+    const created = await prisma.channelMembership.create({
+      data: {
+        channelId: input.channelId,
+        userId: targetUser.id,
+        role: "MEMBER"
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            displayName: true,
+            avatarUrl: true
+          }
+        }
+      }
+    });
+
+    await prisma.channel.update({
+      where: { id: input.channelId },
+      data: { updatedAt: new Date() }
+    });
+
+    return created;
   }
 
   async sendMessage(input: { channelId: string; userId: string; content: string }) {

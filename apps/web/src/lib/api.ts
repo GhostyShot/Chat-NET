@@ -139,6 +139,31 @@ export async function createGroupChannel(
   return payload as ChannelItem;
 }
 
+export async function createDirectByEmail(accessToken: string, email: string): Promise<ChannelItem> {
+  const response = await fetch(`${API_URL}/chat/direct/by-email`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ email })
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error ?? "CREATE_DIRECT_FAILED");
+  }
+  return payload as ChannelItem;
+}
+
+export async function addGroupMemberByEmail(accessToken: string, channelId: string, email: string): Promise<void> {
+  const response = await fetch(`${API_URL}/chat/channels/${channelId}/members/by-email`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ email })
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error ?? "ADD_MEMBER_FAILED");
+  }
+}
+
 export async function listMessages(accessToken: string, channelId: string): Promise<MessageItem[]> {
   const response = await fetch(`${API_URL}/chat/channels/${channelId}/messages?limit=50`, {
     method: "GET",
