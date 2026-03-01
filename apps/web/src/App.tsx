@@ -414,7 +414,7 @@ export function App() {
   }, [auth, activeChannelId, messages]);
 
   useEffect(() => {
-    if (auth || !googleClientId || !googleButtonRef.current) {
+    if (auth || !showAuthPage || !!resetTokenFromLink || !googleClientId || !googleButtonRef.current) {
       setGoogleReady(false);
       setGoogleLoadError("");
       return;
@@ -520,7 +520,7 @@ export function App() {
         window.clearTimeout(timeoutId);
       }
     };
-  }, [auth, theme]);
+  }, [auth, theme, showAuthPage, resetTokenFromLink]);
 
   const submit = async () => {
     setLoading(true);
