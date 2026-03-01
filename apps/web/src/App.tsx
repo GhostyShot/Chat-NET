@@ -117,6 +117,7 @@ export function App() {
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
   const [googleReady, setGoogleReady] = useState(false);
+  const [googleLoadError, setGoogleLoadError] = useState("");
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
   const [showAuthPage, setShowAuthPage] = useState(false);
 
@@ -124,6 +125,23 @@ export function App() {
     () => channels.find((channel) => channel.id === activeChannelId) ?? null,
     [channels, activeChannelId]
   );
+
+  const getChannelDisplayName = (channel: ChannelItem | null) => {
+    if (!channel) {
+      return "Nachrichten";
+    }
+    if (channel.type === "GROUP") {
+      return channel.name ?? "Unbenannt";
+    }
+    const directPartner = channel.memberships?.find((membership) => membership.user.id !== auth?.user.id)?.user;
+    if (directPartner?.username) {
+      return `@${directPartner.username}`;
+    }
+    if (directPartner?.displayName) {
+      return directPartner.displayName;
+    }
+    return channel.name ?? "Direktchat";
+  };
 
   const ownMembershipRole = useMemo(() => {
     if (!activeChannel || !auth) {
@@ -398,14 +416,28 @@ export function App() {
   useEffect(() => {
     if (auth || !googleClientId || !googleButtonRef.current) {
       setGoogleReady(false);
+      setGoogleLoadError("");
       return;
     }
 
     let cancelled = false;
+    let timeoutId: number | undefined;
+
+    const setGoogleUnavailable = () => {
+      if (cancelled) {
+        return;
+      }
+      setGoogleReady(false);
+      setGoogleLoadError("Google Login ist aktuell nicht verfügbar. Nutze bitte E-Mail Login.");
+    };
 
     const renderGoogleButton = () => {
       if (cancelled || !window.google?.accounts?.id || !googleButtonRef.current) {
         return;
+      }
+
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
       }
 
       window.google.accounts.id.initialize({
@@ -437,22 +469,37 @@ export function App() {
         width: 320
       });
       window.google.accounts.id.prompt();
+      setGoogleLoadError("");
       setGoogleReady(true);
     };
+
+    timeoutId = window.setTimeout(() => {
+      if (!window.google?.accounts?.id) {
+        setGoogleUnavailable();
+      }
+    }, 7000);
 
     if (window.google?.accounts?.id) {
       renderGoogleButton();
       return () => {
         cancelled = true;
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+        }
       };
     }
 
     const existingScript = document.getElementById(GOOGLE_SCRIPT_ID) as HTMLScriptElement | null;
     if (existingScript) {
       existingScript.addEventListener("load", renderGoogleButton);
+      existingScript.addEventListener("error", setGoogleUnavailable);
       return () => {
         cancelled = true;
         existingScript.removeEventListener("load", renderGoogleButton);
+        existingScript.removeEventListener("error", setGoogleUnavailable);
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+        }
       };
     }
 
@@ -462,11 +509,16 @@ export function App() {
     script.async = true;
     script.defer = true;
     script.addEventListener("load", renderGoogleButton);
+    script.addEventListener("error", setGoogleUnavailable);
     document.head.appendChild(script);
 
     return () => {
       cancelled = true;
       script.removeEventListener("load", renderGoogleButton);
+      script.removeEventListener("error", setGoogleUnavailable);
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
     };
   }, [auth, theme]);
 
@@ -956,17 +1008,15 @@ export function App() {
                 <button className="secondary compact" onClick={() => setDirectModalOpen(true)}>
                   Direktchat
                 </button>
-                <button
-                  className="secondary compact"
-                  onClick={() => setAddMemberModalOpen(true)}
-                  disabled={!activeChannel || activeChannel.type !== "GROUP" || ownMembershipRole !== "OWNER"}
-                >
-                  Person hinzufügen
-                </button>
-              </div>
-
-              <div className="inline-note">
-                Channel- und User-Aktionen öffnen jetzt als kleines Popup-Menü.
+                {activeChannel?.type === "GROUP" && (
+                  <button
+                    className="secondary compact"
+                    onClick={() => setAddMemberModalOpen(true)}
+                    disabled={ownMembershipRole !== "OWNER"}
+                  >
+                    Person hinzufügen
+                  </button>
+                )}
               </div>
 
               {activeChannel?.type === "GROUP" && (
@@ -1035,7 +1085,7 @@ export function App() {
                     className={channel.id === activeChannelId ? "channel-item active" : "channel-item"}
                     onClick={() => setActiveChannelId(channel.id)}
                   >
-                    <span>{channel.name ?? (channel.type === "DIRECT" ? "Direktchat" : "Unbenannt")}</span>
+                    <span>{getChannelDisplayName(channel)}</span>
                     <small>{channel.type}</small>
                   </button>
                 ))}
@@ -1045,7 +1095,7 @@ export function App() {
 
             <section className="panel message-panel">
               <div className="panel-header">
-                <h3>{activeChannel?.name ?? "Nachrichten"}</h3>
+                <h3>{getChannelDisplayName(activeChannel)}</h3>
                 <span>{typingHint || "Bereit"}</span>
               </div>
 
@@ -1229,7 +1279,7 @@ export function App() {
           {addMemberModalOpen && (
             <div className="modal-backdrop" onClick={() => setAddMemberModalOpen(false)}>
               <section className="modal-panel" onClick={(event) => event.stopPropagation()}>
-                <h3>Person zur Gruppe hinzufügen</h3>
+                <h3>Person zu {getChannelDisplayName(activeChannel)} hinzufügen</h3>
                 <input
                   value={addMemberUsername}
                   onChange={(event) => setAddMemberUsername(event.target.value.toLowerCase())}
@@ -1298,15 +1348,27 @@ export function App() {
 
           <div className="landing-visual-strip" aria-hidden="true">
             <article className="landing-visual-card">
-              <img src="/chat-net-logo.svg" alt="" />
+              <img
+                src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80"
+                alt=""
+                loading="lazy"
+              />
               <p>Glow Feed</p>
             </article>
             <article className="landing-visual-card">
-              <img src="/chat-net-logo.svg" alt="" />
+              <img
+                src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80"
+                alt=""
+                loading="lazy"
+              />
               <p>Neon Pulse</p>
             </article>
             <article className="landing-visual-card">
-              <img src="/chat-net-logo.svg" alt="" />
+              <img
+                src="https://images.unsplash.com/photo-1497215842964-222b430dc094?auto=format&fit=crop&w=1200&q=80"
+                alt=""
+                loading="lazy"
+              />
               <p>Frost View</p>
             </article>
           </div>
@@ -1463,7 +1525,8 @@ export function App() {
           {googleClientId ? (
             <>
               <div ref={googleButtonRef} className="google-button-slot" />
-              {!googleReady && <p className="hint">Google Login wird geladen...</p>}
+              {!googleReady && !googleLoadError && <p className="hint">Google Login wird geladen...</p>}
+              {!googleReady && googleLoadError && <p className="hint">{googleLoadError}</p>}
             </>
           ) : (
             <p className="hint">Setze in Vercel zusätzlich `VITE_GOOGLE_CLIENT_ID`, um Google Login zu aktivieren.</p>
