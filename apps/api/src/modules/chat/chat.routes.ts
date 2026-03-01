@@ -104,6 +104,27 @@ chatRouter.post("/channels", async (req: AuthenticatedRequest, res) => {
   );
 });
 
+chatRouter.delete("/channels/:channelId", async (req: AuthenticatedRequest, res) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    return res.status(401).json({ error: "AUTH_REQUIRED" });
+  }
+
+  const channelId = singleParam(req.params.channelId);
+  if (!channelId) {
+    return res.status(400).json({ error: "INVALID_CHANNEL_ID" });
+  }
+
+  return withErrorBoundary(
+    () =>
+      chatService.deleteGroupChannel({
+        channelId,
+        requesterId: userId
+      }),
+    res
+  );
+});
+
 chatRouter.post("/direct/by-username", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {

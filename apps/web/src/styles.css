@@ -95,6 +95,11 @@ body {
   background: var(--surface-brand);
 }
 
+.auth-logo {
+  width: 136px;
+  height: auto;
+}
+
 .auth-panel {
   padding: 32px;
   display: grid;
@@ -239,6 +244,12 @@ button {
 }
 
 .brand-block h1 {
+  margin-bottom: 4px;
+}
+
+.brand-logo {
+  width: 84px;
+  height: auto;
   margin-bottom: 4px;
 }
 

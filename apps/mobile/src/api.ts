@@ -90,6 +90,11 @@ export const api = {
       accessToken,
       body: { type: "group", name, memberIds: [] }
     }),
+  deleteGroupChannel: (accessToken: string, channelId: string) =>
+    request<{ ok: boolean }>(`/chat/channels/${channelId}`, {
+      method: "DELETE",
+      accessToken
+    }),
   createDirectByUsername: (accessToken: string, username: string) =>
     request<ChannelItem>("/chat/direct/by-username", {
       method: "POST",

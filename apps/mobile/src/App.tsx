@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useRef, useState } from "react";
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { AuthResponse } from "@chatnet/shared";
 import { io, type Socket } from "socket.io-client";
 import { API_URL, api, type ChannelItem, type ChannelMemberItem, type MessageItem } from "./api";
@@ -345,6 +345,39 @@ export default function App() {
     }
   };
 
+  const onDeleteGroup = async () => {
+    if (!auth || !activeChannelId || !activeChannel || activeChannel.type !== "GROUP" || ownRole !== "OWNER") {
+      return;
+    }
+
+    Alert.alert("Gruppe löschen", `Willst du \"${activeChannel.name ?? "Unbenannt"}\" wirklich löschen?`, [
+      { text: "Abbrechen", style: "cancel" },
+      {
+        text: "Löschen",
+        style: "destructive",
+        onPress: () => {
+          void (async () => {
+            try {
+              await api.deleteGroupChannel(auth.tokens.accessToken, activeChannelId);
+              const list = await api.listChannels(auth.tokens.accessToken);
+              setChannels(list);
+              setActiveChannelId((current) => {
+                if (current && list.some((entry) => entry.id === current)) {
+                  return current;
+                }
+                return list[0]?.id ?? null;
+              });
+              setChannelMembers([]);
+              setMessage("Gruppe wurde gelöscht.");
+            } catch (error) {
+              setMessage(error instanceof Error ? error.message : "Gruppe konnte nicht gelöscht werden");
+            }
+          })();
+        }
+      }
+    ]);
+  };
+
   const onSend = async () => {
     if (!auth || !activeChannelId || !composerText.trim()) {
       return;
@@ -505,6 +538,11 @@ export default function App() {
                 <Pressable style={styles.secondary} onPress={onLeaveGroup} disabled={ownRole === "OWNER"}>
                   <Text style={styles.primaryText}>Gruppe verlassen</Text>
                 </Pressable>
+                {ownRole === "OWNER" && (
+                  <Pressable style={styles.secondary} onPress={onDeleteGroup}>
+                    <Text style={styles.primaryText}>Gruppe löschen</Text>
+                  </Pressable>
+                )}
               </View>
               {ownRole === "OWNER" && (
                 <Text style={styles.subtitle}>Übertrage erst den Owner an ein anderes Mitglied.</Text>

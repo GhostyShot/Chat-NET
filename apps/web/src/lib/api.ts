@@ -201,6 +201,17 @@ export async function createGroupChannel(
   return payload as ChannelItem;
 }
 
+export async function deleteGroupChannel(accessToken: string, channelId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/chat/channels/${channelId}`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken)
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error ?? "DELETE_CHANNEL_FAILED");
+  }
+}
+
 export async function createDirectByUsername(accessToken: string, username: string): Promise<ChannelItem> {
   const response = await fetch(`${API_URL}/chat/direct/by-username`, {
     method: "POST",

@@ -6,6 +6,7 @@ import {
   addGroupMemberByUsername,
   blockUser,
   createDirectByUsername,
+  deleteGroupChannel,
   createGroupChannel,
   deleteMessage,
   forgotPassword,
@@ -730,6 +731,26 @@ export function App() {
     }
   };
 
+  const onDeleteGroup = async () => {
+    if (!auth || !activeChannelId || !activeChannel || activeChannel.type !== "GROUP" || ownMembershipRole !== "OWNER") {
+      return;
+    }
+
+    const confirmed = window.confirm(`Willst du die Gruppe \"${activeChannel.name ?? "Unbenannt"}\" wirklich löschen?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteGroupChannel(auth.tokens.accessToken, activeChannelId);
+      setChannelMembers([]);
+      await refreshChannelList(null);
+      setMessage("Gruppe wurde gelöscht.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Gruppe konnte nicht gelöscht werden");
+    }
+  };
+
   const onComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (mentionQuery !== null && filteredMentionCandidates.length > 0) {
       if (event.key === "ArrowDown") {
@@ -822,6 +843,7 @@ export function App() {
         <section className="chat-shell">
           <header className="chat-topbar">
             <div className="brand-block">
+              <img src="/chat-net-logo.svg" alt="Chat-Net Logo" className="brand-logo" />
               <p className="eyebrow">chat-net.tech</p>
               <h1>Chat-Net</h1>
               <p className="subtitle">Modern chat for real conversations</p>
@@ -968,6 +990,11 @@ export function App() {
                     >
                       Gruppe verlassen
                     </button>
+                    {ownMembershipRole === "OWNER" && (
+                      <button className="secondary compact" onClick={onDeleteGroup}>
+                        Gruppe löschen
+                      </button>
+                    )}
                   </div>
                   {ownMembershipRole === "OWNER" && (
                     <p className="inline-note">Übertrage erst den Owner an ein anderes Mitglied, bevor du die Gruppe verlässt.</p>
@@ -1138,6 +1165,7 @@ export function App() {
     <main className="app-shell auth-shell">
       <section className="auth-card">
         <div className="auth-brand">
+          <img src="/chat-net-logo.svg" alt="Chat-Net Logo" className="auth-logo" />
           <p className="eyebrow">chat-net.tech</p>
           <h1>Chat-Net</h1>
           <p className="subtitle">Schnell, klar, modern – dein Space für Chats und Communities.</p>

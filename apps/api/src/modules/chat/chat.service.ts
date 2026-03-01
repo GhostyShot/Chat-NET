@@ -109,6 +109,28 @@ export class ChatService {
     });
   }
 
+  async deleteGroupChannel(input: { channelId: string; requesterId: string }) {
+    const channel = await prisma.channel.findUnique({ where: { id: input.channelId } });
+    if (!channel) {
+      throw new Error("FORBIDDEN_CHANNEL");
+    }
+
+    if (channel.type !== "GROUP") {
+      throw new Error("GROUP_ONLY");
+    }
+
+    const requesterRole = await this.getMembershipRole(input.channelId, input.requesterId);
+    if (requesterRole !== "OWNER") {
+      throw new Error("FORBIDDEN_CHANNEL");
+    }
+
+    await prisma.channel.delete({
+      where: { id: input.channelId }
+    });
+
+    return { ok: true, deletedChannelId: input.channelId };
+  }
+
   async createDirectChannelByUsername(input: { ownerId: string; username: string }) {
     const targetUsername = normalizeUsername(input.username);
 
