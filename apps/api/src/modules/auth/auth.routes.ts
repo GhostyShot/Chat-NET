@@ -6,8 +6,7 @@ import {
   loginSchema,
   registerSchema,
   resetPasswordSchema,
-  updateProfileSchema,
-  verifyEmailSchema
+  updateProfileSchema
 } from "./auth.validators.js";
 import { authService } from "./auth.service.js";
 import { requireAuth, type AuthenticatedRequest } from "../chat/chat.auth.js";
@@ -90,15 +89,6 @@ authRouter.post("/reset-password", resetLimiter, async (req, res) => {
   }
 
   return withErrorBoundary(() => authService.resetPassword(parsed.data), res);
-});
-
-authRouter.post("/verify-email", async (req, res) => {
-  const parsed = verifyEmailSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: "INVALID_BODY", details: parsed.error.issues });
-  }
-
-  return withErrorBoundary(() => authService.verifyEmail(parsed.data), res);
 });
 
 authRouter.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {

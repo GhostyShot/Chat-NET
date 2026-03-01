@@ -4,14 +4,13 @@ import type {
   PasswordResetInput,
   PasswordResetRequest,
   RegisterInput,
-  UpdateProfileInput,
-  VerifyEmailInput
+  UpdateProfileInput
 } from "./auth.types.js";
 import { authStore } from "./auth.store.js";
 import { buildAuthResponse, hashPassword, verifyPassword } from "./auth.security.js";
 import { verifyGoogleIdToken } from "./auth.google.js";
 
-const TOKEN_TTL_MS = 1000 * 60 * 30;
+const RESET_TOKEN_TTL_MS = 1000 * 60 * 30;
 
 export class AuthService {
   async register(input: RegisterInput) {
@@ -30,15 +29,8 @@ export class AuthService {
       passwordHash
     });
 
-    const verifyToken = await authStore.createEmailToken({
-      userId: user.id,
-      type: "verify",
-      expiresAt: new Date(Date.now() + TOKEN_TTL_MS)
-    });
-
     return {
-      auth: buildAuthResponse(user),
-      verifyToken
+      auth: buildAuthResponse(user)
     };
   }
 
@@ -86,7 +78,7 @@ export class AuthService {
     const resetToken = await authStore.createEmailToken({
       userId: user.id,
       type: "reset",
-      expiresAt: new Date(Date.now() + TOKEN_TTL_MS)
+      expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS)
     });
 
     return { resetToken };
@@ -104,22 +96,6 @@ export class AuthService {
     }
 
     user.passwordHash = await hashPassword(input.newPassword);
-    await authStore.updateUser(user);
-    return { ok: true };
-  }
-
-  async verifyEmail(input: VerifyEmailInput) {
-    const tokenRecord = await authStore.consumeEmailToken(input.token, "verify");
-    if (!tokenRecord) {
-      throw new Error("INVALID_TOKEN");
-    }
-
-    const user = await authStore.getById(tokenRecord.userId);
-    if (!user) {
-      throw new Error("INVALID_TOKEN");
-    }
-
-    user.verifiedEmail = true;
     await authStore.updateUser(user);
     return { ok: true };
   }

@@ -132,18 +132,6 @@ export async function resetPassword(token: string, newPassword: string): Promise
   }
 }
 
-export async function verifyEmail(token: string): Promise<void> {
-  const response = await fetch(`${API_URL}/auth/verify-email`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token })
-  });
-  const payload = await response.json();
-  if (!response.ok) {
-    throw new Error(payload.error ?? "VERIFY_EMAIL_FAILED");
-  }
-}
-
 export async function getProfile(accessToken: string): Promise<ProfileItem> {
   const response = await fetch(`${API_URL}/auth/me`, {
     method: "GET",

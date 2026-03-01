@@ -5,7 +5,7 @@ import type { AuthResponse } from "@chatnet/shared";
 import { io, type Socket } from "socket.io-client";
 import { API_URL, api, type ChannelItem, type ChannelMemberItem, type MessageItem } from "./api";
 
-type Mode = "login" | "register" | "forgot" | "reset" | "verify";
+type Mode = "login" | "register" | "forgot" | "reset";
 
 export default function App() {
   const [mode, setMode] = useState<Mode>("login");
@@ -203,10 +203,6 @@ export default function App() {
       if (mode === "reset") {
         await api.reset(token, password);
         setMessage("Passwort aktualisiert");
-      }
-      if (mode === "verify") {
-        await api.verify(token);
-        setMessage("E-Mail verifiziert");
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unbekannter Fehler");
@@ -685,7 +681,7 @@ export default function App() {
         <Text style={styles.subtitle}>chat-net.tech</Text>
 
         <View style={styles.row}>
-          {(["login", "register", "forgot", "reset", "verify"] as Mode[]).map((item) => (
+          {(["login", "register", "forgot", "reset"] as Mode[]).map((item) => (
             <Pressable key={item} onPress={() => setMode(item)} style={styles.tab}>
               <Text style={styles.tabText}>{item}</Text>
             </Pressable>
@@ -717,7 +713,7 @@ export default function App() {
           />
         )}
 
-        {(mode === "verify" || mode === "reset") && (
+        {mode === "reset" && (
           <TextInput value={token} onChangeText={setToken} placeholder="Token" placeholderTextColor="#9fb0e3" style={styles.input} />
         )}
 

@@ -57,12 +57,12 @@ export class AuthStore {
     return provider === "google" ? "GOOGLE" : "PASSWORD";
   }
 
-  private toDbTokenType(type: "verify" | "reset"): DbEmailTokenType {
-    return type === "verify" ? "VERIFY" : "RESET";
+  private toDbTokenType(_type: "reset"): DbEmailTokenType {
+    return "RESET";
   }
 
-  private fromDbTokenType(type: DbEmailTokenType): "verify" | "reset" {
-    return type === "VERIFY" ? "verify" : "reset";
+  private fromDbTokenType(_type: DbEmailTokenType): "reset" {
+    return "reset";
   }
 
   private toStoredUser(user: User): StoredUser {
@@ -140,7 +140,7 @@ export class AuthStore {
     return token;
   }
 
-  async consumeEmailToken(token: string, type: "verify" | "reset"): Promise<EmailTokenRecord | undefined> {
+  async consumeEmailToken(token: string, type: "reset"): Promise<EmailTokenRecord | undefined> {
     const dbRecord = await prisma.emailToken.findUnique({ where: { token } });
     if (!dbRecord) {
       return undefined;

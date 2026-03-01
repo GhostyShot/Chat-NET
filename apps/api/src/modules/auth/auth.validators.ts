@@ -32,10 +32,6 @@ export const resetPasswordSchema = z.object({
   newPassword: z.string().min(8).max(128)
 });
 
-export const verifyEmailSchema = z.object({
-  token: z.string().min(10)
-});
-
 export const updateProfileSchema = z
   .object({
     displayName: z.string().min(2).max(40).optional(),

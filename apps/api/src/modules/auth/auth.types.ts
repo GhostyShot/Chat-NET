@@ -30,19 +30,15 @@ export interface PasswordResetInput {
   newPassword: string;
 }
 
-export interface VerifyEmailInput {
-  token: string;
-}
-
 export interface EmailTokenRecord {
   userId: string;
-  type: "verify" | "reset";
+  type: "reset";
   expiresAt: number;
 }
 
 export interface CreateEmailTokenInput {
   userId: string;
-  type: "verify" | "reset";
+  type: "reset";
   expiresAt: Date;
 }
 
