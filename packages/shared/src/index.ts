@@ -85,3 +85,29 @@ export interface PlatformSettingsItem {
   uploadsEnabled: boolean;
   canManage: boolean;
 }
+
+export interface AuthEnvelope {
+  auth: AuthResponse;
+}
+
+export interface OkResponse {
+  ok: boolean;
+}
+
+export interface MessageListResponse {
+  items: MessageItem[];
+}
+
+export interface DeletedMessageResponse {
+  id: string;
+  deleted: boolean;
+}
+
+export interface ReadReceiptResponse {
+  readAt: string;
+}
+
+export interface UploadedFileResponse {
+  url: string;
+  filename: string;
+}

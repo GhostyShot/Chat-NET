@@ -1,4 +1,15 @@
-import type { AuthResponse, ChannelItem, ChannelMemberItem, MessageItem, PresenceItem } from "@chatnet/shared";
+import type {
+  AuthEnvelope,
+  AuthResponse,
+  ChannelItem,
+  ChannelMemberItem,
+  DeletedMessageResponse,
+  MessageItem,
+  MessageListResponse,
+  OkResponse,
+  PresenceItem,
+  ReadReceiptResponse
+} from "@chatnet/shared";
 
 export type { ChannelItem, ChannelMemberItem, MessageItem, PresenceItem } from "@chatnet/shared";
 
@@ -24,15 +35,15 @@ async function request<T>(path: string, options?: { method?: "GET" | "POST" | "P
 
 export const api = {
   register: async (email: string, password: string, displayName: string): Promise<AuthResponse> => {
-    const payload = await request<{ auth: AuthResponse }>("/auth/register", {
+    const payload = await request<AuthEnvelope>("/auth/register", {
       body: { email, password, displayName }
     });
     return payload.auth;
   },
   login: (email: string, password: string) => request<AuthResponse>("/auth/login", { body: { email, password } }),
   google: (idToken: string) => request<AuthResponse>("/auth/google", { body: { idToken } }),
-  forgot: (email: string) => request<{ ok: boolean }>("/auth/forgot-password", { body: { email } }),
-  reset: (token: string, newPassword: string) => request<{ ok: boolean }>("/auth/reset-password", { body: { token, newPassword } }),
+  forgot: (email: string) => request<OkResponse>("/auth/forgot-password", { body: { email } }),
+  reset: (token: string, newPassword: string) => request<OkResponse>("/auth/reset-password", { body: { token, newPassword } }),
   listChannels: (accessToken: string) =>
     request<ChannelItem[]>("/chat/channels", {
       method: "GET",
@@ -45,7 +56,7 @@ export const api = {
       body: { type: "group", name, memberIds: [] }
     }),
   deleteGroupChannel: (accessToken: string, channelId: string) =>
-    request<{ ok: boolean }>(`/chat/channels/${channelId}`, {
+    request<OkResponse>(`/chat/channels/${channelId}`, {
       method: "DELETE",
       accessToken
     }),
@@ -73,23 +84,23 @@ export const api = {
       body: { role }
     }),
   removeChannelMember: (accessToken: string, channelId: string, targetUserId: string) =>
-    request<{ ok: boolean }>(`/chat/channels/${channelId}/members/${targetUserId}`, {
+    request<OkResponse>(`/chat/channels/${channelId}/members/${targetUserId}`, {
       method: "DELETE",
       accessToken
     }),
   transferChannelOwnership: (accessToken: string, channelId: string, targetUserId: string) =>
-    request<{ ok: boolean }>(`/chat/channels/${channelId}/ownership/transfer`, {
+    request<OkResponse>(`/chat/channels/${channelId}/ownership/transfer`, {
       method: "POST",
       accessToken,
       body: { targetUserId }
     }),
   leaveChannel: (accessToken: string, channelId: string) =>
-    request<{ ok: boolean }>(`/chat/channels/${channelId}/members/me`, {
+    request<OkResponse>(`/chat/channels/${channelId}/members/me`, {
       method: "DELETE",
       accessToken
     }),
   listMessages: (accessToken: string, channelId: string) =>
-    request<{ items: MessageItem[] }>(`/chat/channels/${channelId}/messages?limit=50`, {
+    request<MessageListResponse>(`/chat/channels/${channelId}/messages?limit=50`, {
       method: "GET",
       accessToken
     }),
@@ -106,12 +117,12 @@ export const api = {
       body: { content }
     }),
   deleteMessage: (accessToken: string, channelId: string, messageId: string) =>
-    request<{ id: string; deleted: boolean }>(`/chat/channels/${channelId}/messages/${messageId}`, {
+    request<DeletedMessageResponse>(`/chat/channels/${channelId}/messages/${messageId}`, {
       method: "DELETE",
       accessToken
     }),
   markRead: (accessToken: string, channelId: string, messageId: string) =>
-    request<{ readAt: string }>(`/chat/channels/${channelId}/read-receipts`, {
+    request<ReadReceiptResponse>(`/chat/channels/${channelId}/read-receipts`, {
       method: "POST",
       accessToken,
       body: { messageId }

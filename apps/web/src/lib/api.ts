@@ -1,11 +1,15 @@
 import type {
+  AuthEnvelope,
   AuthResponse,
   ChannelItem,
   ChannelMemberItem,
+  MessageListResponse,
   MessageItem,
+  OkResponse,
   PlatformSettingsItem,
   PresenceItem,
-  ProfileItem
+  ProfileItem,
+  UploadedFileResponse
 } from "@chatnet/shared";
 
 export type {
@@ -159,7 +163,7 @@ async function requestJson<T>(
 }
 
 export async function register(email: string, password: string, displayName: string): Promise<AuthResponse> {
-  const payload = await requestJson<{ auth: AuthResponse }>(
+  const payload = await requestJson<AuthEnvelope>(
     "/auth/register",
     {
       method: "POST",
@@ -273,7 +277,7 @@ export async function createGroupChannel(
 }
 
 export async function deleteGroupChannel(accessToken: string, channelId: string): Promise<void> {
-  await requestJson<unknown>(
+  await requestJson<OkResponse>(
     `/chat/channels/${channelId}`,
     {
       method: "DELETE",
@@ -296,7 +300,7 @@ export async function createDirectByUsername(accessToken: string, username: stri
 }
 
 export async function addGroupMemberByUsername(accessToken: string, channelId: string, username: string): Promise<void> {
-  await requestJson<unknown>(
+  await requestJson<OkResponse>(
     `/chat/channels/${channelId}/members/by-username`,
     {
       method: "POST",
@@ -336,7 +340,7 @@ export async function updateChannelMemberRole(
 }
 
 export async function removeChannelMember(accessToken: string, channelId: string, targetUserId: string): Promise<void> {
-  await requestJson<unknown>(
+  await requestJson<OkResponse>(
     `/chat/channels/${channelId}/members/${targetUserId}`,
     {
       method: "DELETE",
@@ -351,7 +355,7 @@ export async function transferChannelOwnership(
   channelId: string,
   targetUserId: string
 ): Promise<void> {
-  await requestJson<unknown>(
+  await requestJson<OkResponse>(
     `/chat/channels/${channelId}/ownership/transfer`,
     {
       method: "POST",
@@ -363,7 +367,7 @@ export async function transferChannelOwnership(
 }
 
 export async function leaveChannel(accessToken: string, channelId: string): Promise<void> {
-  await requestJson<unknown>(
+  await requestJson<OkResponse>(
     `/chat/channels/${channelId}/members/me`,
     {
       method: "DELETE",
@@ -374,7 +378,7 @@ export async function leaveChannel(accessToken: string, channelId: string): Prom
 }
 
 export async function listMessages(accessToken: string, channelId: string): Promise<MessageItem[]> {
-  const payload = await requestJson<{ items?: MessageItem[] }>(
+  const payload = await requestJson<MessageListResponse>(
     `/chat/channels/${channelId}/messages?limit=50`,
     {
       method: "GET",
@@ -382,7 +386,7 @@ export async function listMessages(accessToken: string, channelId: string): Prom
     },
     { fallbackError: "MESSAGES_FAILED" }
   );
-  return payload.items ?? [];
+  return payload.items;
 }
 
 export async function sendMessage(accessToken: string, channelId: string, content: string): Promise<MessageItem> {
@@ -425,11 +429,11 @@ export async function deleteMessage(accessToken: string, channelId: string, mess
   );
 }
 
-export async function uploadFile(accessToken: string, file: File): Promise<{ url: string; filename: string }> {
+export async function uploadFile(accessToken: string, file: File): Promise<UploadedFileResponse> {
   const formData = new FormData();
   formData.append("file", file);
 
-  return requestJson<{ url: string; filename: string }>(
+  return requestJson<UploadedFileResponse>(
     "/chat/upload",
     {
       method: "POST",
@@ -443,7 +447,7 @@ export async function uploadFile(accessToken: string, file: File): Promise<{ url
 }
 
 export async function markRead(accessToken: string, channelId: string, messageId: string): Promise<void> {
-  await requestJson<unknown>(
+  await requestJson<OkResponse>(
     `/chat/channels/${channelId}/read-receipts`,
     {
       method: "POST",
@@ -482,7 +486,7 @@ export async function getPresence(accessToken: string, userIds: string[]): Promi
 }
 
 export async function blockUser(accessToken: string, targetUserId: string): Promise<void> {
-  await requestJson<unknown>(
+  await requestJson<OkResponse>(
     `/chat/block/${targetUserId}`,
     {
       method: "POST",
@@ -493,7 +497,7 @@ export async function blockUser(accessToken: string, targetUserId: string): Prom
 }
 
 export async function unblockUser(accessToken: string, targetUserId: string): Promise<void> {
-  await requestJson<unknown>(
+  await requestJson<OkResponse>(
     `/chat/block/${targetUserId}`,
     {
       method: "DELETE",
@@ -515,7 +519,7 @@ export async function getPlatformSettings(accessToken: string): Promise<Platform
 }
 
 export async function setPlatformUploadsEnabled(accessToken: string, uploadsEnabled: boolean): Promise<void> {
-  await requestJson<unknown>(
+  await requestJson<OkResponse>(
     "/chat/platform-settings/uploads",
     {
       method: "PATCH",
