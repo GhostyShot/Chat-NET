@@ -23,18 +23,10 @@ export function LandingPage({ onOpenLogin, onOpenRegister }: LandingPageProps) {
         </header>
 
         <div className="landing-hero">
-          <p className="eyebrow">Schnell. Sicher. Community-Ready.</p>
-          <h2>Der moderne Chat{"\u00A0"}f\u00FCr echte Gespr\u00E4che.</h2>
+          <h2>Chat f{"\u00FC"}r echte{"\u00A0"}Gespr{"\u00E4"}che.</h2>
           <p className="subtitle">
-            Realtime-Messaging, starke Gruppenfeatures, klare Rollenstruktur und ein Interface,
-            das sich wie eine moderne Community-Plattform anf\u00FChlt.
+            Schnell. Sicher. Gemeinsam.
           </p>
-          <div className="landing-stat-row" aria-label="Highlights">
-            <span className="landing-stat">Realtime</span>
-            <span className="landing-stat">End-to-End</span>
-            <span className="landing-stat">Roles & Moderation</span>
-            <span className="landing-stat">Web + Mobile</span>
-          </div>
           <div className="landing-hero-cta">
             <button className="primary landing-hero-btn" onClick={onOpenRegister}>
               Jetzt starten
@@ -70,45 +62,6 @@ export function LandingPage({ onOpenLogin, onOpenRegister }: LandingPageProps) {
             />
             <p>Gaming</p>
           </article>
-        </div>
-
-        <div className="landing-feature-grid">
-          <article className="landing-feature-card">
-            <h3>Realtime by Default</h3>
-            <p>
-              Tippindikatoren, Presence-Status, Read Receipts und sofortige Nachrichtenzustellung ohne Page-Reload.
-            </p>
-          </article>
-          <article className="landing-feature-card">
-            <h3>Community-Fokus</h3>
-            <p>
-              Owner/Admin-Moderation, flexible Gruppenverwaltung, @Mentions und eine klare Rollenstruktur.
-            </p>
-          </article>
-          <article className="landing-feature-card">
-            <h3>Modernes Interface</h3>
-            <p>
-              Dark/Light Themes, cleanes Design und eine konsistente Erfahrung auf Web und Mobile.
-            </p>
-          </article>
-        </div>
-
-        <div className="landing-store-row">
-          <a href="#" className="store-badge" onClick={(event) => event.preventDefault()} aria-label="App Store Coming soon">
-            <span className="store-badge-label">Download on the</span>
-            <strong>App Store</strong>
-            <span className="store-soon">Coming soon</span>
-          </a>
-          <a
-            href="#"
-            className="store-badge"
-            onClick={(event) => event.preventDefault()}
-            aria-label="Google Play Coming soon"
-          >
-            <span className="store-badge-label">Get it on</span>
-            <strong>Google Play</strong>
-            <span className="store-soon">Coming soon</span>
-          </a>
         </div>
       </section>
     </main>
