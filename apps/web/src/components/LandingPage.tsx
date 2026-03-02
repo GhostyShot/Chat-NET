@@ -10,10 +10,7 @@ export function LandingPage({ onOpenLogin, onOpenRegister }: LandingPageProps) {
         <header className="landing-topbar">
           <div className="landing-brand">
             <img src="/chat-net-logo.svg" alt="Chat-Net Logo" className="landing-logo" />
-            <div>
-              <p className="eyebrow">chat-net.tech</p>
-              <h1>Chat-Net</h1>
-            </div>
+            <h1>Chat-Net</h1>
           </div>
           <div className="landing-auth-actions">
             <button className="secondary compact" onClick={onOpenLogin}>
@@ -26,14 +23,15 @@ export function LandingPage({ onOpenLogin, onOpenRegister }: LandingPageProps) {
         </header>
 
         <div className="landing-hero">
-          <p className="eyebrow">Warum Chat-Net?</p>
-          <h2>Ein moderner Chat für Communities, Teams und Gamer.</h2>
+          <p className="eyebrow">Schnell. Sicher. Community-Ready.</p>
+          <h2>Der moderne Chat{"\u00A0"}f\u00FCr echte Gespr\u00E4che.</h2>
           <p className="subtitle">
-            Schneller Realtime-Chat, starke Gruppenfeatures, klare Rollen und ein UX, das sich wie eine moderne
-            Community-Plattform anfühlt.
+            Realtime-Messaging, starke Gruppenfeatures, klare Rollenstruktur und ein Interface,
+            das sich wie eine moderne Community-Plattform anf\u00FChlt.
           </p>
           <div className="landing-stat-row" aria-label="Highlights">
             <span className="landing-stat">Realtime</span>
+            <span className="landing-stat">End-to-End</span>
             <span className="landing-stat">Roles & Moderation</span>
             <span className="landing-stat">Web + Mobile</span>
           </div>
@@ -46,7 +44,7 @@ export function LandingPage({ onOpenLogin, onOpenRegister }: LandingPageProps) {
               alt=""
               loading="lazy"
             />
-            <p>Glow Feed</p>
+            <p>Community</p>
           </article>
           <article className="landing-visual-card">
             <img
@@ -54,7 +52,7 @@ export function LandingPage({ onOpenLogin, onOpenRegister }: LandingPageProps) {
               alt=""
               loading="lazy"
             />
-            <p>Neon Pulse</p>
+            <p>Teams</p>
           </article>
           <article className="landing-visual-card">
             <img
@@ -62,22 +60,28 @@ export function LandingPage({ onOpenLogin, onOpenRegister }: LandingPageProps) {
               alt=""
               loading="lazy"
             />
-            <p>Frost View</p>
+            <p>Gaming</p>
           </article>
         </div>
 
         <div className="landing-feature-grid">
           <article className="landing-feature-card">
             <h3>Realtime by Default</h3>
-            <p>Tippindikatoren, Presence, Read Receipts und direkte Antworten ohne Page-Reload.</p>
+            <p>
+              Tippindikatoren, Presence-Status, Read Receipts und sofortige Nachrichtenzustellung ohne Page-Reload.
+            </p>
           </article>
           <article className="landing-feature-card">
             <h3>Community-Fokus</h3>
-            <p>Owner/Admin-Moderation, Gruppenverwaltung, Mentions und klare Rollenstruktur.</p>
+            <p>
+              Owner/Admin-Moderation, flexible Gruppenverwaltung, @Mentions und eine klare Rollenstruktur.
+            </p>
           </article>
           <article className="landing-feature-card">
             <h3>Modernes Interface</h3>
-            <p>Dark/Light Themes, cleaner Glas-Look und mobile + web konsistent aus einem Guss.</p>
+            <p>
+              Dark/Light Themes, cleanes Design und eine konsistente Erfahrung auf Web und Mobile.
+            </p>
           </article>
         </div>
 

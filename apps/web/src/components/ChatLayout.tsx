@@ -226,23 +226,9 @@ export function ChatLayout({
         <header className="chat-topbar">
           <div className="brand-block">
             <img src="/chat-net-logo.svg" alt="Chat-Net Logo" className="brand-logo" />
-            <p className="eyebrow">chat-net.tech</p>
             <h1>Chat-Net</h1>
-            <p className="subtitle">Der sichere Chat für echte Gespräche</p>
           </div>
           <div className="user-block">
-            <button className="secondary" onClick={onToggleTheme}>
-              {theme === "dark" ? "Hell" : "Dunkel"}
-            </button>
-            <div className="user-chip">
-              <span className="status-dot" />
-              <span>
-                {auth.user.displayName}
-                {renderPlatformOwnerBadge(auth.user.id, auth.user.username)}
-                {renderCustomBadges(auth.user.id)}
-                <small className="chip-handle">@{auth.user.username}</small>
-              </span>
-            </div>
             <span
               className={
                 realtimeState === "online"
@@ -253,21 +239,33 @@ export function ChatLayout({
               }
               aria-live="polite"
             >
-              {realtimeState === "online" ? "Live" : realtimeState === "connecting" ? "Verbinde…" : "Offline"}
+              {realtimeState === "online" ? "Live" : realtimeState === "connecting" ? "Verbinde\u2026" : "Offline"}
             </span>
+            <div className="user-chip">
+              <span className="status-dot" />
+              <span>
+                {auth.user.displayName}
+                {renderPlatformOwnerBadge(auth.user.id, auth.user.username)}
+                {renderCustomBadges(auth.user.id)}
+                <small className="chip-handle">@{auth.user.username}</small>
+              </span>
+            </div>
+            <button className="secondary compact" onClick={onToggleTheme}>
+              {theme === "dark" ? "Hell" : "Dunkel"}
+            </button>
             {currentUserIsPlatformOwner && (
               <button
-                className="secondary"
+                className="secondary compact"
                 onClick={() => {
                   setSettingsTab("owner");
                   setSettingsOpen(true);
                 }}
               >
-                Owner Menü
+                {"Owner Men\u00FC"}
               </button>
             )}
             <button
-              className="secondary"
+              className="secondary compact"
               onClick={() => {
                 setSettingsTab("profile");
                 setSettingsOpen(true);
@@ -275,7 +273,7 @@ export function ChatLayout({
             >
               Einstellungen
             </button>
-            <button className="secondary" onClick={onLogout}>
+            <button className="secondary compact" onClick={onLogout}>
               Abmelden
             </button>
           </div>
@@ -292,7 +290,7 @@ export function ChatLayout({
         >
           <aside className="panel channel-panel">
             <div className="panel-header">
-              <h3>Kanäle</h3>
+              <h3>{"Kan\u00E4le"}</h3>
               <span>{channels.length}</span>
             </div>
 
@@ -305,9 +303,33 @@ export function ChatLayout({
               </button>
               {activeChannel?.type === "GROUP" && (
                 <button className="secondary compact" onClick={onOpenAddMemberModal} disabled={ownMembershipRole !== "OWNER"}>
-                  Person hinzufügen
+                  {"Hinzuf\u00FCgen"}
                 </button>
               )}
+            </div>
+
+            <div className="channel-items">
+              {sortedChannels.map((channel) => {
+                const unreadCount = unreadByChannelId[channel.id] ?? 0;
+                return (
+                  <button
+                    key={channel.id}
+                    className={channel.id === activeChannelId ? "channel-item active" : "channel-item"}
+                    data-channel-id={channel.id}
+                    onClick={() => openChannel(channel.id)}
+                  >
+                    <div className="channel-main">
+                      <span className="channel-name">{getChannelDisplayName(channel)}</span>
+                      <small className="channel-subline">{"Letzte Aktivit\u00E4t"} {formatTimeLabel(channel.updatedAt)}</small>
+                    </div>
+                    <div className="channel-side">
+                      <span className="channel-kind">{getChannelTypeLabel(channel)}</span>
+                      {unreadCount > 0 ? <span className="channel-unread">{unreadCount > 99 ? "99+" : unreadCount}</span> : null}
+                    </div>
+                  </button>
+                );
+              })}
+              {!channels.length && <p className="empty-hint">{"Noch keine Kan\u00E4le vorhanden."}</p>}
             </div>
 
             {activeChannel?.type === "GROUP" && (
@@ -328,7 +350,7 @@ export function ChatLayout({
                             {renderCustomBadges(member.userId)}
                           </p>
                           <p className="member-meta">
-                            @{member.user.username} • {member.role}
+                            @{member.user.username} {"\u00B7"} {member.role}
                           </p>
                         </div>
                         <div className="member-actions">
@@ -351,7 +373,7 @@ export function ChatLayout({
                       </div>
                     );
                   })}
-                  {!channelMembers.length && <p className="inline-note">Keine Mitgliederdaten verfügbar.</p>}
+                  {!channelMembers.length && <p className="inline-note">{"Keine Mitgliederdaten verf\u00FCgbar."}</p>}
                 </div>
                 <div className="member-actions member-footer-actions">
                   <button className="secondary compact" onClick={onLeaveGroup} disabled={ownMembershipRole === "OWNER"}>
@@ -359,46 +381,24 @@ export function ChatLayout({
                   </button>
                   {ownMembershipRole === "OWNER" && (
                     <button className="secondary compact" onClick={onDeleteGroup}>
-                      Gruppe löschen
+                      {"Gruppe l\u00F6schen"}
                     </button>
                   )}
                 </div>
                 {ownMembershipRole === "OWNER" && (
-                  <p className="inline-note">Übertrage erst den Owner an ein anderes Mitglied, bevor du die Gruppe verlässt.</p>
+                  <p className="inline-note">
+                    {"\u00DCbertrage erst den Owner an ein anderes Mitglied, bevor du die Gruppe verl\u00E4sst."}
+                  </p>
                 )}
               </div>
             )}
-
-            <div className="channel-items">
-              {sortedChannels.map((channel) => {
-                const unreadCount = unreadByChannelId[channel.id] ?? 0;
-                return (
-                  <button
-                    key={channel.id}
-                    className={channel.id === activeChannelId ? "channel-item active" : "channel-item"}
-                    data-channel-id={channel.id}
-                    onClick={() => openChannel(channel.id)}
-                  >
-                    <div className="channel-main">
-                      <span className="channel-name">{getChannelDisplayName(channel)}</span>
-                      <small className="channel-subline">Letzte Aktivität {formatTimeLabel(channel.updatedAt)}</small>
-                    </div>
-                    <div className="channel-side">
-                      <span className="channel-kind">{getChannelTypeLabel(channel)}</span>
-                      {unreadCount > 0 ? <span className="channel-unread">{unreadCount > 99 ? "99+" : unreadCount}</span> : null}
-                    </div>
-                  </button>
-                );
-              })}
-              {!channels.length && <p className="empty-hint">Noch keine Kanäle vorhanden.</p>}
-            </div>
           </aside>
 
           <section className="panel message-panel">
             <div className="chat-room-header">
               {isMobileLayout && (
                 <button className="secondary compact mobile-back" aria-label="Zur Kanalliste" onClick={() => setMobilePane("list")}>
-                  ←
+                  {"\u2190"}
                 </button>
               )}
               <div className="chat-room-meta">
@@ -412,7 +412,7 @@ export function ChatLayout({
 
             <div className="search-row">
               <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Nachrichten durchsuchen" />
-              <button className="secondary" onClick={onSearch}>
+              <button className="secondary compact" onClick={onSearch}>
                 Suchen
               </button>
             </div>
@@ -459,7 +459,7 @@ export function ChatLayout({
                     {editingMessageId === entry.id ? (
                       <div className="edit-row">
                         <input value={editingContent} onChange={(event) => setEditingContent(event.target.value)} placeholder="Neue Nachricht" />
-                        <button className="primary" onClick={() => onSaveEdit(entry.id)}>
+                        <button className="primary compact" onClick={() => onSaveEdit(entry.id)}>
                           Speichern
                         </button>
                       </div>
@@ -469,17 +469,17 @@ export function ChatLayout({
 
                     {entry.content.startsWith("http") && (
                       <a className="file-link" href={entry.content} target="_blank" rel="noreferrer">
-                        Datei öffnen
+                        {"Datei \u00F6ffnen"}
                       </a>
                     )}
 
                     {ownMessage ? (
                       <div className={showActions ? "message-actions visible" : "message-actions"}>
                         <button className="message-action-chip" onClick={() => onEditMessage(entry)} title="Bearbeiten" aria-label="Bearbeiten">
-                          ✎
+                          {"\u270E"}
                         </button>
-                        <button className="message-action-chip delete" onClick={() => onDeleteMessage(entry.id)} title="Löschen" aria-label="Löschen">
-                          🗑
+                        <button className="message-action-chip delete" onClick={() => onDeleteMessage(entry.id)} title={"L\u00F6schen"} aria-label={"L\u00F6schen"}>
+                          {"\uD83D\uDDD1"}
                         </button>
                       </div>
                     ) : (
@@ -489,7 +489,7 @@ export function ChatLayout({
                         title="Blockieren"
                         aria-label="Blockieren"
                       >
-                        🚫
+                        {"\uD83D\uDEAB"}
                       </button>
                     )}
                   </article>
@@ -508,8 +508,8 @@ export function ChatLayout({
               <label
                 className={uploadsEnabledForAll ? "upload-button" : "upload-button disabled"}
                 htmlFor="upload-input"
-                title="Datei anhängen"
-                aria-label="Datei anhängen"
+                title={"Datei anh\u00E4ngen"}
+                aria-label={"Datei anh\u00E4ngen"}
               >
                 <span className="composer-icon">+</span>
               </label>
@@ -520,7 +520,7 @@ export function ChatLayout({
                   value={composerText}
                   onChange={onComposerChange}
                   onKeyDown={onComposerKeyDown}
-                  placeholder="Nachricht schreiben (Enter senden, Shift+Enter Zeilenumbruch)"
+                  placeholder="Nachricht schreiben..."
                 />
                 {mentionQuery !== null && filteredMentionCandidates.length > 0 && (
                   <div className="mention-suggestions">
@@ -539,7 +539,7 @@ export function ChatLayout({
                 )}
               </div>
               <button className="primary composer-send" onClick={onSendMessage} title="Senden" aria-label="Senden">
-                <span className="composer-icon">➤</span>
+                <span className="composer-icon">{"\u27A4"}</span>
               </button>
             </div>
           </section>
@@ -560,7 +560,7 @@ export function ChatLayout({
               <div className="settings-head">
                 <h3>Einstellungen</h3>
                 <button className="secondary compact" onClick={() => setSettingsOpen(false)}>
-                  Schließen
+                  {"Schlie\u00DFen"}
                 </button>
               </div>
 
@@ -594,7 +594,7 @@ export function ChatLayout({
                   <p className="inline-note">
                     Deine eindeutige ID: <strong>{auth.user.userHandle}</strong>
                   </p>
-                  <button className="primary" onClick={onSaveProfile}>
+                  <button className="primary compact" onClick={onSaveProfile}>
                     Profil speichern
                   </button>
                 </div>
@@ -649,7 +649,7 @@ export function ChatLayout({
                         placeholder="Kurzlabel (z. B. FND)"
                         maxLength={10}
                       />
-                      <button className="secondary" onClick={createCustomBadge}>
+                      <button className="secondary compact" onClick={createCustomBadge}>
                         Badge erstellen
                       </button>
                     </div>
@@ -659,11 +659,11 @@ export function ChatLayout({
                     <div className="owner-studio-create">
                       <p className="inline-note">Globale Plattform-Einstellungen</p>
                       <div className="owner-studio-toggle-row">
-                        <button className={uploadsEnabled ? "primary" : "secondary"} disabled={platformToggleLoading} onClick={() => onToggleGlobalUploads(true)}>
-                          Uploads für alle AN
+                        <button className={uploadsEnabled ? "primary compact" : "secondary compact"} disabled={platformToggleLoading} onClick={() => onToggleGlobalUploads(true)}>
+                          {"Uploads f\u00FCr alle AN"}
                         </button>
-                        <button className={!uploadsEnabled ? "primary" : "secondary"} disabled={platformToggleLoading} onClick={() => onToggleGlobalUploads(false)}>
-                          Uploads für alle AUS
+                        <button className={!uploadsEnabled ? "primary compact" : "secondary compact"} disabled={platformToggleLoading} onClick={() => onToggleGlobalUploads(false)}>
+                          {"Uploads f\u00FCr alle AUS"}
                         </button>
                       </div>
                     </div>
@@ -680,10 +680,10 @@ export function ChatLayout({
               <h3>Neuen Kanal erstellen</h3>
               <input value={newChannelName} onChange={(event) => setNewChannelName(event.target.value)} placeholder="Neuer Gruppenchat" />
               <div className="modal-actions">
-                <button className="secondary" onClick={() => setCreateChannelModalOpen(false)}>
+                <button className="secondary compact" onClick={() => setCreateChannelModalOpen(false)}>
                   Abbrechen
                 </button>
-                <button className="primary" onClick={onCreateChannelFromModal}>
+                <button className="primary compact" onClick={onCreateChannelFromModal}>
                   Erstellen
                 </button>
               </div>
@@ -702,10 +702,10 @@ export function ChatLayout({
                 type="text"
               />
               <div className="modal-actions">
-                <button className="secondary" onClick={() => setDirectModalOpen(false)}>
+                <button className="secondary compact" onClick={() => setDirectModalOpen(false)}>
                   Abbrechen
                 </button>
-                <button className="primary" onClick={onStartDirectByUsername}>
+                <button className="primary compact" onClick={onStartDirectByUsername}>
                   Starten
                 </button>
               </div>
@@ -715,21 +715,21 @@ export function ChatLayout({
 
         {addMemberModalOpen && (
           <div className="modal-backdrop" onClick={() => setAddMemberModalOpen(false)}>
-            <section className="modal-panel" role="dialog" aria-modal="true" aria-label="Person hinzufügen" onClick={(event) => event.stopPropagation()}>
-              <h3>Person zu {getChannelDisplayName(activeChannel)} hinzufügen</h3>
+            <section className="modal-panel" role="dialog" aria-modal="true" aria-label={"Person hinzuf\u00FCgen"} onClick={(event) => event.stopPropagation()}>
+              <h3>{"Person zu"} {getChannelDisplayName(activeChannel)} {"hinzuf\u00FCgen"}</h3>
               <input
                 value={addMemberUsername}
                 onChange={(event) => setAddMemberUsername(event.target.value.toLowerCase())}
                 placeholder="@username"
                 type="text"
               />
-              <p className="inline-note">Nur Owner können neue Mitglieder hinzufügen.</p>
+              <p className="inline-note">{"Nur Owner k\u00F6nnen neue Mitglieder hinzuf\u00FCgen."}</p>
               <div className="modal-actions">
-                <button className="secondary" onClick={() => setAddMemberModalOpen(false)}>
+                <button className="secondary compact" onClick={() => setAddMemberModalOpen(false)}>
                   Abbrechen
                 </button>
-                <button className="primary" onClick={onAddMemberByUsername}>
-                  Hinzufügen
+                <button className="primary compact" onClick={onAddMemberByUsername}>
+                  {"Hinzuf\u00FCgen"}
                 </button>
               </div>
             </section>

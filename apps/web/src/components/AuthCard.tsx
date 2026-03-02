@@ -54,11 +54,13 @@ export function AuthCard({
           <img src="/chat-net-logo.svg" alt="Chat-Net Logo" className="auth-logo" />
           <p className="eyebrow">chat-net.tech</p>
           <h1>Chat-Net</h1>
-          <p className="subtitle">Schnell, klar, modern – dein Space für Chats und Communities.</p>
+          <p className="subtitle">
+            Der sichere Chat f{"\u00FC"}r echte Gespr{"\u00E4"}che. Schnell, modern und Community-ready.
+          </p>
           <div className="auth-brand-badges" aria-hidden="true">
             <span className="auth-brand-pill">Realtime</span>
             <span className="auth-brand-pill">Sicher</span>
-            <span className="auth-brand-pill">Community Ready</span>
+            <span className="auth-brand-pill">Community</span>
           </div>
         </div>
 
@@ -78,10 +80,10 @@ export function AuthCard({
                 />
               </label>
               <button onClick={submit} disabled={loading} className="primary wide">
-                {loading ? "Lädt..." : "Passwort speichern"}
+                {loading ? "L\u00E4dt..." : "Passwort speichern"}
               </button>
               <button className="secondary wide" onClick={onBackToLoginFromReset}>
-                Zurück zum Login
+                {"Zur\u00FCck zum Login"}
               </button>
               {message && <p className="message-banner">{message}</p>}
             </>
@@ -144,7 +146,7 @@ export function AuthCard({
               )}
 
               <button onClick={submit} disabled={loading} className="primary wide">
-                {loading ? "Lädt..." : "Absenden"}
+                {loading ? "L\u00E4dt..." : "Absenden"}
               </button>
 
               <div className="auth-divider">
@@ -165,7 +167,9 @@ export function AuthCard({
                   )}
                 </>
               ) : (
-                <p className="hint">Setze in Vercel zusätzlich `VITE_GOOGLE_CLIENT_ID`, um Google Login zu aktivieren.</p>
+                <p className="hint">
+                  {"Setze in Vercel zus\u00E4tzlich `VITE_GOOGLE_CLIENT_ID`, um Google Login zu aktivieren."}
+                </p>
               )}
 
               {message && <p className="message-banner">{message}</p>}
