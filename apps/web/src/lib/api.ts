@@ -1,71 +1,24 @@
-import type { AuthResponse } from "@chatnet/shared";
+import type {
+  AuthResponse,
+  ChannelItem,
+  ChannelMemberItem,
+  MessageItem,
+  PlatformSettingsItem,
+  PresenceItem,
+  ProfileItem
+} from "@chatnet/shared";
+
+export type {
+  ChannelItem,
+  ChannelMemberItem,
+  MessageItem,
+  PlatformSettingsItem,
+  PresenceItem,
+  ProfileItem
+} from "@chatnet/shared";
 
 export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 const DEFAULT_TIMEOUT_MS = 12_000;
-
-export interface ChannelItem {
-  id: string;
-  type: "DIRECT" | "GROUP";
-  name: string | null;
-  updatedAt: string;
-  memberships?: Array<{
-    role: "OWNER" | "ADMIN" | "MEMBER";
-    user: {
-      id: string;
-      username?: string;
-      displayName: string;
-    };
-  }>;
-}
-
-export interface MessageItem {
-  id: string;
-  channelId?: string;
-  content: string;
-  createdAt: string;
-  sender: {
-    id: string;
-    username?: string;
-    displayName: string;
-    avatarUrl?: string | null;
-  };
-}
-
-export interface PresenceItem {
-  userId: string;
-  online: boolean;
-  lastSeenAt: number | null;
-}
-
-export interface ChannelMemberItem {
-  userId: string;
-  channelId: string;
-  role: "OWNER" | "ADMIN" | "MEMBER";
-  createdAt: string;
-  user: {
-    id: string;
-    username: string;
-    displayName: string;
-    avatarUrl?: string | null;
-  };
-}
-
-export interface ProfileItem {
-  id: string;
-  email: string;
-  username: string;
-  userCode: string;
-  userHandle: string;
-  displayName: string;
-  avatarUrl?: string | null;
-  verifiedEmail: boolean;
-  provider: "google" | "password";
-}
-
-export interface PlatformSettingsItem {
-  uploadsEnabled: boolean;
-  canManage: boolean;
-}
 
 export class ApiError extends Error {
   status: number;

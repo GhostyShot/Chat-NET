@@ -1,54 +1,9 @@
-import type { AuthResponse } from "@chatnet/shared";
+import type { AuthResponse, ChannelItem, ChannelMemberItem, MessageItem, PresenceItem } from "@chatnet/shared";
+
+export type { ChannelItem, ChannelMemberItem, MessageItem, PresenceItem } from "@chatnet/shared";
 
 const runtimeEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
 export const API_URL = runtimeEnv?.EXPO_PUBLIC_API_URL ?? "http://localhost:4000";
-
-export interface ChannelItem {
-  id: string;
-  type: "DIRECT" | "GROUP";
-  name: string | null;
-  updatedAt: string;
-  memberships?: Array<{
-    role: "OWNER" | "ADMIN" | "MEMBER";
-    user: {
-      id: string;
-      username?: string;
-      displayName: string;
-      avatarUrl?: string | null;
-    };
-  }>;
-}
-
-export interface MessageItem {
-  id: string;
-  channelId?: string;
-  content: string;
-  createdAt: string;
-  sender: {
-    id: string;
-    displayName: string;
-    avatarUrl?: string | null;
-  };
-}
-
-export interface PresenceItem {
-  userId: string;
-  online: boolean;
-  lastSeenAt: number | null;
-}
-
-export interface ChannelMemberItem {
-  userId: string;
-  channelId: string;
-  role: "OWNER" | "ADMIN" | "MEMBER";
-  createdAt: string;
-  user: {
-    id: string;
-    username: string;
-    displayName: string;
-    avatarUrl?: string | null;
-  };
-}
 
 async function request<T>(path: string, options?: { method?: "GET" | "POST" | "PATCH" | "DELETE"; body?: unknown; accessToken?: string }) {
   const response = await fetch(`${API_URL}${path}`, {
