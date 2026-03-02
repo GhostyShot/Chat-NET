@@ -111,3 +111,11 @@ export interface UploadedFileResponse {
   url: string;
   filename: string;
 }
+
+export interface ApiErrorPayload {
+  error?: string;
+  message?: string;
+  code?: string;
+  errorCode?: string;
+  details?: unknown;
+}

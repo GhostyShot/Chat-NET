@@ -1,4 +1,5 @@
 import type {
+  ApiErrorPayload,
   AuthEnvelope,
   AuthResponse,
   ChannelItem,
@@ -73,7 +74,7 @@ function extractErrorMessage(payload: unknown, fallbackError: string): string {
   if (!payload || typeof payload !== "object") {
     return fallbackError;
   }
-  const candidate = payload as { error?: unknown; message?: unknown };
+  const candidate = payload as ApiErrorPayload;
   if (typeof candidate.error === "string" && candidate.error.trim()) {
     return candidate.error;
   }
@@ -87,7 +88,7 @@ function extractErrorCode(payload: unknown): string | undefined {
   if (!payload || typeof payload !== "object") {
     return undefined;
   }
-  const candidate = payload as { code?: unknown; errorCode?: unknown };
+  const candidate = payload as ApiErrorPayload;
   if (typeof candidate.code === "string" && candidate.code.trim()) {
     return candidate.code;
   }

@@ -1,4 +1,5 @@
 import type {
+  ApiErrorPayload,
   AuthEnvelope,
   AuthResponse,
   ChannelItem,
@@ -16,6 +17,64 @@ export type { ChannelItem, ChannelMemberItem, MessageItem, PresenceItem } from "
 const runtimeEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
 export const API_URL = runtimeEnv?.EXPO_PUBLIC_API_URL ?? "http://localhost:4000";
 
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+
+  constructor(message: string, options: { status?: number; code?: string } = {}) {
+    super(message);
+    this.name = "ApiError";
+    this.status = options.status ?? 0;
+    this.code = options.code;
+  }
+}
+
+function extractErrorMessage(payload: unknown, fallbackError: string): string {
+  if (!payload || typeof payload !== "object") {
+    return fallbackError;
+  }
+  const candidate = payload as ApiErrorPayload;
+  if (typeof candidate.error === "string" && candidate.error.trim()) {
+    return candidate.error;
+  }
+  if (typeof candidate.message === "string" && candidate.message.trim()) {
+    return candidate.message;
+  }
+  return fallbackError;
+}
+
+function extractErrorCode(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object") {
+    return undefined;
+  }
+  const candidate = payload as ApiErrorPayload;
+  if (typeof candidate.code === "string" && candidate.code.trim()) {
+    return candidate.code;
+  }
+  if (typeof candidate.errorCode === "string" && candidate.errorCode.trim()) {
+    return candidate.errorCode;
+  }
+  return undefined;
+}
+
+async function parseResponsePayload(response: Response): Promise<unknown> {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    try {
+      return await response.json();
+    } catch {
+      return null;
+    }
+  }
+
+  try {
+    const text = await response.text();
+    return text ? { error: text } : null;
+  } catch {
+    return null;
+  }
+}
+
 async function request<T>(path: string, options?: { method?: "GET" | "POST" | "PATCH" | "DELETE"; body?: unknown; accessToken?: string }) {
   const response = await fetch(`${API_URL}${path}`, {
     method: options?.method ?? "POST",
@@ -26,9 +85,12 @@ async function request<T>(path: string, options?: { method?: "GET" | "POST" | "P
     ...(options?.body ? { body: JSON.stringify(options.body) } : {})
   });
 
-  const payload = await response.json();
+  const payload = await parseResponsePayload(response);
   if (!response.ok) {
-    throw new Error(payload.error ?? "REQUEST_FAILED");
+    throw new ApiError(extractErrorMessage(payload, "REQUEST_FAILED"), {
+      status: response.status,
+      code: extractErrorCode(payload)
+    });
   }
   return payload as T;
 }
