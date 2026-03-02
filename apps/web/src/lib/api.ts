@@ -1,5 +1,4 @@
 import type {
-  ApiErrorPayload,
   AuthEnvelope,
   AuthResponse,
   ChannelItem,
@@ -12,6 +11,7 @@ import type {
   ProfileItem,
   UploadedFileResponse
 } from "@chatnet/shared";
+import { ApiRequestError, requestJson as sharedRequestJson } from "@chatnet/shared";
 
 export type {
   ChannelItem,
@@ -23,23 +23,7 @@ export type {
 } from "@chatnet/shared";
 
 export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
-const DEFAULT_TIMEOUT_MS = 12_000;
-
-export class ApiError extends Error {
-  status: number;
-  code?: string;
-  isNetwork: boolean;
-  isTimeout: boolean;
-
-  constructor(message: string, options: { status?: number; code?: string; isNetwork?: boolean; isTimeout?: boolean } = {}) {
-    super(message);
-    this.name = "ApiError";
-    this.status = options.status ?? 0;
-    this.code = options.code;
-    this.isNetwork = Boolean(options.isNetwork);
-    this.isTimeout = Boolean(options.isTimeout);
-  }
-}
+export class ApiError extends ApiRequestError {}
 
 function jsonHeaders() {
   return { "Content-Type": "application/json" };
@@ -52,115 +36,29 @@ function authHeaders(accessToken: string) {
   };
 }
 
-async function parseResponsePayload(response: Response): Promise<unknown> {
-  const contentType = response.headers.get("content-type") ?? "";
-  if (contentType.includes("application/json")) {
-    try {
-      return await response.json();
-    } catch {
-      return null;
-    }
-  }
-
-  try {
-    const text = await response.text();
-    return text ? { error: text } : null;
-  } catch {
-    return null;
-  }
-}
-
-function extractErrorMessage(payload: unknown, fallbackError: string): string {
-  if (!payload || typeof payload !== "object") {
-    return fallbackError;
-  }
-  const candidate = payload as ApiErrorPayload;
-  if (typeof candidate.error === "string" && candidate.error.trim()) {
-    return candidate.error;
-  }
-  if (typeof candidate.message === "string" && candidate.message.trim()) {
-    return candidate.message;
-  }
-  return fallbackError;
-}
-
-function extractErrorCode(payload: unknown): string | undefined {
-  if (!payload || typeof payload !== "object") {
-    return undefined;
-  }
-  const candidate = payload as ApiErrorPayload;
-  if (typeof candidate.code === "string" && candidate.code.trim()) {
-    return candidate.code;
-  }
-  if (typeof candidate.errorCode === "string" && candidate.errorCode.trim()) {
-    return candidate.errorCode;
-  }
-  return undefined;
-}
-
 async function requestJson<T>(
   path: string,
   init: RequestInit,
   options: { fallbackError: string; timeoutMs?: number; retry?: boolean }
 ): Promise<T> {
-  const method = (init.method ?? "GET").toUpperCase();
-  const shouldRetry = options.retry ?? method === "GET";
-  const maxAttempts = shouldRetry ? 2 : 1;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
-
-    try {
-      const response = await fetch(`${API_URL}${path}`, {
-        ...init,
-        signal: controller.signal
+  try {
+    return await sharedRequestJson<T>(API_URL, path, init, {
+      ...options,
+      requestCode: options.fallbackError,
+      timeoutMessage: "Anfrage hat zu lange gedauert. Bitte erneut versuchen.",
+      networkMessage: "Netzwerkfehler. Bitte Verbindung prüfen."
+    });
+  } catch (error) {
+    if (error instanceof ApiRequestError) {
+      throw new ApiError(error.message, {
+        status: error.status,
+        code: error.code,
+        isNetwork: error.isNetwork,
+        isTimeout: error.isTimeout
       });
-
-      const payload = await parseResponsePayload(response);
-      if (!response.ok) {
-        throw new ApiError(extractErrorMessage(payload, options.fallbackError), {
-          status: response.status,
-          code: extractErrorCode(payload)
-        });
-      }
-
-      return payload as T;
-    } catch (error) {
-      const timedOut = error instanceof DOMException && error.name === "AbortError";
-      const networkIssue = timedOut || error instanceof TypeError;
-      const canRetry = attempt < maxAttempts - 1 && networkIssue;
-
-      if (canRetry) {
-        continue;
-      }
-
-      if (error instanceof ApiError) {
-        throw error;
-      }
-
-      if (timedOut) {
-        throw new ApiError("Anfrage hat zu lange gedauert. Bitte erneut versuchen.", {
-          isNetwork: true,
-          isTimeout: true,
-          code: options.fallbackError
-        });
-      }
-
-      if (error instanceof TypeError) {
-        throw new ApiError("Netzwerkfehler. Bitte Verbindung prüfen.", {
-          isNetwork: true,
-          code: options.fallbackError
-        });
-      }
-
-      throw error;
-    } finally {
-      window.clearTimeout(timeoutId);
     }
+    throw error;
   }
-
-  throw new ApiError(options.fallbackError, { code: options.fallbackError });
 }
 
 export async function register(email: string, password: string, displayName: string): Promise<AuthResponse> {

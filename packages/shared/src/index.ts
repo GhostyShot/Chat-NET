@@ -184,3 +184,5 @@ export interface RealtimeClientToServerEvents {
   typing: (payload: RealtimeTypingPayload) => void;
   read_receipt: (payload: RealtimeReadReceiptEvent) => void;
 }
+
+export { ApiRequestError, requestJson, type ApiRequestErrorOptions, type RequestJsonOptions } from "./http.js";
