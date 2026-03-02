@@ -1733,8 +1733,13 @@ export function App() {
               </div>
 
               <div className="composer">
-                <label className={uploadsEnabledForAll ? "upload-button" : "upload-button disabled"} htmlFor="upload-input">
-                  Datei
+                <label
+                  className={uploadsEnabledForAll ? "upload-button" : "upload-button disabled"}
+                  htmlFor="upload-input"
+                  title="Datei anhängen"
+                  aria-label="Datei anhängen"
+                >
+                  <span className="composer-icon">+</span>
                 </label>
                 <input
                   id="upload-input"
@@ -1774,8 +1779,8 @@ export function App() {
                     </div>
                   )}
                 </div>
-                <button className="primary composer-send" onClick={onSendMessage}>
-                  Senden
+                <button className="primary composer-send" onClick={onSendMessage} title="Senden" aria-label="Senden">
+                  <span className="composer-icon">➤</span>
                 </button>
               </div>
             </section>
