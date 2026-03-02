@@ -4,6 +4,7 @@ import helmet from "helmet";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { chatRouter } from "./modules/chat/chat.routes.js";
 import { appConfig } from "./config.js";
+import { prisma } from "./lib/prisma.js";
 
 export function createApp() {
   const app = express();
@@ -21,6 +22,15 @@ export function createApp() {
 
   app.get("/health", (_req, res) => {
     res.json({ ok: true, service: "chat-net-api" });
+  });
+
+  app.get("/ready", async (_req, res) => {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      res.json({ ok: true, service: "chat-net-api", database: "up" });
+    } catch {
+      res.status(503).json({ ok: false, service: "chat-net-api", database: "down" });
+    }
   });
 
   app.use("/auth", authRouter);

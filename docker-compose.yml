@@ -9,6 +9,12 @@ services:
       POSTGRES_DB: chatnet
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chatnet -d chatnet"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     volumes:
       - chatnet-postgres-data:/var/lib/postgresql/data
 
