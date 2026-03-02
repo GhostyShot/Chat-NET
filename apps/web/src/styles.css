@@ -144,7 +144,9 @@ body {
 .landing-hero {
   border-radius: 20px;
   border: 1px solid var(--border-main);
-  background: var(--surface-main);
+  background:
+    radial-gradient(circle at 92% 14%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 50%),
+    var(--surface-main);
   backdrop-filter: blur(14px);
   box-shadow: var(--shadow-soft), var(--shadow-glow);
   padding: 34px;
@@ -154,6 +156,24 @@ body {
   margin: 8px 0 0;
   font-size: clamp(1.7rem, 4vw, 2.5rem);
   line-height: 1.15;
+}
+
+.landing-stat-row {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.landing-stat {
+  border: 1px solid color-mix(in srgb, var(--accent) 52%, var(--input-border));
+  background: color-mix(in srgb, var(--accent) 16%, var(--input-bg));
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .landing-visual-strip {
@@ -327,7 +347,9 @@ body {
   display: grid;
   align-content: center;
   gap: 10px;
-  background: var(--surface-brand);
+  background:
+    radial-gradient(circle at 88% 16%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 58%),
+    var(--surface-brand);
 }
 
 .auth-logo {
@@ -341,6 +363,24 @@ body {
   display: grid;
   gap: 14px;
   align-content: center;
+}
+
+.auth-brand-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.auth-brand-pill {
+  border: 1px solid color-mix(in srgb, var(--accent) 54%, var(--input-border));
+  background: color-mix(in srgb, var(--accent) 16%, var(--input-bg));
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .eyebrow {
@@ -492,7 +532,12 @@ button:hover {
   flex-wrap: wrap;
   border: 1px solid color-mix(in srgb, var(--border-main) 78%, var(--accent));
   border-radius: 16px;
-  background: color-mix(in srgb, var(--surface-panel) 84%, transparent);
+  background:
+    linear-gradient(
+      140deg,
+      color-mix(in srgb, var(--surface-panel) 88%, var(--accent) 12%),
+      color-mix(in srgb, var(--surface-panel) 92%, transparent)
+    );
   backdrop-filter: blur(10px);
   box-shadow: var(--shadow-soft);
   padding: 12px 14px;
@@ -752,7 +797,8 @@ button:hover {
   border: 1px solid color-mix(in srgb, var(--input-border) 84%, transparent);
   background: color-mix(in srgb, var(--input-bg) 80%, transparent);
   border-radius: 12px;
-  padding: 9px 10px;
+  padding: 10px 11px;
+  transition: transform 120ms ease, border-color 120ms ease, background-color 120ms ease;
 }
 
 .channel-main {
@@ -817,6 +863,7 @@ button:hover {
 .channel-item.active {
   border-color: color-mix(in srgb, var(--accent) 74%, var(--input-border));
   background: color-mix(in srgb, var(--accent) 16%, var(--input-bg));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 26%, transparent) inset;
 }
 
 .channel-item.active .channel-kind {
@@ -1124,7 +1171,12 @@ button:hover {
 .chat-room-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--input-border) 78%, transparent);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--surface-panel) 82%, transparent);
 }
 
 .chat-room-meta {
@@ -1140,6 +1192,17 @@ button:hover {
 .chat-room-meta span {
   font-size: 12px;
   color: var(--text-sub);
+}
+
+.chat-room-type-pill {
+  border: 1px solid color-mix(in srgb, var(--accent) 56%, var(--input-border));
+  background: color-mix(in srgb, var(--accent) 18%, var(--input-bg));
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .mobile-back {
@@ -1278,6 +1341,9 @@ button:hover {
   width: min(740px, 100%);
   max-height: min(85dvh, 760px);
   overflow: auto;
+  background:
+    radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 54%),
+    color-mix(in srgb, var(--surface-panel) 92%, transparent);
 }
 
 .settings-head {
@@ -1285,6 +1351,12 @@ button:hover {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+}
+
+.settings-intro {
+  font-size: 13px;
+  color: var(--text-sub);
+  margin-top: -4px;
 }
 
 .settings-tabs {

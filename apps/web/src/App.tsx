@@ -35,6 +35,9 @@ import {
   type ChannelItem,
   type MessageItem
 } from "./lib/api";
+import { AuthCard } from "./components/AuthCard";
+import { ChatLayout } from "./components/ChatLayout";
+import { LandingPage } from "./components/LandingPage";
 
 type Mode = "login" | "register" | "forgot" | "reset";
 type BadgeId = string;
@@ -1361,6 +1364,15 @@ export function App() {
     }
   };
 
+  const onComposerChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
+    const next = event.target.value;
+    setComposerText(next);
+    updateMentionState(next, event.target.selectionStart ?? next.length);
+    if (auth && activeChannelId && next.trim() && socketRef.current) {
+      socketRef.current.emit("typing", { roomId: activeChannelId, userId: auth.user.id });
+    }
+  };
+
   const renderContentWithMentions = (content: string) => {
     const ownUsername = auth?.user.username?.toLowerCase();
     return content.split(/(@[a-z0-9_]{3,24})/gi).map((part, index) => {
@@ -1420,802 +1432,156 @@ export function App() {
 
   if (auth) {
     return (
-      <main className="app-shell chat-app-shell">
-        <section className={isMobileLayout && mobilePane === "chat" ? "chat-shell mobile-chat-focus" : "chat-shell"}>
-          <header className="chat-topbar">
-            <div className="brand-block">
-              <img src="/chat-net-logo.svg" alt="Chat-Net Logo" className="brand-logo" />
-              <p className="eyebrow">chat-net.tech</p>
-              <h1>Chat-Net</h1>
-              <p className="subtitle">Der sichere Chat für echte Gespräche</p>
-            </div>
-            <div className="user-block">
-              <button
-                className="secondary"
-                onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
-              >
-                {theme === "dark" ? "Hell" : "Dunkel"}
-              </button>
-              <div className="user-chip">
-                <span className="status-dot" />
-                <span>
-                  {auth.user.displayName}
-                  {renderPlatformOwnerBadge(auth.user.id, auth.user.username)}
-                  {renderCustomBadges(auth.user.id)}
-                  <small className="chip-handle">@{auth.user.username}</small>
-                </span>
-              </div>
-              {currentUserIsPlatformOwner && (
-                <button
-                  className="secondary"
-                  onClick={() => {
-                    setSettingsTab("owner");
-                    setSettingsOpen(true);
-                  }}
-                >
-                  Owner Menü
-                </button>
-              )}
-              <button
-                className="secondary"
-                onClick={() => {
-                  setSettingsTab("profile");
-                  setSettingsOpen(true);
-                }}
-              >
-                Einstellungen
-              </button>
-              <button className="secondary" onClick={logout}>
-                Abmelden
-              </button>
-            </div>
-          </header>
-
-          <div
-            className={
-              isMobileLayout
-                ? mobilePane === "chat"
-                  ? "chat-layout mobile-chat-open"
-                  : "chat-layout mobile-list-open"
-                : "chat-layout"
-            }
-          >
-            <aside className="panel channel-panel">
-              <div className="panel-header">
-                <h3>Kanäle</h3>
-                <span>{channels.length}</span>
-              </div>
-
-              <div className="channel-toolbar">
-                <button className="secondary compact" onClick={openCreateChannelModal}>
-                  Neuer Kanal
-                </button>
-                <button className="secondary compact" onClick={() => setDirectModalOpen(true)}>
-                  Direktchat
-                </button>
-                {activeChannel?.type === "GROUP" && (
-                  <button
-                    className="secondary compact"
-                    onClick={() => setAddMemberModalOpen(true)}
-                    disabled={ownMembershipRole !== "OWNER"}
-                  >
-                    Person hinzufügen
-                  </button>
-                )}
-              </div>
-
-              {activeChannel?.type === "GROUP" && (
-                <div className="member-panel">
-                  <div className="panel-header">
-                    <h3>Mitglieder</h3>
-                    <span>{channelMembers.length}</span>
-                  </div>
-                  <div className="member-list">
-                    {channelMembers.map((member) => {
-                      const isSelf = member.userId === auth.user.id;
-                      return (
-                        <div key={member.userId} className="member-item">
-                          <div>
-                            <p className="member-name">
-                              {member.user.displayName}
-                              {renderPlatformOwnerBadge(member.userId, member.user.username)}
-                              {renderCustomBadges(member.userId)}
-                            </p>
-                            <p className="member-meta">
-                              @{member.user.username} • {member.role}
-                            </p>
-                          </div>
-                          <div className="member-actions">
-                            {canManageRoles && member.role !== "OWNER" && !isSelf && (
-                              <button className="secondary compact" onClick={() => onTransferOwnership(member)}>
-                                Owner geben
-                              </button>
-                            )}
-                            {canManageRoles && member.role !== "OWNER" && !isSelf && (
-                              <button className="secondary compact" onClick={() => onToggleMemberRole(member)}>
-                                {member.role === "ADMIN" ? "Zu Member" : "Zu Admin"}
-                              </button>
-                            )}
-                            {canModerateMembers && member.role !== "OWNER" && !isSelf && (
-                              <button className="secondary compact" onClick={() => onRemoveMember(member)}>
-                                Entfernen
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {!channelMembers.length && <p className="inline-note">Keine Mitgliederdaten verfügbar.</p>}
-                  </div>
-                  <div className="member-actions member-footer-actions">
-                    <button
-                      className="secondary compact"
-                      onClick={onLeaveGroup}
-                      disabled={ownMembershipRole === "OWNER"}
-                    >
-                      Gruppe verlassen
-                    </button>
-                    {ownMembershipRole === "OWNER" && (
-                      <button className="secondary compact" onClick={onDeleteGroup}>
-                        Gruppe löschen
-                      </button>
-                    )}
-                  </div>
-                  {ownMembershipRole === "OWNER" && (
-                    <p className="inline-note">Übertrage erst den Owner an ein anderes Mitglied, bevor du die Gruppe verlässt.</p>
-                  )}
-                </div>
-              )}
-
-              <div className="channel-items">
-                {sortedChannels.map((channel) => {
-                  const unreadCount = unreadByChannelId[channel.id] ?? 0;
-                  return (
-                  <button
-                    key={channel.id}
-                    className={channel.id === activeChannelId ? "channel-item active" : "channel-item"}
-                    onClick={() => openChannel(channel.id)}
-                  >
-                    <div className="channel-main">
-                      <span className="channel-name">{getChannelDisplayName(channel)}</span>
-                      <small className="channel-subline">Letzte Aktivität {formatTimeLabel(channel.updatedAt)}</small>
-                    </div>
-                    <div className="channel-side">
-                      <span className="channel-kind">{getChannelTypeLabel(channel)}</span>
-                      {unreadCount > 0 ? <span className="channel-unread">{unreadCount > 99 ? "99+" : unreadCount}</span> : null}
-                    </div>
-                  </button>
-                  );
-                })}
-                {!channels.length && <p className="empty-hint">Noch keine Kanäle vorhanden.</p>}
-              </div>
-            </aside>
-
-            <section className="panel message-panel">
-              <div className="chat-room-header">
-                {isMobileLayout && (
-                  <button className="secondary compact mobile-back" onClick={() => setMobilePane("list")}>
-                    ←
-                  </button>
-                )}
-                <div className="chat-room-meta">
-                  <h3>{getChannelDisplayName(activeChannel)}</h3>
-                  <span>{activeConversationStatus}</span>
-                </div>
-              </div>
-
-              <div className="search-row">
-                <input
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Nachrichten durchsuchen"
-                />
-                <button className="secondary" onClick={onSearch}>
-                  Suchen
-                </button>
-              </div>
-
-              {!!searchResults.length && (
-                <div className="search-results">
-                  {searchResults.slice(0, 5).map((entry) => (
-                    <p key={`search-${entry.id}`} className="result-item">
-                      <strong>{entry.sender.displayName}:</strong> {entry.content}
-                    </p>
-                  ))}
-                </div>
-              )}
-
-              <div className="message-list" ref={messageListRef}>
-                {messages.map((entry) => {
-                  const ownMessage = entry.sender.id === auth.user.id;
-                  const showActions = activeMessageId === entry.id;
-                  const isOnline = Boolean(presenceMap[entry.sender.id]);
-                  const role = memberRoleByUserId.get(entry.sender.id);
-                  const timeLabel = formatTimeLabel(entry.createdAt);
-                  return (
-                    <article
-                      key={entry.id}
-                      className={ownMessage ? "message-bubble mine" : "message-bubble"}
-                      onClick={() => setActiveMessageId((current) => (current === entry.id ? null : entry.id))}
-                    >
-                      <div className="message-head">
-                        <div className="message-author-line">
-                          <p className="message-meta">
-                            {entry.sender.displayName}
-                            {entry.sender.username ? <span className="message-handle">@{entry.sender.username}</span> : null}
-                            {renderPlatformOwnerBadge(entry.sender.id, entry.sender.username)}
-                            {renderCustomBadges(entry.sender.id)}
-                          </p>
-                          <div className="message-badges-row">
-                            {role === "ADMIN" ? <span className="role-pill">Admin</span> : null}
-                            <span className={isOnline ? "presence-pill online" : "presence-pill offline"}>
-                              {isOnline ? "Online" : "Offline"}
-                            </span>
-                            {timeLabel ? <span className="message-time">{timeLabel}</span> : null}
-                          </div>
-                        </div>
-                      </div>
-
-                      {editingMessageId === entry.id ? (
-                        <div className="edit-row">
-                          <input
-                            value={editingContent}
-                            onChange={(event) => setEditingContent(event.target.value)}
-                            placeholder="Neue Nachricht"
-                          />
-                          <button className="primary" onClick={() => onSaveEdit(entry.id)}>
-                            Speichern
-                          </button>
-                        </div>
-                      ) : (
-                        <p className="message-content">{renderContentWithMentions(entry.content)}</p>
-                      )}
-
-                      {entry.content.startsWith("http") && (
-                        <a className="file-link" href={entry.content} target="_blank" rel="noreferrer">
-                          Datei öffnen
-                        </a>
-                      )}
-
-                      {ownMessage ? (
-                        <div className={showActions ? "message-actions visible" : "message-actions"}>
-                          <button className="message-action-chip" onClick={() => onEditMessage(entry)} title="Bearbeiten" aria-label="Bearbeiten">
-                            ✎
-                          </button>
-                          <button className="message-action-chip delete" onClick={() => onDeleteMessage(entry.id)} title="Löschen" aria-label="Löschen">
-                            🗑
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          className={showActions ? "message-inline-action visible" : "message-inline-action"}
-                          onClick={() => onBlockSender(entry.sender.id)}
-                          title="Blockieren"
-                          aria-label="Blockieren"
-                        >
-                          🚫
-                        </button>
-                      )}
-                    </article>
-                  );
-                })}
-
-                {!messages.length && (
-                  <div className="empty-state">
-                    <p>Noch keine Nachrichten in diesem Kanal.</p>
-                    <span>Starte die Unterhaltung mit deiner ersten Nachricht.</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="composer">
-                <label
-                  className={uploadsEnabledForAll ? "upload-button" : "upload-button disabled"}
-                  htmlFor="upload-input"
-                  title="Datei anhängen"
-                  aria-label="Datei anhängen"
-                >
-                  <span className="composer-icon">+</span>
-                </label>
-                <input
-                  id="upload-input"
-                  className="file-input"
-                  type="file"
-                  onChange={onUploadSelected}
-                  disabled={!uploadsEnabledForAll}
-                />
-                <div className="composer-input-wrap">
-                  <textarea
-                    ref={composerRef}
-                    value={composerText}
-                    onChange={(event) => {
-                      const next = event.target.value;
-                      setComposerText(next);
-                      updateMentionState(next, event.target.selectionStart ?? next.length);
-                      if (auth && activeChannelId && next.trim() && socketRef.current) {
-                        socketRef.current.emit("typing", { roomId: activeChannelId, userId: auth.user.id });
-                      }
-                    }}
-                    onKeyDown={onComposerKeyDown}
-                    placeholder="Nachricht schreiben (Enter senden, Shift+Enter Zeilenumbruch)"
-                  />
-                  {mentionQuery !== null && filteredMentionCandidates.length > 0 && (
-                    <div className="mention-suggestions">
-                      {filteredMentionCandidates.map((item, index) => (
-                        <button
-                          key={item.username}
-                          type="button"
-                          className={index === mentionIndex ? "mention-option active" : "mention-option"}
-                          onClick={() => insertMention(item.username)}
-                        >
-                          <span>@{item.username}</span>
-                          <small>{item.displayName}</small>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <button className="primary composer-send" onClick={onSendMessage} title="Senden" aria-label="Senden">
-                  <span className="composer-icon">➤</span>
-                </button>
-              </div>
-            </section>
-          </div>
-
-          {message && <p className="message-banner">{message}</p>}
-          {mentionNotice && <p className="message-banner mention-banner">{mentionNotice}</p>}
-
-          {settingsOpen && (
-            <div className="modal-backdrop" onClick={() => setSettingsOpen(false)}>
-              <section className="modal-panel settings-panel" onClick={(event) => event.stopPropagation()}>
-                <div className="settings-head">
-                  <h3>Einstellungen</h3>
-                  <button className="secondary compact" onClick={() => setSettingsOpen(false)}>
-                    Schließen
-                  </button>
-                </div>
-
-                <div className="settings-tabs">
-                  <button
-                    className={settingsTab === "profile" ? "settings-tab active" : "settings-tab"}
-                    onClick={() => setSettingsTab("profile")}
-                  >
-                    Profil
-                  </button>
-                  {currentUserIsPlatformOwner && (
-                    <button
-                      className={settingsTab === "owner" ? "settings-tab active" : "settings-tab"}
-                      onClick={() => setSettingsTab("owner")}
-                    >
-                      Owner
-                    </button>
-                  )}
-                </div>
-
-                {settingsTab === "profile" && (
-                  <div className="profile-grid">
-                    <label>
-                      Nickname
-                      <input
-                        value={profileNickname}
-                        onChange={(event) => setProfileNickname(event.target.value)}
-                        placeholder="Dein Nickname"
-                      />
-                    </label>
-                    <label>
-                      Username
-                      <input
-                        value={profileUsername}
-                        onChange={(event) => setProfileUsername(event.target.value.toLowerCase())}
-                        placeholder="discord_style"
-                      />
-                    </label>
-                    <p className="inline-note">
-                      Deine eindeutige ID: <strong>{auth.user.userHandle}</strong>
-                    </p>
-                    <button className="primary" onClick={onSaveProfile}>
-                      Profil speichern
-                    </button>
-                  </div>
-                )}
-
-                {settingsTab === "owner" && currentUserIsPlatformOwner && (
-                  <div className="owner-studio owner-studio-in-settings">
-                    <div className="panel-header owner-studio-header">
-                      <h3>Owner-Badge Studio</h3>
-                      <span>Owner-Bereich</span>
-                    </div>
-                    <label>
-                      Badge-Zielperson
-                      <select
-                        value={badgeTargetUserId}
-                        onChange={(event) => setBadgeTargetUserId(event.target.value)}
-                        className="owner-studio-select"
-                      >
-                        {knownUsers.map((user) => (
-                          <option key={user.id} value={user.id}>
-                            {user.displayName} {user.username ? `(@${user.username})` : ""}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    {badgeTargetUser && (
-                      <div className="owner-studio-badges">
-                        {badgeDefinitions.map((badge) => {
-                          const active = (customBadgesByUserId[badgeTargetUser.id] ?? []).includes(badge.id);
-                          return (
-                            <label key={badge.id} className={active ? "badge-toggle active" : "badge-toggle"}>
-                              <input
-                                type="checkbox"
-                                checked={active}
-                                onChange={() => toggleBadgeForUser(badgeTargetUser.id, badge.id)}
-                              />
-                              <span>{badge.label}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    <div className="owner-studio-create">
-                      <p className="inline-note">Eigenes Badge erstellen (wird automatisch dir zugewiesen)</p>
-                      <div className="owner-studio-create-grid">
-                        <input
-                          value={newBadgeLabel}
-                          onChange={(event) => setNewBadgeLabel(event.target.value)}
-                          placeholder="Badge-Name (z. B. Founder)"
-                        />
-                        <input
-                          value={newBadgeShortLabel}
-                          onChange={(event) => setNewBadgeShortLabel(event.target.value)}
-                          placeholder="Kurzlabel (z. B. FND)"
-                          maxLength={10}
-                        />
-                        <button className="secondary" onClick={createCustomBadge}>
-                          Badge erstellen
-                        </button>
-                      </div>
-                    </div>
-
-                    {canManagePlatformSettings && (
-                      <div className="owner-studio-create">
-                        <p className="inline-note">Globale Plattform-Einstellungen</p>
-                        <div className="owner-studio-toggle-row">
-                          <button
-                            className={uploadsEnabledForAll ? "primary" : "secondary"}
-                            disabled={platformToggleLoading}
-                            onClick={() => onToggleGlobalUploads(true)}
-                          >
-                            Uploads für alle AN
-                          </button>
-                          <button
-                            className={!uploadsEnabledForAll ? "primary" : "secondary"}
-                            disabled={platformToggleLoading}
-                            onClick={() => onToggleGlobalUploads(false)}
-                          >
-                            Uploads für alle AUS
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </section>
-            </div>
-          )}
-
-          {createChannelModalOpen && (
-            <div className="modal-backdrop" onClick={() => setCreateChannelModalOpen(false)}>
-              <section className="modal-panel" onClick={(event) => event.stopPropagation()}>
-                <h3>Neuen Kanal erstellen</h3>
-                <input
-                  value={newChannelName}
-                  onChange={(event) => setNewChannelName(event.target.value)}
-                  placeholder="Neuer Gruppenchat"
-                />
-                <div className="modal-actions">
-                  <button className="secondary" onClick={() => setCreateChannelModalOpen(false)}>
-                    Abbrechen
-                  </button>
-                  <button className="primary" onClick={onCreateChannelFromModal}>
-                    Erstellen
-                  </button>
-                </div>
-              </section>
-            </div>
-          )}
-
-          {directModalOpen && (
-            <div className="modal-backdrop" onClick={() => setDirectModalOpen(false)}>
-              <section className="modal-panel" onClick={(event) => event.stopPropagation()}>
-                <h3>Direktchat starten</h3>
-                <input
-                  value={directUsername}
-                  onChange={(event) => setDirectUsername(event.target.value.toLowerCase())}
-                  placeholder="@username"
-                  type="text"
-                />
-                <div className="modal-actions">
-                  <button className="secondary" onClick={() => setDirectModalOpen(false)}>
-                    Abbrechen
-                  </button>
-                  <button className="primary" onClick={onStartDirectByUsername}>
-                    Starten
-                  </button>
-                </div>
-              </section>
-            </div>
-          )}
-
-          {addMemberModalOpen && (
-            <div className="modal-backdrop" onClick={() => setAddMemberModalOpen(false)}>
-              <section className="modal-panel" onClick={(event) => event.stopPropagation()}>
-                <h3>Person zu {getChannelDisplayName(activeChannel)} hinzufügen</h3>
-                <input
-                  value={addMemberUsername}
-                  onChange={(event) => setAddMemberUsername(event.target.value.toLowerCase())}
-                  placeholder="@username"
-                  type="text"
-                />
-                <p className="inline-note">Nur Owner können neue Mitglieder hinzufügen.</p>
-                <div className="modal-actions">
-                  <button className="secondary" onClick={() => setAddMemberModalOpen(false)}>
-                    Abbrechen
-                  </button>
-                  <button className="primary" onClick={onAddMemberByUsername}>
-                    Hinzufügen
-                  </button>
-                </div>
-              </section>
-            </div>
-          )}
-        </section>
-      </main>
+      <ChatLayout
+        auth={auth}
+        theme={theme}
+        onToggleTheme={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+        onLogout={logout}
+        currentUserIsPlatformOwner={currentUserIsPlatformOwner}
+        renderPlatformOwnerBadge={renderPlatformOwnerBadge}
+        renderCustomBadges={renderCustomBadges}
+        isMobileLayout={isMobileLayout}
+        mobilePane={mobilePane}
+        setMobilePane={setMobilePane}
+        channels={channels}
+        sortedChannels={sortedChannels}
+        activeChannel={activeChannel}
+        activeChannelId={activeChannelId}
+        ownMembershipRole={ownMembershipRole}
+        channelMembers={channelMembers}
+        canManageRoles={canManageRoles}
+        canModerateMembers={canModerateMembers}
+        onOpenCreateChannelModal={openCreateChannelModal}
+        onOpenDirectModal={() => setDirectModalOpen(true)}
+        onOpenAddMemberModal={() => setAddMemberModalOpen(true)}
+        openChannel={openChannel}
+        getChannelDisplayName={getChannelDisplayName}
+        getChannelTypeLabel={getChannelTypeLabel}
+        formatTimeLabel={formatTimeLabel}
+        unreadByChannelId={unreadByChannelId}
+        onTransferOwnership={onTransferOwnership}
+        onToggleMemberRole={onToggleMemberRole}
+        onRemoveMember={onRemoveMember}
+        onLeaveGroup={onLeaveGroup}
+        onDeleteGroup={onDeleteGroup}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        onSearch={onSearch}
+        searchResults={searchResults}
+        activeConversationStatus={activeConversationStatus}
+        messages={messages}
+        messageListRef={messageListRef}
+        activeMessageId={activeMessageId}
+        setActiveMessageId={setActiveMessageId}
+        presenceMap={presenceMap}
+        memberRoleByUserId={memberRoleByUserId}
+        editingMessageId={editingMessageId}
+        editingContent={editingContent}
+        setEditingContent={setEditingContent}
+        onSaveEdit={onSaveEdit}
+        onEditMessage={onEditMessage}
+        onDeleteMessage={onDeleteMessage}
+        onBlockSender={onBlockSender}
+        renderContentWithMentions={renderContentWithMentions}
+        composerText={composerText}
+        composerRef={composerRef}
+        onComposerChange={onComposerChange}
+        onComposerKeyDown={onComposerKeyDown}
+        mentionQuery={mentionQuery}
+        filteredMentionCandidates={filteredMentionCandidates}
+        mentionIndex={mentionIndex}
+        insertMention={insertMention}
+        onSendMessage={onSendMessage}
+        uploadsEnabledForAll={uploadsEnabledForAll}
+        onUploadSelected={onUploadSelected}
+        message={message}
+        mentionNotice={mentionNotice}
+        settingsOpen={settingsOpen}
+        setSettingsOpen={setSettingsOpen}
+        settingsTab={settingsTab}
+        setSettingsTab={setSettingsTab}
+        profileNickname={profileNickname}
+        setProfileNickname={setProfileNickname}
+        profileUsername={profileUsername}
+        setProfileUsername={setProfileUsername}
+        onSaveProfile={onSaveProfile}
+        knownUsers={knownUsers}
+        badgeTargetUserId={badgeTargetUserId}
+        setBadgeTargetUserId={setBadgeTargetUserId}
+        badgeTargetUser={badgeTargetUser}
+        badgeDefinitions={badgeDefinitions}
+        customBadgesByUserId={customBadgesByUserId}
+        toggleBadgeForUser={toggleBadgeForUser}
+        newBadgeLabel={newBadgeLabel}
+        setNewBadgeLabel={setNewBadgeLabel}
+        newBadgeShortLabel={newBadgeShortLabel}
+        setNewBadgeShortLabel={setNewBadgeShortLabel}
+        createCustomBadge={createCustomBadge}
+        canManagePlatformSettings={canManagePlatformSettings}
+        uploadsEnabled={uploadsEnabledForAll}
+        platformToggleLoading={platformToggleLoading}
+        onToggleGlobalUploads={onToggleGlobalUploads}
+        createChannelModalOpen={createChannelModalOpen}
+        setCreateChannelModalOpen={setCreateChannelModalOpen}
+        newChannelName={newChannelName}
+        setNewChannelName={setNewChannelName}
+        onCreateChannelFromModal={onCreateChannelFromModal}
+        directModalOpen={directModalOpen}
+        setDirectModalOpen={setDirectModalOpen}
+        directUsername={directUsername}
+        setDirectUsername={setDirectUsername}
+        onStartDirectByUsername={onStartDirectByUsername}
+        addMemberModalOpen={addMemberModalOpen}
+        setAddMemberModalOpen={setAddMemberModalOpen}
+        addMemberUsername={addMemberUsername}
+        setAddMemberUsername={setAddMemberUsername}
+        onAddMemberByUsername={onAddMemberByUsername}
+      />
     );
   }
 
   if (!resetTokenFromLink && !showAuthPage) {
     return (
-      <main className="app-shell landing-shell">
-        <section className="landing-page">
-          <header className="landing-topbar">
-            <div className="landing-brand">
-              <img src="/chat-net-logo.svg" alt="Chat-Net Logo" className="landing-logo" />
-              <div>
-                <p className="eyebrow">chat-net.tech</p>
-                <h1>Chat-Net</h1>
-              </div>
-            </div>
-            <div className="landing-auth-actions">
-              <button
-                className="secondary compact"
-                onClick={() => {
-                  setMode("login");
-                  setShowAuthPage(true);
-                }}
-              >
-                Login
-              </button>
-              <button
-                className="primary compact"
-                onClick={() => {
-                  setMode("register");
-                  setShowAuthPage(true);
-                }}
-              >
-                Registrieren
-              </button>
-            </div>
-          </header>
-
-          <div className="landing-hero">
-            <p className="eyebrow">Warum Chat-Net?</p>
-            <h2>Ein moderner Chat für Communities, Teams und Gamer.</h2>
-            <p className="subtitle">
-              Schneller Realtime-Chat, starke Gruppenfeatures, klare Rollen und ein UX, das sich wie eine moderne
-              Community-Plattform anfühlt.
-            </p>
-          </div>
-
-          <div className="landing-visual-strip" aria-hidden="true">
-            <article className="landing-visual-card">
-              <img
-                src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80"
-                alt=""
-                loading="lazy"
-              />
-              <p>Glow Feed</p>
-            </article>
-            <article className="landing-visual-card">
-              <img
-                src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80"
-                alt=""
-                loading="lazy"
-              />
-              <p>Neon Pulse</p>
-            </article>
-            <article className="landing-visual-card">
-              <img
-                src="https://images.unsplash.com/photo-1497215842964-222b430dc094?auto=format&fit=crop&w=1200&q=80"
-                alt=""
-                loading="lazy"
-              />
-              <p>Frost View</p>
-            </article>
-          </div>
-
-          <div className="landing-feature-grid">
-            <article className="landing-feature-card">
-              <h3>Realtime by Default</h3>
-              <p>Tippindikatoren, Presence, Read Receipts und direkte Antworten ohne Page-Reload.</p>
-            </article>
-            <article className="landing-feature-card">
-              <h3>Community-Fokus</h3>
-              <p>Owner/Admin-Moderation, Gruppenverwaltung, Mentions und klare Rollenstruktur.</p>
-            </article>
-            <article className="landing-feature-card">
-              <h3>Modernes Interface</h3>
-              <p>Dark/Light Themes, cleaner Glas-Look und mobile + web konsistent aus einem Guss.</p>
-            </article>
-          </div>
-
-          <div className="landing-store-row">
-            <a
-              href="#"
-              className="store-badge"
-              onClick={(event) => event.preventDefault()}
-              aria-label="App Store Coming soon"
-            >
-              <span className="store-badge-label">Download on the</span>
-              <strong>App Store</strong>
-              <span className="store-soon">Coming soon</span>
-            </a>
-            <a
-              href="#"
-              className="store-badge"
-              onClick={(event) => event.preventDefault()}
-              aria-label="Google Play Coming soon"
-            >
-              <span className="store-badge-label">Get it on</span>
-              <strong>Google Play</strong>
-              <span className="store-soon">Coming soon</span>
-            </a>
-          </div>
-        </section>
-      </main>
+      <LandingPage
+        onOpenLogin={() => {
+          setMode("login");
+          setShowAuthPage(true);
+        }}
+        onOpenRegister={() => {
+          setMode("register");
+          setShowAuthPage(true);
+        }}
+      />
     );
   }
 
   return (
-    <main className="app-shell auth-shell">
-      <section className={resetTokenFromLink ? "auth-card reset-card" : "auth-card"}>
-        <div className="auth-brand">
-          <img src="/chat-net-logo.svg" alt="Chat-Net Logo" className="auth-logo" />
-          <p className="eyebrow">chat-net.tech</p>
-          <h1>Chat-Net</h1>
-          <p className="subtitle">Schnell, klar, modern – dein Space für Chats und Communities.</p>
-        </div>
-
-        <div className="auth-panel">
-          {resetTokenFromLink ? (
-            <>
-              <h3>Neues Passwort vergeben</h3>
-              <p className="hint">Lege jetzt dein neues Passwort fest.</p>
-              <label>
-                Neues Passwort
-                <input
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Mindestens 8 Zeichen"
-                />
-              </label>
-              <button onClick={submit} disabled={loading} className="primary wide">
-                {loading ? "Lädt..." : "Passwort speichern"}
-              </button>
-              <button
-                className="secondary wide"
-                onClick={() => {
-                  setResetTokenFromLink(null);
-                  window.history.replaceState({}, "", "/");
-                  setMode("login");
-                  setToken("");
-                }}
-              >
-                Zurück zum Login
-              </button>
-              {message && <p className="message-banner">{message}</p>}
-            </>
-          ) : (
-            <>
-          <div className="mode-tabs">
-            <button className={mode === "login" ? "tab active" : "tab"} onClick={() => setMode("login")}>
-              Login
-            </button>
-            <button className={mode === "register" ? "tab active" : "tab"} onClick={() => setMode("register")}>
-              Registrieren
-            </button>
-            <button className={mode === "forgot" ? "tab active" : "tab"} onClick={() => setMode("forgot")}>
-              Passwort vergessen
-            </button>
-          </div>
-
-          {(mode === "login" || mode === "register" || mode === "forgot") && (
-            <label>
-              E-Mail
-              <input
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                type="email"
-                placeholder="name@email.de"
-              />
-            </label>
-          )}
-
-          {(mode === "login" || mode === "register") && (
-            <label>
-              Passwort
-              <input
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                type="password"
-                autoComplete="current-password"
-                placeholder="Mindestens 8 Zeichen"
-              />
-            </label>
-          )}
-
-          {mode === "register" && (
-            <label>
-              Anzeigename
-              <input
-                value={displayName}
-                onChange={(event) => setDisplayName(event.target.value)}
-                type="text"
-                placeholder="Dein Name"
-              />
-            </label>
-          )}
-
-          {mode === "reset" && (
-            <label>
-              Token
-              <input value={token} onChange={(event) => setToken(event.target.value)} type="text" placeholder="Token" />
-            </label>
-          )}
-
-          <button onClick={submit} disabled={loading} className="primary wide">
-            {loading ? "Lädt..." : "Absenden"}
-          </button>
-
-          <div className="auth-divider">
-            <span>oder</span>
-          </div>
-
-          {googleClientId ? (
-            <>
-              <div ref={googleButtonRef} className="google-button-slot" />
-              {!googleReady && !googleLoadError && <p className="hint">Google Login wird geladen...</p>}
-              {!googleReady && googleLoadError && (
-                <div className="google-fallback">
-                  <p className="hint">{googleLoadError}</p>
-                  <button className="secondary compact" onClick={() => setGoogleRenderAttempt((current) => current + 1)}>
-                    Erneut versuchen
-                  </button>
-                </div>
-              )}
-            </>
-          ) : (
-            <p className="hint">Setze in Vercel zusätzlich `VITE_GOOGLE_CLIENT_ID`, um Google Login zu aktivieren.</p>
-          )}
-
-          {message && <p className="message-banner">{message}</p>}
-            </>
-          )}
-        </div>
-      </section>
-    </main>
+    <AuthCard
+      resetTokenFromLink={resetTokenFromLink}
+      mode={mode}
+      setMode={setMode}
+      email={email}
+      setEmail={setEmail}
+      password={password}
+      setPassword={setPassword}
+      displayName={displayName}
+      setDisplayName={setDisplayName}
+      token={token}
+      setToken={setToken}
+      submit={submit}
+      loading={loading}
+      message={message}
+      googleClientId={googleClientId}
+      googleButtonRef={googleButtonRef}
+      googleReady={googleReady}
+      googleLoadError={googleLoadError}
+      onRetryGoogleRender={() => setGoogleRenderAttempt((current) => current + 1)}
+      onBackToLoginFromReset={() => {
+        setResetTokenFromLink(null);
+        window.history.replaceState({}, "", "/");
+        setMode("login");
+        setToken("");
+      }}
+    />
   );
 }
