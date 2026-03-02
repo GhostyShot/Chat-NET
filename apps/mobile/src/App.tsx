@@ -1,7 +1,14 @@
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useRef, useState } from "react";
 import { Alert, Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import type { AuthResponse } from "@chatnet/shared";
+import type {
+  AuthResponse,
+  DeletedMessageResponse,
+  PresenceItem,
+  RealtimeClientToServerEvents,
+  RealtimeServerToClientEvents,
+  RealtimeTypingPayload
+} from "@chatnet/shared";
 import { io, type Socket } from "socket.io-client";
 import { API_URL, api, type ChannelItem, type ChannelMemberItem, type MessageItem } from "./api";
 
@@ -22,7 +29,7 @@ export default function App() {
   const [composerText, setComposerText] = useState("");
   const [newChannelName, setNewChannelName] = useState("");
   const [typingHint, setTypingHint] = useState("");
-  const socketRef = useRef<Socket | null>(null);
+  const socketRef = useRef<Socket<RealtimeServerToClientEvents, RealtimeClientToServerEvents> | null>(null);
   const [presenceMap, setPresenceMap] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<MessageItem[]>([]);
@@ -101,7 +108,7 @@ export default function App() {
       return;
     }
 
-    const socket: Socket = io(API_URL, {
+    const socket: Socket<RealtimeServerToClientEvents, RealtimeClientToServerEvents> = io(API_URL, {
       auth: { token: auth.tokens.accessToken }
     });
     socketRef.current = socket;
@@ -118,7 +125,7 @@ export default function App() {
       });
     };
 
-    const onTyping = (payload: { roomId: string; userId: string }) => {
+    const onTyping = (payload: RealtimeTypingPayload) => {
       if (!activeChannelId || payload.roomId !== activeChannelId || payload.userId === auth.user.id) {
         return;
       }
@@ -126,7 +133,7 @@ export default function App() {
       setTimeout(() => setTypingHint(""), 1200);
     };
 
-    const onPresenceUpdate = (payload: { userId: string; online: boolean }) => {
+    const onPresenceUpdate = (payload: PresenceItem) => {
       setPresenceMap((previous) => ({ ...previous, [payload.userId]: payload.online }));
     };
 
@@ -134,7 +141,7 @@ export default function App() {
       setMessages((previous) => previous.map((entry) => (entry.id === updated.id ? updated : entry)));
     };
 
-    const onMessageDeleted = (payload: { id: string; deleted: boolean }) => {
+    const onMessageDeleted = (payload: DeletedMessageResponse) => {
       if (!payload.deleted) {
         return;
       }

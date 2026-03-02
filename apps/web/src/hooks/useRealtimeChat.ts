@@ -1,5 +1,12 @@
 import { useEffect, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
-import type { AuthResponse } from "@chatnet/shared";
+import type {
+  AuthResponse,
+  DeletedMessageResponse,
+  PresenceItem,
+  RealtimeClientToServerEvents,
+  RealtimeServerToClientEvents,
+  RealtimeTypingPayload
+} from "@chatnet/shared";
 import { io, type Socket } from "socket.io-client";
 import { API_URL, type ChannelItem, type MessageItem } from "../lib/api";
 
@@ -25,15 +32,15 @@ export function useRealtimeChat({
   setPresenceMap,
   setTypingHint,
   setRealtimeState
-}: UseRealtimeChatParams): MutableRefObject<Socket | null> {
-  const socketRef = useRef<Socket | null>(null);
+}: UseRealtimeChatParams): MutableRefObject<Socket<RealtimeServerToClientEvents, RealtimeClientToServerEvents> | null> {
+  const socketRef = useRef<Socket<RealtimeServerToClientEvents, RealtimeClientToServerEvents> | null>(null);
 
   useEffect(() => {
     if (!auth) {
       return;
     }
 
-    const socket: Socket = io(API_URL, {
+    const socket: Socket<RealtimeServerToClientEvents, RealtimeClientToServerEvents> = io(API_URL, {
       auth: {
         token: auth.tokens.accessToken
       }
@@ -83,7 +90,7 @@ export function useRealtimeChat({
       });
     };
 
-    const onTyping = (payload: { roomId: string; userId: string }) => {
+    const onTyping = (payload: RealtimeTypingPayload) => {
       if (payload.userId === auth.user.id || payload.roomId !== activeChannelId) {
         return;
       }
@@ -91,7 +98,7 @@ export function useRealtimeChat({
       setTimeout(() => setTypingHint(""), 1200);
     };
 
-    const onPresenceUpdate = (payload: { userId: string; online: boolean }) => {
+    const onPresenceUpdate = (payload: PresenceItem) => {
       setPresenceMap((previous) => ({ ...previous, [payload.userId]: payload.online }));
     };
 
@@ -99,7 +106,7 @@ export function useRealtimeChat({
       setMessages((previous) => previous.map((entry) => (entry.id === updated.id ? updated : entry)));
     };
 
-    const onMessageDeleted = (payload: { id: string; deleted: boolean }) => {
+    const onMessageDeleted = (payload: DeletedMessageResponse) => {
       if (!payload.deleted) {
         return;
       }

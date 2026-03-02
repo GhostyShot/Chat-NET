@@ -22,6 +22,8 @@ import { getBulkPresence } from "../../realtime.presence.js";
 import { appConfig } from "../../config.js";
 import { prisma } from "../../lib/prisma.js";
 import { platformSettingsStore } from "./chat.platform-settings.js";
+import { API_ERROR_CODES, type MessageItem } from "@chatnet/shared";
+import { sendError, withErrorBoundary } from "../../lib/http-errors.js";
 
 function singleParam(value: string | string[] | undefined): string | undefined {
   if (!value) {
@@ -30,30 +32,39 @@ function singleParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function withErrorBoundary<T>(fn: () => Promise<T>, res: Response) {
-  fn()
-    .then((data) => res.json(data))
-    .catch((error: Error) => {
-      const message = error.message || "UNEXPECTED_ERROR";
-      const status =
-        message === "DIRECT_REQUIRES_TWO_MEMBERS" ||
-        message === "GROUP_NAME_REQUIRED" ||
-        message === "MESSAGE_NOT_FOUND" ||
-        message === "INVALID_BLOCK_TARGET" ||
-        message === "USER_NOT_FOUND" ||
-        message === "GROUP_ONLY" ||
-        message === "MEMBER_EXISTS" ||
-        message === "INVALID_TARGET_USER" ||
-        message === "OWNER_TRANSFER_REQUIRED"
-          ? 400
-          : message === "FORBIDDEN_CHANNEL" || message === "USER_BLOCKED"
-            ? 403
-            : 500;
-      res.status(status).json({ error: message });
-    });
-}
-
 export const chatRouter = Router();
+
+const CHAT_BAD_REQUEST_ERRORS = [
+  API_ERROR_CODES.DIRECT_REQUIRES_TWO_MEMBERS,
+  API_ERROR_CODES.GROUP_NAME_REQUIRED,
+  API_ERROR_CODES.MESSAGE_NOT_FOUND,
+  API_ERROR_CODES.INVALID_BLOCK_TARGET,
+  API_ERROR_CODES.USER_NOT_FOUND,
+  API_ERROR_CODES.GROUP_ONLY,
+  API_ERROR_CODES.MEMBER_EXISTS,
+  API_ERROR_CODES.INVALID_TARGET_USER,
+  API_ERROR_CODES.OWNER_TRANSFER_REQUIRED
+] as const;
+
+const CHAT_FORBIDDEN_ERRORS = [API_ERROR_CODES.FORBIDDEN_CHANNEL, API_ERROR_CODES.USER_BLOCKED] as const;
+
+function toRealtimeMessage(message: {
+  id: string;
+  channelId: string;
+  content: string;
+  createdAt: Date | string;
+  sender: {
+    id: string;
+    username?: string;
+    displayName: string;
+    avatarUrl?: string | null;
+  };
+}): MessageItem {
+  return {
+    ...message,
+    createdAt: typeof message.createdAt === "string" ? message.createdAt : message.createdAt.toISOString()
+  };
+}
 
 chatRouter.use(requireAuth);
 
@@ -87,14 +98,14 @@ async function requirePlatformOwner(req: AuthenticatedRequest, res: Response, ne
   try {
     const userId = req.user?.userId;
     if (!userId) {
-      return res.status(401).json({ error: "AUTH_REQUIRED" });
+      return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
     }
     if (!(await isPlatformOwner(userId))) {
-      return res.status(403).json({ error: "FORBIDDEN_OWNER_ONLY" });
+      return res.status(403).json({ error: API_ERROR_CODES.FORBIDDEN_OWNER_ONLY });
     }
     return next();
   } catch {
-    return res.status(500).json({ error: "UNEXPECTED_ERROR" });
+    return res.status(500).json({ error: API_ERROR_CODES.UNEXPECTED_ERROR });
   }
 }
 
@@ -102,11 +113,11 @@ async function requireUploadsEnabled(req: AuthenticatedRequest, res: Response, n
   try {
     const settings = await platformSettingsStore.getSettings();
     if (!settings.uploadsEnabled) {
-      return res.status(403).json({ error: "UPLOADS_DISABLED" });
+      return res.status(403).json({ error: API_ERROR_CODES.UPLOADS_DISABLED });
     }
     return next();
   } catch {
-    return res.status(500).json({ error: "UNEXPECTED_ERROR" });
+    return res.status(500).json({ error: API_ERROR_CODES.UNEXPECTED_ERROR });
   }
 }
 
@@ -114,21 +125,21 @@ chatRouter.get("/platform-settings", async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user?.userId;
     if (!userId) {
-      return res.status(401).json({ error: "AUTH_REQUIRED" });
+      return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
     }
 
     const settings = await platformSettingsStore.getSettings();
     const canManage = await isPlatformOwner(userId);
     return res.json({ ...settings, canManage });
   } catch {
-    return res.status(500).json({ error: "UNEXPECTED_ERROR" });
+    return res.status(500).json({ error: API_ERROR_CODES.UNEXPECTED_ERROR });
   }
 });
 
 chatRouter.patch("/platform-settings/uploads", requirePlatformOwner, async (req: AuthenticatedRequest, res) => {
   const value = req.body?.uploadsEnabled;
   if (typeof value !== "boolean") {
-    return res.status(400).json({ error: "INVALID_BODY" });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_BODY });
   }
   const updated = await platformSettingsStore.setUploadsEnabled(value);
   return res.json(updated);
@@ -137,21 +148,24 @@ chatRouter.patch("/platform-settings/uploads", requirePlatformOwner, async (req:
 chatRouter.get("/channels", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
-  return withErrorBoundary(() => chatService.listChannels(userId), res);
+  return withErrorBoundary(() => chatService.listChannels(userId), res, {
+    badRequest: CHAT_BAD_REQUEST_ERRORS,
+    forbidden: CHAT_FORBIDDEN_ERRORS
+  });
 });
 
 chatRouter.post("/channels", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
   const parsed = createChannelSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: "INVALID_BODY", details: parsed.error.issues });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_BODY, details: parsed.error.issues });
   }
 
   return withErrorBoundary(
@@ -162,19 +176,23 @@ chatRouter.post("/channels", async (req: AuthenticatedRequest, res) => {
         name: parsed.data.name,
         memberIds: parsed.data.memberIds
       }),
-    res
+    res,
+    {
+      badRequest: CHAT_BAD_REQUEST_ERRORS,
+      forbidden: CHAT_FORBIDDEN_ERRORS
+    }
   );
 });
 
 chatRouter.delete("/channels/:channelId", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
   const channelId = singleParam(req.params.channelId);
   if (!channelId) {
-    return res.status(400).json({ error: "INVALID_CHANNEL_ID" });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_CHANNEL_ID });
   }
 
   return withErrorBoundary(
@@ -183,19 +201,23 @@ chatRouter.delete("/channels/:channelId", async (req: AuthenticatedRequest, res)
         channelId,
         requesterId: userId
       }),
-    res
+    res,
+    {
+      badRequest: CHAT_BAD_REQUEST_ERRORS,
+      forbidden: CHAT_FORBIDDEN_ERRORS
+    }
   );
 });
 
 chatRouter.post("/direct/by-username", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
   const parsed = usernameTargetSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: "INVALID_BODY", details: parsed.error.issues });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_BODY, details: parsed.error.issues });
   }
 
   return withErrorBoundary(
@@ -204,24 +226,28 @@ chatRouter.post("/direct/by-username", async (req: AuthenticatedRequest, res) =>
         ownerId: userId,
         username: parsed.data.username
       }),
-    res
+    res,
+    {
+      badRequest: CHAT_BAD_REQUEST_ERRORS,
+      forbidden: CHAT_FORBIDDEN_ERRORS
+    }
   );
 });
 
 chatRouter.post("/channels/:channelId/members/by-username", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
   const channelId = singleParam(req.params.channelId);
   if (!channelId) {
-    return res.status(400).json({ error: "INVALID_CHANNEL_ID" });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_CHANNEL_ID });
   }
 
   const parsed = usernameTargetSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: "INVALID_BODY", details: parsed.error.issues });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_BODY, details: parsed.error.issues });
   }
 
   return withErrorBoundary(
@@ -231,19 +257,23 @@ chatRouter.post("/channels/:channelId/members/by-username", async (req: Authenti
         requesterId: userId,
         username: parsed.data.username
       }),
-    res
+    res,
+    {
+      badRequest: CHAT_BAD_REQUEST_ERRORS,
+      forbidden: CHAT_FORBIDDEN_ERRORS
+    }
   );
 });
 
 chatRouter.get("/channels/:channelId/members", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
   const channelId = singleParam(req.params.channelId);
   if (!channelId) {
-    return res.status(400).json({ error: "INVALID_CHANNEL_ID" });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_CHANNEL_ID });
   }
 
   return withErrorBoundary(
@@ -252,25 +282,29 @@ chatRouter.get("/channels/:channelId/members", async (req: AuthenticatedRequest,
         channelId,
         requesterId: userId
       }),
-    res
+    res,
+    {
+      badRequest: CHAT_BAD_REQUEST_ERRORS,
+      forbidden: CHAT_FORBIDDEN_ERRORS
+    }
   );
 });
 
 chatRouter.patch("/channels/:channelId/members/:targetUserId/role", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
   const channelId = singleParam(req.params.channelId);
   const targetUserId = singleParam(req.params.targetUserId);
   if (!channelId || !targetUserId) {
-    return res.status(400).json({ error: "INVALID_PATH_PARAMS" });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_PATH_PARAMS });
   }
 
   const parsed = updateMemberRoleSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: "INVALID_BODY", details: parsed.error.issues });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_BODY, details: parsed.error.issues });
   }
 
   return withErrorBoundary(
@@ -281,19 +315,23 @@ chatRouter.patch("/channels/:channelId/members/:targetUserId/role", async (req: 
         targetUserId,
         role: parsed.data.role
       }),
-    res
+    res,
+    {
+      badRequest: CHAT_BAD_REQUEST_ERRORS,
+      forbidden: CHAT_FORBIDDEN_ERRORS
+    }
   );
 });
 
 chatRouter.delete("/channels/:channelId/members/me", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
   const channelId = singleParam(req.params.channelId);
   if (!channelId) {
-    return res.status(400).json({ error: "INVALID_CHANNEL_ID" });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_CHANNEL_ID });
   }
 
   return withErrorBoundary(
@@ -302,20 +340,24 @@ chatRouter.delete("/channels/:channelId/members/me", async (req: AuthenticatedRe
         channelId,
         requesterId: userId
       }),
-    res
+    res,
+    {
+      badRequest: CHAT_BAD_REQUEST_ERRORS,
+      forbidden: CHAT_FORBIDDEN_ERRORS
+    }
   );
 });
 
 chatRouter.delete("/channels/:channelId/members/:targetUserId", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
   const channelId = singleParam(req.params.channelId);
   const targetUserId = singleParam(req.params.targetUserId);
   if (!channelId || !targetUserId) {
-    return res.status(400).json({ error: "INVALID_PATH_PARAMS" });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_PATH_PARAMS });
   }
 
   return withErrorBoundary(
@@ -325,24 +367,28 @@ chatRouter.delete("/channels/:channelId/members/:targetUserId", async (req: Auth
         requesterId: userId,
         targetUserId
       }),
-    res
+    res,
+    {
+      badRequest: CHAT_BAD_REQUEST_ERRORS,
+      forbidden: CHAT_FORBIDDEN_ERRORS
+    }
   );
 });
 
 chatRouter.post("/channels/:channelId/ownership/transfer", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
   const channelId = singleParam(req.params.channelId);
   if (!channelId) {
-    return res.status(400).json({ error: "INVALID_CHANNEL_ID" });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_CHANNEL_ID });
   }
 
   const parsed = transferOwnershipSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: "INVALID_BODY", details: parsed.error.issues });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_BODY, details: parsed.error.issues });
   }
 
   return withErrorBoundary(
@@ -352,24 +398,28 @@ chatRouter.post("/channels/:channelId/ownership/transfer", async (req: Authentic
         requesterId: userId,
         targetUserId: parsed.data.targetUserId
       }),
-    res
+    res,
+    {
+      badRequest: CHAT_BAD_REQUEST_ERRORS,
+      forbidden: CHAT_FORBIDDEN_ERRORS
+    }
   );
 });
 
 chatRouter.get("/channels/:channelId/messages", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
   const channelId = singleParam(req.params.channelId);
   if (!channelId) {
-    return res.status(400).json({ error: "INVALID_CHANNEL_ID" });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_CHANNEL_ID });
   }
 
   const parsedQuery = pagingQuerySchema.safeParse(req.query);
   if (!parsedQuery.success) {
-    return res.status(400).json({ error: "INVALID_QUERY", details: parsedQuery.error.issues });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_QUERY, details: parsedQuery.error.issues });
   }
 
   return withErrorBoundary(
@@ -380,24 +430,28 @@ chatRouter.get("/channels/:channelId/messages", async (req: AuthenticatedRequest
         cursor: parsedQuery.data.cursor,
         limit: parsedQuery.data.limit ?? 30
       }),
-    res
+    res,
+    {
+      badRequest: CHAT_BAD_REQUEST_ERRORS,
+      forbidden: CHAT_FORBIDDEN_ERRORS
+    }
   );
 });
 
 chatRouter.post("/channels/:channelId/messages", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
   const channelId = singleParam(req.params.channelId);
   if (!channelId) {
-    return res.status(400).json({ error: "INVALID_CHANNEL_ID" });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_CHANNEL_ID });
   }
 
   const parsed = sendMessageSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: "INVALID_BODY", details: parsed.error.issues });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_BODY, details: parsed.error.issues });
   }
 
   try {
@@ -408,31 +462,32 @@ chatRouter.post("/channels/:channelId/messages", async (req: AuthenticatedReques
     });
 
     const io = getRealtimeServer();
-    io?.to(channelId).emit("new_message", sent);
+    io?.to(channelId).emit("new_message", toRealtimeMessage(sent));
 
     return res.json(sent);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "UNEXPECTED_ERROR";
-    const status = message === "FORBIDDEN_CHANNEL" || message === "USER_BLOCKED" ? 403 : 500;
-    return res.status(status).json({ error: message });
+    return sendError(res, error, {
+      forbidden: [API_ERROR_CODES.FORBIDDEN_CHANNEL, API_ERROR_CODES.USER_BLOCKED],
+      badRequest: CHAT_BAD_REQUEST_ERRORS
+    });
   }
 });
 
 chatRouter.patch("/channels/:channelId/messages/:messageId", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
   const channelId = singleParam(req.params.channelId);
   const messageId = singleParam(req.params.messageId);
   if (!channelId || !messageId) {
-    return res.status(400).json({ error: "INVALID_PATH_PARAMS" });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_PATH_PARAMS });
   }
 
   const parsed = updateMessageSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: "INVALID_BODY", details: parsed.error.issues });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_BODY, details: parsed.error.issues });
   }
 
   try {
@@ -444,31 +499,27 @@ chatRouter.patch("/channels/:channelId/messages/:messageId", async (req: Authent
     });
 
     const io = getRealtimeServer();
-    io?.to(channelId).emit("message_updated", updated);
+    io?.to(channelId).emit("message_updated", toRealtimeMessage(updated));
 
     return res.json(updated);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "UNEXPECTED_ERROR";
-    const status =
-      message === "FORBIDDEN_CHANNEL" || message === "FORBIDDEN_MESSAGE"
-        ? 403
-        : message === "MESSAGE_NOT_FOUND"
-          ? 400
-          : 500;
-    return res.status(status).json({ error: message });
+    return sendError(res, error, {
+      forbidden: [API_ERROR_CODES.FORBIDDEN_CHANNEL, API_ERROR_CODES.FORBIDDEN_MESSAGE],
+      badRequest: CHAT_BAD_REQUEST_ERRORS
+    });
   }
 });
 
 chatRouter.delete("/channels/:channelId/messages/:messageId", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
   const channelId = singleParam(req.params.channelId);
   const messageId = singleParam(req.params.messageId);
   if (!channelId || !messageId) {
-    return res.status(400).json({ error: "INVALID_PATH_PARAMS" });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_PATH_PARAMS });
   }
 
   try {
@@ -483,31 +534,27 @@ chatRouter.delete("/channels/:channelId/messages/:messageId", async (req: Authen
 
     return res.json(deleted);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "UNEXPECTED_ERROR";
-    const status =
-      message === "FORBIDDEN_CHANNEL" || message === "FORBIDDEN_MESSAGE"
-        ? 403
-        : message === "MESSAGE_NOT_FOUND"
-          ? 400
-          : 500;
-    return res.status(status).json({ error: message });
+    return sendError(res, error, {
+      forbidden: [API_ERROR_CODES.FORBIDDEN_CHANNEL, API_ERROR_CODES.FORBIDDEN_MESSAGE],
+      badRequest: CHAT_BAD_REQUEST_ERRORS
+    });
   }
 });
 
 chatRouter.post("/channels/:channelId/read-receipts", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
   const channelId = singleParam(req.params.channelId);
   if (!channelId) {
-    return res.status(400).json({ error: "INVALID_CHANNEL_ID" });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_CHANNEL_ID });
   }
 
   const parsed = readReceiptSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: "INVALID_BODY", details: parsed.error.issues });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_BODY, details: parsed.error.issues });
   }
 
   try {
@@ -526,21 +573,22 @@ chatRouter.post("/channels/:channelId/read-receipts", async (req: AuthenticatedR
 
     return res.json(receipt);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "UNEXPECTED_ERROR";
-    const status = message === "FORBIDDEN_CHANNEL" ? 403 : message === "MESSAGE_NOT_FOUND" ? 400 : 500;
-    return res.status(status).json({ error: message });
+    return sendError(res, error, {
+      forbidden: [API_ERROR_CODES.FORBIDDEN_CHANNEL],
+      badRequest: CHAT_BAD_REQUEST_ERRORS
+    });
   }
 });
 
 chatRouter.get("/presence", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
   const parsed = presenceQuerySchema.safeParse(req.query);
   if (!parsed.success) {
-    return res.status(400).json({ error: "INVALID_QUERY", details: parsed.error.issues });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_QUERY, details: parsed.error.issues });
   }
 
   const userIds = parsed.data.userIds
@@ -554,12 +602,12 @@ chatRouter.get("/presence", async (req: AuthenticatedRequest, res) => {
 chatRouter.get("/search", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
   const parsed = searchQuerySchema.safeParse(req.query);
   if (!parsed.success) {
-    return res.status(400).json({ error: "INVALID_QUERY", details: parsed.error.issues });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_QUERY, details: parsed.error.issues });
   }
 
   return withErrorBoundary(
@@ -570,28 +618,35 @@ chatRouter.get("/search", async (req: AuthenticatedRequest, res) => {
         channelId: parsed.data.channelId,
         limit: parsed.data.limit ?? 20
       }),
-    res
+    res,
+    {
+      badRequest: CHAT_BAD_REQUEST_ERRORS,
+      forbidden: CHAT_FORBIDDEN_ERRORS
+    }
   );
 });
 
 chatRouter.get("/blocks", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
-  return withErrorBoundary(() => chatService.listBlockedUsers(userId), res);
+  return withErrorBoundary(() => chatService.listBlockedUsers(userId), res, {
+    badRequest: CHAT_BAD_REQUEST_ERRORS,
+    forbidden: CHAT_FORBIDDEN_ERRORS
+  });
 });
 
 chatRouter.post("/block/:targetUserId", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
   const targetUserId = singleParam(req.params.targetUserId);
   if (!targetUserId) {
-    return res.status(400).json({ error: "INVALID_TARGET_USER_ID" });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_TARGET_USER_ID });
   }
 
   return withErrorBoundary(
@@ -600,19 +655,23 @@ chatRouter.post("/block/:targetUserId", async (req: AuthenticatedRequest, res) =
         blockerId: userId,
         blockedId: targetUserId
       }),
-    res
+    res,
+    {
+      badRequest: CHAT_BAD_REQUEST_ERRORS,
+      forbidden: CHAT_FORBIDDEN_ERRORS
+    }
   );
 });
 
 chatRouter.delete("/block/:targetUserId", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
   const targetUserId = singleParam(req.params.targetUserId);
   if (!targetUserId) {
-    return res.status(400).json({ error: "INVALID_TARGET_USER_ID" });
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_TARGET_USER_ID });
   }
 
   return withErrorBoundary(
@@ -621,24 +680,28 @@ chatRouter.delete("/block/:targetUserId", async (req: AuthenticatedRequest, res)
         blockerId: userId,
         blockedId: targetUserId
       }),
-    res
+    res,
+    {
+      badRequest: CHAT_BAD_REQUEST_ERRORS,
+      forbidden: CHAT_FORBIDDEN_ERRORS
+    }
   );
 });
 
 chatRouter.post("/upload", requireUploadsEnabled, upload.single("file"), async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
-    return res.status(401).json({ error: "AUTH_REQUIRED" });
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
   }
 
   if (!req.file) {
-    return res.status(400).json({ error: "FILE_REQUIRED" });
+    return res.status(400).json({ error: API_ERROR_CODES.FILE_REQUIRED });
   }
 
   const host = req.get("host");
   const baseUrl = appConfig.publicBaseUrl || (host ? `${req.protocol}://${host}` : "");
   if (!baseUrl) {
-    return res.status(500).json({ error: "PUBLIC_BASE_URL_MISSING" });
+    return res.status(500).json({ error: API_ERROR_CODES.PUBLIC_BASE_URL_MISSING });
   }
 
   const fileUrl = `${baseUrl.replace(/\/$/, "")}/uploads/${encodeURIComponent(req.file.filename)}`;

@@ -16,17 +16,26 @@ export type { ChannelItem, ChannelMemberItem, MessageItem, PresenceItem } from "
 
 const runtimeEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
 export const API_URL = runtimeEnv?.EXPO_PUBLIC_API_URL ?? "http://localhost:4000";
+const DEFAULT_TIMEOUT_MS = 12_000;
 
 export class ApiError extends Error {
   status: number;
   code?: string;
+  isNetwork: boolean;
+  isTimeout: boolean;
 
-  constructor(message: string, options: { status?: number; code?: string } = {}) {
+  constructor(message: string, options: { status?: number; code?: string; isNetwork?: boolean; isTimeout?: boolean } = {}) {
     super(message);
     this.name = "ApiError";
     this.status = options.status ?? 0;
     this.code = options.code;
+    this.isNetwork = Boolean(options.isNetwork);
+    this.isTimeout = Boolean(options.isTimeout);
   }
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
 }
 
 function extractErrorMessage(payload: unknown, fallbackError: string): string {
@@ -75,24 +84,73 @@ async function parseResponsePayload(response: Response): Promise<unknown> {
   }
 }
 
-async function request<T>(path: string, options?: { method?: "GET" | "POST" | "PATCH" | "DELETE"; body?: unknown; accessToken?: string }) {
-  const response = await fetch(`${API_URL}${path}`, {
-    method: options?.method ?? "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(options?.accessToken ? { Authorization: `Bearer ${options.accessToken}` } : {})
-    },
-    ...(options?.body ? { body: JSON.stringify(options.body) } : {})
-  });
+async function request<T>(
+  path: string,
+  options?: { method?: "GET" | "POST" | "PATCH" | "DELETE"; body?: unknown; accessToken?: string; timeoutMs?: number; retry?: boolean }
+) {
+  const method = options?.method ?? "POST";
+  const shouldRetry = options?.retry ?? method === "GET";
+  const maxAttempts = shouldRetry ? 2 : 1;
 
-  const payload = await parseResponsePayload(response);
-  if (!response.ok) {
-    throw new ApiError(extractErrorMessage(payload, "REQUEST_FAILED"), {
-      status: response.status,
-      code: extractErrorCode(payload)
-    });
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), options?.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(`${API_URL}${path}`, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          ...(options?.accessToken ? { Authorization: `Bearer ${options.accessToken}` } : {})
+        },
+        signal: controller.signal,
+        ...(options?.body ? { body: JSON.stringify(options.body) } : {})
+      });
+
+      const payload = await parseResponsePayload(response);
+      if (!response.ok) {
+        throw new ApiError(extractErrorMessage(payload, "REQUEST_FAILED"), {
+          status: response.status,
+          code: extractErrorCode(payload)
+        });
+      }
+
+      return payload as T;
+    } catch (error) {
+      const timedOut = isAbortError(error);
+      const networkIssue = timedOut || error instanceof TypeError;
+      const canRetry = attempt < maxAttempts - 1 && networkIssue;
+
+      if (canRetry) {
+        continue;
+      }
+
+      if (error instanceof ApiError) {
+        throw error;
+      }
+
+      if (timedOut) {
+        throw new ApiError("Anfrage hat zu lange gedauert. Bitte erneut versuchen.", {
+          isNetwork: true,
+          isTimeout: true,
+          code: "REQUEST_TIMEOUT"
+        });
+      }
+
+      if (error instanceof TypeError) {
+        throw new ApiError("Netzwerkfehler. Bitte Verbindung prüfen.", {
+          isNetwork: true,
+          code: "REQUEST_NETWORK_ERROR"
+        });
+      }
+
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
-  return payload as T;
+
+  throw new ApiError("REQUEST_FAILED", { code: "REQUEST_FAILED" });
 }
 
 export const api = {

@@ -1,12 +1,18 @@
 import { Server as HttpServer } from "node:http";
 import jwt from "jsonwebtoken";
 import { Server } from "socket.io";
+import type {
+  RealtimeClientToServerEvents,
+  RealtimeReadReceiptEvent,
+  RealtimeServerToClientEvents,
+  RealtimeTypingPayload
+} from "@chatnet/shared";
 import { appConfig } from "./config.js";
 import { setRealtimeServer } from "./realtime.state.js";
 import { markConnected, markDisconnected } from "./realtime.presence.js";
 
 export function setupRealtime(server: HttpServer) {
-  const io = new Server(server, {
+  const io = new Server<RealtimeClientToServerEvents, RealtimeServerToClientEvents>(server, {
     cors: {
       origin: appConfig.webOrigins,
       credentials: true
@@ -40,10 +46,10 @@ export function setupRealtime(server: HttpServer) {
     }
 
     socket.on("join_room", (roomId: string) => socket.join(roomId));
-    socket.on("typing", (payload: { roomId: string; userId: string }) => {
+    socket.on("typing", (payload: RealtimeTypingPayload) => {
       socket.to(payload.roomId).emit("typing", payload);
     });
-    socket.on("read_receipt", (payload: { roomId: string; messageId: string; userId: string }) => {
+    socket.on("read_receipt", (payload: RealtimeReadReceiptEvent) => {
       socket.to(payload.roomId).emit("read_receipt", payload);
     });
 
