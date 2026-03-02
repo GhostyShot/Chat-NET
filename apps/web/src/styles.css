@@ -161,6 +161,141 @@ body {
   line-height: 1.2;
 }
 
+/* Chat-Net 2.0 — Clean iOS-inspired, flat and fully colored */
+:root {
+  color-scheme: light;
+  --bg-main: #eef2f6;
+  --text-main: #0f172a;
+  --text-sub: #475569;
+  --border-main: #d5dde8;
+  --surface-main: #ffffff;
+  --surface-panel: #f8fafc;
+  --surface-brand: #0f172a;
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --btn-primary: #1677ff;
+  --btn-primary-border: #1677ff;
+  --btn-secondary: #e9eef5;
+  --accent: #1677ff;
+  --bubble-bg: #f1f5f9;
+  --bubble-own-bg: #dbeafe;
+  --bubble-border: #d4dee9;
+  --banner-bg: #e8f2ff;
+  --banner-border: #b8d5ff;
+  --shadow-soft: 0 6px 20px rgba(15, 23, 42, 0.08);
+  --shadow-glow: none;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-main: #0f172a;
+  --text-main: #f8fafc;
+  --text-sub: #94a3b8;
+  --border-main: #334155;
+  --surface-main: #111827;
+  --surface-panel: #0f172a;
+  --surface-brand: #111827;
+  --input-bg: #1e293b;
+  --input-border: #334155;
+  --btn-primary: #3b82f6;
+  --btn-primary-border: #3b82f6;
+  --btn-secondary: #1e293b;
+  --accent: #60a5fa;
+  --bubble-bg: #1e293b;
+  --bubble-own-bg: #1d4ed8;
+  --bubble-border: #334155;
+  --banner-bg: #1e3a8a;
+  --banner-border: #2563eb;
+  --shadow-soft: 0 6px 20px rgba(2, 6, 23, 0.35);
+  --shadow-glow: none;
+}
+
+body {
+  background: var(--bg-main);
+}
+
+.auth-card,
+.chat-shell,
+.panel,
+.owner-studio,
+.modal-panel,
+.landing-hero,
+.landing-visual-card,
+.landing-feature-card,
+.store-badge,
+.chat-topbar,
+.composer,
+.message-bubble {
+  backdrop-filter: none !important;
+  border-radius: 10px !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.auth-card,
+.chat-shell,
+.panel,
+.owner-studio,
+.modal-panel,
+.chat-topbar,
+.composer,
+.landing-hero,
+.landing-feature-card,
+.store-badge {
+  background: var(--surface-main) !important;
+  border-color: var(--border-main) !important;
+}
+
+.auth-brand {
+  background: var(--surface-brand) !important;
+}
+
+.brand-logo,
+.auth-logo,
+.landing-logo {
+  filter: none !important;
+}
+
+.primary {
+  background: var(--btn-primary) !important;
+  border: 1px solid var(--btn-primary-border) !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+.secondary,
+.tab,
+.channel-item,
+.secondary.compact {
+  background: var(--btn-secondary) !important;
+  border-color: var(--input-border) !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+input,
+textarea,
+select {
+  background: var(--input-bg) !important;
+  border-color: var(--input-border) !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+.message-bubble {
+  background: var(--bubble-bg) !important;
+  border-color: var(--bubble-border) !important;
+}
+
+.message-bubble.mine {
+  background: var(--bubble-own-bg) !important;
+}
+
+.realtime-pill,
+.auth-brand-pill,
+.landing-stat {
+  border-radius: 8px !important;
+}
+
 .landing-stat-row {
   margin-top: 14px;
   display: flex;
