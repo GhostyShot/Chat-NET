@@ -232,7 +232,7 @@ export function ChatLayout({
           </div>
           <div className="user-block">
             <button className="secondary" onClick={onToggleTheme}>
-              {theme === "dark" ? "☀ Hell" : "☾ Dunkel"}
+              {theme === "dark" ? "Hell" : "Dunkel"}
             </button>
             <div className="user-chip">
               <span className="status-dot" />
@@ -263,7 +263,7 @@ export function ChatLayout({
                   setSettingsOpen(true);
                 }}
               >
-                ✦ Owner Menü
+                Owner Menü
               </button>
             )}
             <button
@@ -273,10 +273,10 @@ export function ChatLayout({
                 setSettingsOpen(true);
               }}
             >
-              ⚙ Einstellungen
+              Einstellungen
             </button>
             <button className="secondary" onClick={onLogout}>
-              ⎋ Abmelden
+              Abmelden
             </button>
           </div>
         </header>
@@ -298,14 +298,14 @@ export function ChatLayout({
 
             <div className="channel-toolbar">
               <button className="secondary compact" onClick={onOpenCreateChannelModal}>
-                ✚ Neuer Kanal
+                Neuer Kanal
               </button>
               <button className="secondary compact" onClick={onOpenDirectModal}>
-                ◉ Direktchat
+                Direktchat
               </button>
               {activeChannel?.type === "GROUP" && (
                 <button className="secondary compact" onClick={onOpenAddMemberModal} disabled={ownMembershipRole !== "OWNER"}>
-                  ⊕ Person hinzufügen
+                  Person hinzufügen
                 </button>
               )}
             </div>
@@ -413,7 +413,7 @@ export function ChatLayout({
             <div className="search-row">
               <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Nachrichten durchsuchen" />
               <button className="secondary" onClick={onSearch}>
-                ⌕ Suchen
+                Suchen
               </button>
             </div>
 
