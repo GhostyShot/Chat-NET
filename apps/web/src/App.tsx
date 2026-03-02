@@ -8,16 +8,11 @@ import {
   createGroupChannel,
   deleteMessage,
   forgotPassword,
-  getProfile,
-  getPresence,
   listChannelMembers,
   listChannels,
-  listMessages,
   login,
   loginWithGoogle,
-  markRead,
   leaveChannel,
-  getPlatformSettings,
   removeChannelMember,
   searchMessages,
   register,
@@ -36,6 +31,7 @@ import {
 import { AuthCard } from "./components/AuthCard";
 import { ChatLayout } from "./components/ChatLayout";
 import { LandingPage } from "./components/LandingPage";
+import { useChatDataSync } from "./hooks/useChatDataSync";
 import { usePersistentAuth } from "./hooks/usePersistentAuth";
 import { useRealtimeChat } from "./hooks/useRealtimeChat";
 import { useResponsiveChatLayout } from "./hooks/useResponsiveChatLayout";
@@ -240,6 +236,23 @@ export function App() {
     return activeChannel.memberships?.find((membership) => membership.user.id !== auth?.user.id)?.user ?? null;
   }, [activeChannel, auth?.user.id]);
 
+  useChatDataSync({
+    auth,
+    activeChannelId,
+    activeChannelType: activeChannel?.type,
+    messages,
+    setAuth,
+    setMessage,
+    setChannels,
+    setMessages,
+    setChannelMembers,
+    setPresenceMap,
+    setUnreadByChannelId,
+    setUploadsEnabledForAll,
+    setCanManagePlatformSettings,
+    setRealtimeState
+  });
+
   const activeConversationStatus = useMemo(() => {
     if (typingHint) {
       return typingHint;
@@ -296,6 +309,18 @@ export function App() {
       setMobilePane("chat");
     }
   };
+
+  useEffect(() => {
+    setActiveChannelId((current) => {
+      if (channels.length === 0) {
+        return null;
+      }
+      if (current && channels.some((channel) => channel.id === current)) {
+        return current;
+      }
+      return channels[0]?.id ?? null;
+    });
+  }, [channels]);
 
   const formatTimeLabel = (value?: string) => {
     if (!value) {
@@ -497,26 +522,6 @@ export function App() {
     });
   }, [knownUsers]);
 
-  useEffect(() => {
-    const loadPlatformSettings = async () => {
-      if (!auth) {
-        setUploadsEnabledForAll(true);
-        setCanManagePlatformSettings(false);
-        return;
-      }
-      try {
-        const settings = await getPlatformSettings(auth.tokens.accessToken);
-        setUploadsEnabledForAll(settings.uploadsEnabled);
-        setCanManagePlatformSettings(settings.canManage);
-      } catch {
-        setUploadsEnabledForAll(true);
-        setCanManagePlatformSettings(false);
-      }
-    };
-
-    void loadPlatformSettings();
-  }, [auth]);
-
   const toggleBadgeForUser = (userId: string, badge: BadgeId) => {
     setCustomBadgesByUserId((previous) => {
       const current = previous[userId] ?? [];
@@ -586,133 +591,12 @@ export function App() {
   }, [auth]);
 
   useEffect(() => {
-    const loadChannels = async () => {
-      if (!auth) {
-        setChannels([]);
-        setActiveChannelId(null);
-        setRealtimeState("offline");
-        return;
-      }
-
-      try {
-        const list = await listChannels(auth.tokens.accessToken);
-        setChannels(list);
-        setActiveChannelId((current) => current ?? list[0]?.id ?? null);
-      } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Channels konnten nicht geladen werden");
-      }
-    };
-
-    void loadChannels();
-  }, [auth]);
-
-  useEffect(() => {
-    const loadProfile = async () => {
-      if (!auth) {
-        return;
-      }
-      try {
-        const profile = await getProfile(auth.tokens.accessToken);
-        setAuth((current) =>
-          current
-            ? {
-                ...current,
-                user: {
-                  ...current.user,
-                  ...profile,
-                  avatarUrl: profile.avatarUrl ?? undefined
-                }
-              }
-            : current
-        );
-      } catch {
-        // keep existing auth payload if profile fetch fails
-      }
-    };
-
-    void loadProfile();
-  }, [auth?.tokens.accessToken]);
-
-  useEffect(() => {
-    const loadMessages = async () => {
-      if (!auth || !activeChannelId) {
-        setMessages([]);
-        return;
-      }
-
-      try {
-        const next = await listMessages(auth.tokens.accessToken, activeChannelId);
-        setMessages(next.slice().reverse());
-      } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Nachrichten konnten nicht geladen werden");
-      }
-    };
-
-    void loadMessages();
-  }, [auth, activeChannelId]);
-
-  useEffect(() => {
-    if (!activeChannelId) {
-      return;
-    }
-    setUnreadByChannelId((previous) => {
-      if (!previous[activeChannelId]) {
-        return previous;
-      }
-      const { [activeChannelId]: _removed, ...rest } = previous;
-      return rest;
-    });
-  }, [activeChannelId]);
-
-  useEffect(() => {
     const listElement = messageListRef.current;
     if (!listElement) {
       return;
     }
     listElement.scrollTo({ top: listElement.scrollHeight, behavior: "smooth" });
   }, [messages, activeChannelId]);
-
-  useEffect(() => {
-    const loadMembers = async () => {
-      if (!auth || !activeChannelId || !activeChannel || activeChannel.type !== "GROUP") {
-        setChannelMembers([]);
-        return;
-      }
-
-      try {
-        const members = await listChannelMembers(auth.tokens.accessToken, activeChannelId);
-        setChannelMembers(members);
-      } catch {
-        setChannelMembers([]);
-      }
-    };
-
-    void loadMembers();
-  }, [auth, activeChannelId, activeChannel?.id, activeChannel?.type]);
-
-  useEffect(() => {
-    const loadPresence = async () => {
-      if (!auth || messages.length === 0) {
-        return;
-      }
-      const ids = Array.from(new Set(messages.map((item) => item.sender.id)));
-      const presence = await getPresence(auth.tokens.accessToken, ids);
-      const next = Object.fromEntries(presence.map((item) => [item.userId, item.online]));
-      setPresenceMap(next);
-    };
-    void loadPresence();
-  }, [auth, messages]);
-
-  useEffect(() => {
-    const markLatestAsRead = async () => {
-      if (!auth || !activeChannelId || messages.length === 0) {
-        return;
-      }
-      const latest = messages[messages.length - 1];
-      await markRead(auth.tokens.accessToken, activeChannelId, latest.id);
-    };
-    void markLatestAsRead();
-  }, [auth, activeChannelId, messages]);
 
   useEffect(() => {
     if (auth || !showAuthPage || !!resetTokenFromLink || !googleClientId || !googleButtonRef.current) {
