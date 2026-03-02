@@ -14,9 +14,10 @@
     "dev:mobile": "npm run start -w @chatnet/mobile",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces",
+    "ci:test": "npm run test --workspaces --if-present",
     "ci:typecheck": "npm run typecheck",
     "ci:build": "npm run build",
-    "ci:verify": "npm run ci:typecheck && npm run ci:build"
+    "ci:verify": "npm run ci:typecheck && npm run ci:test && npm run ci:build"
   },
   "engines": {
     "node": ">=20"

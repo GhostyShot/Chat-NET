@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   quality:
-    name: Typecheck + Build
+    name: Typecheck + Test + Build
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -32,6 +32,9 @@ jobs:
 
       - name: Typecheck all workspaces
         run: npm run ci:typecheck
+
+      - name: Run tests where available
+        run: npm run ci:test
 
       - name: Build buildable workspaces
         run: npm run ci:build
