@@ -63,9 +63,7 @@ export function AuthCard({
         <div className="auth-brand">
           <img src="/chat-net-logo.svg" alt="Chat-Net Logo" className="auth-logo" />
           <h1>Chat-Net</h1>
-          <p className="subtitle">
-            Willkommen zur{"\u00FC"}ck. Melde dich an, um fortzufahren.
-          </p>
+          <p className="subtitle">Chat f{"\u00FC"}r echte Gespr{"\u00E4"}che.</p>
         </div>
 
         <div className="auth-panel">

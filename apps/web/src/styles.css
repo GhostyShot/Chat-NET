@@ -812,10 +812,11 @@ button:active {
 }
 
 .auth-brand .subtitle {
-  font-size: 0.88rem;
+  font-size: 1rem;
   line-height: 1.5;
-  max-width: 300px;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
+  letter-spacing: -0.01em;
+  font-weight: 400;
 }
 
 .auth-brand-badges {
@@ -1909,7 +1910,7 @@ button:active {
 }
 
 
-/* ═══════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════���════════════════
    MODALS
    ═══════════════════════════════════════════════════════════ */
 
