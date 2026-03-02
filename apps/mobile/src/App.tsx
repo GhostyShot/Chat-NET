@@ -456,7 +456,7 @@ export default function App() {
   if (auth) {
     return (
       <SafeAreaView style={styles.safe}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <ScrollView contentContainerStyle={styles.container}>
           <View style={styles.headerRow}>
             <View>
@@ -486,7 +486,7 @@ export default function App() {
               value={newChannelName}
               onChangeText={setNewChannelName}
               placeholder="Neuer Gruppenname"
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor="#9fb0e3"
               style={[styles.input, styles.inputFlex]}
             />
             <Pressable style={styles.primary} onPress={onCreateChannel}>
@@ -499,7 +499,7 @@ export default function App() {
               value={inviteUsername}
               onChangeText={(value) => setInviteUsername(value.toLowerCase())}
               placeholder="@username"
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor="#9fb0e3"
               style={[styles.input, styles.inputFlex]}
             />
             <Pressable style={styles.secondary} onPress={onStartDirectByUsername}>
@@ -576,7 +576,7 @@ export default function App() {
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholder="Nachrichten durchsuchen"
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor="#9fb0e3"
               style={[styles.input, styles.inputFlex]}
             />
             <Pressable style={styles.secondary} onPress={onSearch}>
@@ -608,7 +608,7 @@ export default function App() {
                       value={editingContent}
                       onChangeText={setEditingContent}
                       placeholder="Nachricht bearbeiten"
-                      placeholderTextColor="#94a3b8"
+                      placeholderTextColor="#9fb0e3"
                       style={[styles.input, styles.inputFlex]}
                     />
                     <Pressable style={styles.primary} onPress={() => onSaveEdit(entry.id)}>
@@ -649,7 +649,7 @@ export default function App() {
               value={attachmentUrl}
               onChangeText={setAttachmentUrl}
               placeholder="Datei-URL anhängen"
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor="#9fb0e3"
               style={[styles.input, styles.inputFlex]}
             />
             <Pressable style={styles.secondary} onPress={onAttachUrl}>
@@ -667,7 +667,7 @@ export default function App() {
                 }
               }}
               placeholder="Nachricht schreiben"
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor="#9fb0e3"
               style={[styles.input, styles.inputFlex]}
             />
             <Pressable style={styles.primary} onPress={onSend}>
@@ -685,7 +685,7 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.container}>
         <Image source={chatNetLogo} style={styles.authLogo} resizeMode="contain" />
         <Text style={styles.title}>Chat-Net</Text>
@@ -700,7 +700,7 @@ export default function App() {
         </View>
 
         {(mode === "login" || mode === "register" || mode === "forgot") && (
-          <TextInput value={email} onChangeText={setEmail} placeholder="E-Mail" placeholderTextColor="#94a3b8" style={styles.input} />
+          <TextInput value={email} onChangeText={setEmail} placeholder="E-Mail" placeholderTextColor="#9fb0e3" style={styles.input} />
         )}
 
         {(mode === "login" || mode === "register" || mode === "reset") && (
@@ -709,7 +709,7 @@ export default function App() {
             onChangeText={setPassword}
             secureTextEntry
             placeholder="Passwort"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor="#9fb0e3"
             style={styles.input}
           />
         )}
@@ -719,13 +719,13 @@ export default function App() {
             value={displayName}
             onChangeText={setDisplayName}
             placeholder="Anzeigename"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor="#9fb0e3"
             style={styles.input}
           />
         )}
 
         {mode === "reset" && (
-          <TextInput value={token} onChangeText={setToken} placeholder="Token" placeholderTextColor="#94a3b8" style={styles.input} />
+          <TextInput value={token} onChangeText={setToken} placeholder="Token" placeholderTextColor="#9fb0e3" style={styles.input} />
         )}
 
         <Pressable style={styles.primary} onPress={submit}>
@@ -744,7 +744,7 @@ export default function App() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#f3f5f7" },
-  container: { padding: 16, gap: 12 },
+  container: { padding: 20, gap: 10 },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 },
   logo: { width: 56, height: 56, marginBottom: 6 },
   authLogo: { width: 84, height: 84, marginBottom: 8 },
@@ -752,46 +752,46 @@ const styles = StyleSheet.create({
   subtitle: { color: "#64748b", marginBottom: 12 },
   sectionTitle: { color: "#1e293b", fontSize: 16, fontWeight: "700", marginTop: 6 },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  tab: { backgroundColor: "#e2e8f0", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
+  tab: { backgroundColor: "#e2e8f0", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
   tabText: { color: "#334155", fontSize: 12, textTransform: "capitalize" },
   input: {
     backgroundColor: "#ffffff",
     borderWidth: 1,
     borderColor: "#cbd5e1",
-    borderRadius: 10,
+    borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 11,
+    paddingVertical: 10,
     color: "#0f172a"
   },
   inputFlex: { flex: 1 },
-  primary: { backgroundColor: "#1677ff", borderRadius: 10, paddingVertical: 12, paddingHorizontal: 12, alignItems: "center" },
-  secondary: { backgroundColor: "#475569", borderRadius: 10, paddingVertical: 12, paddingHorizontal: 12, alignItems: "center" },
-  secondarySmall: { backgroundColor: "#475569", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, alignItems: "center" },
+  primary: { backgroundColor: "#1677ff", borderRadius: 8, padding: 12, alignItems: "center" },
+  secondary: { backgroundColor: "#475569", borderRadius: 8, padding: 12, alignItems: "center" },
+  secondarySmall: { backgroundColor: "#475569", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, alignItems: "center" },
   newChannelRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   channelWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  channelItem: { backgroundColor: "#e2e8f0", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 9 },
-  channelActive: { backgroundColor: "#dbeafe", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 9 },
+  channelItem: { backgroundColor: "#e2e8f0", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 },
+  channelActive: { backgroundColor: "#dbeafe", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 },
   channelText: { color: "#0f172a", fontSize: 13 },
   messagesBox: {
     backgroundColor: "#ffffff",
     borderColor: "#d5dde8",
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
-    gap: 10,
+    borderRadius: 8,
+    padding: 10,
+    gap: 8,
     minHeight: 180
   },
-  messageItem: { backgroundColor: "#f1f5f9", borderRadius: 10, padding: 10, gap: 6 },
+  messageItem: { backgroundColor: "#f1f5f9", borderRadius: 8, padding: 8 },
   memberRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     backgroundColor: "#f1f5f9",
-    borderRadius: 10,
-    padding: 10
+    borderRadius: 8,
+    padding: 8
   },
   messageMeta: { color: "#64748b", fontSize: 12, marginBottom: 4 },
-  messageText: { color: "#0f172a", lineHeight: 20 },
+  messageText: { color: "#0f172a" },
   primaryText: { color: "#fff", fontWeight: "600" },
   message: { color: "#0f172a", marginTop: 8 }
 });
