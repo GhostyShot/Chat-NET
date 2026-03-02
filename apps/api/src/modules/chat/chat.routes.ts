@@ -23,6 +23,7 @@ import { appConfig } from "../../config.js";
 import { prisma } from "../../lib/prisma.js";
 import { platformSettingsStore } from "./chat.platform-settings.js";
 import { API_ERROR_CODES, type MessageItem } from "@chatnet/shared";
+import { REALTIME_EVENTS } from "@chatnet/shared";
 import { sendError, withErrorBoundary } from "../../lib/http-errors.js";
 
 function singleParam(value: string | string[] | undefined): string | undefined {
@@ -462,7 +463,7 @@ chatRouter.post("/channels/:channelId/messages", async (req: AuthenticatedReques
     });
 
     const io = getRealtimeServer();
-    io?.to(channelId).emit("new_message", toRealtimeMessage(sent));
+    io?.to(channelId).emit(REALTIME_EVENTS.NEW_MESSAGE, toRealtimeMessage(sent));
 
     return res.json(sent);
   } catch (error) {
@@ -499,7 +500,7 @@ chatRouter.patch("/channels/:channelId/messages/:messageId", async (req: Authent
     });
 
     const io = getRealtimeServer();
-    io?.to(channelId).emit("message_updated", toRealtimeMessage(updated));
+    io?.to(channelId).emit(REALTIME_EVENTS.MESSAGE_UPDATED, toRealtimeMessage(updated));
 
     return res.json(updated);
   } catch (error) {
@@ -530,7 +531,7 @@ chatRouter.delete("/channels/:channelId/messages/:messageId", async (req: Authen
     });
 
     const io = getRealtimeServer();
-    io?.to(channelId).emit("message_deleted", deleted);
+    io?.to(channelId).emit(REALTIME_EVENTS.MESSAGE_DELETED, deleted);
 
     return res.json(deleted);
   } catch (error) {
@@ -565,7 +566,7 @@ chatRouter.post("/channels/:channelId/read-receipts", async (req: AuthenticatedR
     });
 
     const io = getRealtimeServer();
-    io?.to(channelId).emit("read_receipt", {
+    io?.to(channelId).emit(REALTIME_EVENTS.READ_RECEIPT, {
       roomId: channelId,
       messageId: parsed.data.messageId,
       userId

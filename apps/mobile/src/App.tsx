@@ -9,6 +9,7 @@ import type {
   RealtimeServerToClientEvents,
   RealtimeTypingPayload
 } from "@chatnet/shared";
+import { REALTIME_EVENTS } from "@chatnet/shared";
 import { io, type Socket } from "socket.io-client";
 import { API_URL, api, type ChannelItem, type ChannelMemberItem, type MessageItem } from "./api";
 
@@ -148,22 +149,22 @@ export default function App() {
       setMessages((previous) => previous.filter((entry) => entry.id !== payload.id));
     };
 
-    socket.on("new_message", onNewMessage);
-    socket.on("typing", onTyping);
-    socket.on("presence_update", onPresenceUpdate);
-    socket.on("message_updated", onMessageUpdated);
-    socket.on("message_deleted", onMessageDeleted);
+    socket.on(REALTIME_EVENTS.NEW_MESSAGE, onNewMessage);
+    socket.on(REALTIME_EVENTS.TYPING, onTyping);
+    socket.on(REALTIME_EVENTS.PRESENCE_UPDATE, onPresenceUpdate);
+    socket.on(REALTIME_EVENTS.MESSAGE_UPDATED, onMessageUpdated);
+    socket.on(REALTIME_EVENTS.MESSAGE_DELETED, onMessageDeleted);
 
     if (activeChannelId) {
-      socket.emit("join_room", activeChannelId);
+      socket.emit(REALTIME_EVENTS.JOIN_ROOM, activeChannelId);
     }
 
     return () => {
-      socket.off("new_message", onNewMessage);
-      socket.off("typing", onTyping);
-      socket.off("presence_update", onPresenceUpdate);
-      socket.off("message_updated", onMessageUpdated);
-      socket.off("message_deleted", onMessageDeleted);
+      socket.off(REALTIME_EVENTS.NEW_MESSAGE, onNewMessage);
+      socket.off(REALTIME_EVENTS.TYPING, onTyping);
+      socket.off(REALTIME_EVENTS.PRESENCE_UPDATE, onPresenceUpdate);
+      socket.off(REALTIME_EVENTS.MESSAGE_UPDATED, onMessageUpdated);
+      socket.off(REALTIME_EVENTS.MESSAGE_DELETED, onMessageDeleted);
       socket.disconnect();
       socketRef.current = null;
     };
@@ -662,7 +663,7 @@ export default function App() {
               onChangeText={(next) => {
                 setComposerText(next);
                 if (auth && activeChannelId && next.trim() && socketRef.current) {
-                  socketRef.current.emit("typing", { roomId: activeChannelId, userId: auth.user.id });
+                  socketRef.current.emit(REALTIME_EVENTS.TYPING, { roomId: activeChannelId, userId: auth.user.id });
                 }
               }}
               placeholder="Nachricht schreiben"

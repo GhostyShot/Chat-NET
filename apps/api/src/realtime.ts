@@ -7,6 +7,7 @@ import type {
   RealtimeServerToClientEvents,
   RealtimeTypingPayload
 } from "@chatnet/shared";
+import { REALTIME_EVENTS as events } from "@chatnet/shared";
 import { appConfig } from "./config.js";
 import { setRealtimeServer } from "./realtime.state.js";
 import { markConnected, markDisconnected } from "./realtime.presence.js";
@@ -42,15 +43,15 @@ export function setupRealtime(server: HttpServer) {
     const userId = socket.data.userId as string | undefined;
     if (userId) {
       markConnected(userId, socket.id);
-      io.emit("presence_update", { userId, online: true, lastSeenAt: null });
+      io.emit(events.PRESENCE_UPDATE, { userId, online: true, lastSeenAt: null });
     }
 
-    socket.on("join_room", (roomId: string) => socket.join(roomId));
-    socket.on("typing", (payload: RealtimeTypingPayload) => {
-      socket.to(payload.roomId).emit("typing", payload);
+    socket.on(events.JOIN_ROOM, (roomId: string) => socket.join(roomId));
+    socket.on(events.TYPING, (payload: RealtimeTypingPayload) => {
+      socket.to(payload.roomId).emit(events.TYPING, payload);
     });
-    socket.on("read_receipt", (payload: RealtimeReadReceiptEvent) => {
-      socket.to(payload.roomId).emit("read_receipt", payload);
+    socket.on(events.READ_RECEIPT, (payload: RealtimeReadReceiptEvent) => {
+      socket.to(payload.roomId).emit(events.READ_RECEIPT, payload);
     });
 
     socket.on("disconnect", () => {
@@ -58,7 +59,7 @@ export function setupRealtime(server: HttpServer) {
         return;
       }
       markDisconnected(userId, socket.id);
-      io.emit("presence_update", { userId, online: false, lastSeenAt: Date.now() });
+      io.emit(events.PRESENCE_UPDATE, { userId, online: false, lastSeenAt: Date.now() });
     });
   });
 

@@ -185,4 +185,14 @@ export interface RealtimeClientToServerEvents {
   read_receipt: (payload: RealtimeReadReceiptEvent) => void;
 }
 
+export const REALTIME_EVENTS = {
+  NEW_MESSAGE: "new_message",
+  TYPING: "typing",
+  PRESENCE_UPDATE: "presence_update",
+  MESSAGE_UPDATED: "message_updated",
+  MESSAGE_DELETED: "message_deleted",
+  READ_RECEIPT: "read_receipt",
+  JOIN_ROOM: "join_room"
+} as const;
+
 export { ApiRequestError, requestJson, type ApiRequestErrorOptions, type RequestJsonOptions } from "./http.js";

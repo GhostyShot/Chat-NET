@@ -7,6 +7,7 @@ import type {
   RealtimeServerToClientEvents,
   RealtimeTypingPayload
 } from "@chatnet/shared";
+import { REALTIME_EVENTS } from "@chatnet/shared";
 import { io, type Socket } from "socket.io-client";
 import { API_URL, type ChannelItem, type MessageItem } from "../lib/api";
 
@@ -125,25 +126,25 @@ export function useRealtimeChat({
       setRealtimeState("offline");
     };
 
-    socket.on("new_message", onNewMessage);
-    socket.on("typing", onTyping);
-    socket.on("presence_update", onPresenceUpdate);
-    socket.on("message_updated", onMessageUpdated);
-    socket.on("message_deleted", onMessageDeleted);
+    socket.on(REALTIME_EVENTS.NEW_MESSAGE, onNewMessage);
+    socket.on(REALTIME_EVENTS.TYPING, onTyping);
+    socket.on(REALTIME_EVENTS.PRESENCE_UPDATE, onPresenceUpdate);
+    socket.on(REALTIME_EVENTS.MESSAGE_UPDATED, onMessageUpdated);
+    socket.on(REALTIME_EVENTS.MESSAGE_DELETED, onMessageDeleted);
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("connect_error", onConnectError);
 
     if (activeChannelId) {
-      socket.emit("join_room", activeChannelId);
+      socket.emit(REALTIME_EVENTS.JOIN_ROOM, activeChannelId);
     }
 
     return () => {
-      socket.off("new_message", onNewMessage);
-      socket.off("typing", onTyping);
-      socket.off("presence_update", onPresenceUpdate);
-      socket.off("message_updated", onMessageUpdated);
-      socket.off("message_deleted", onMessageDeleted);
+      socket.off(REALTIME_EVENTS.NEW_MESSAGE, onNewMessage);
+      socket.off(REALTIME_EVENTS.TYPING, onTyping);
+      socket.off(REALTIME_EVENTS.PRESENCE_UPDATE, onPresenceUpdate);
+      socket.off(REALTIME_EVENTS.MESSAGE_UPDATED, onMessageUpdated);
+      socket.off(REALTIME_EVENTS.MESSAGE_DELETED, onMessageDeleted);
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
       socket.off("connect_error", onConnectError);

@@ -20,6 +20,7 @@ import { usePersistentAuth } from "./hooks/usePersistentAuth";
 import { useRealtimeChat } from "./hooks/useRealtimeChat";
 import { useResponsiveChatLayout } from "./hooks/useResponsiveChatLayout";
 import { useThemePreference } from "./hooks/useThemePreference";
+import { REALTIME_EVENTS } from "@chatnet/shared";
 
 type Mode = "login" | "register" | "forgot" | "reset";
 type BadgeId = string;
@@ -673,7 +674,7 @@ export function App() {
     setComposerText(next);
     updateMentionState(next, event.target.selectionStart ?? next.length);
     if (auth && activeChannelId && next.trim() && socketRef.current) {
-      socketRef.current.emit("typing", { roomId: activeChannelId, userId: auth.user.id });
+      socketRef.current.emit(REALTIME_EVENTS.TYPING, { roomId: activeChannelId, userId: auth.user.id });
     }
   };
 
