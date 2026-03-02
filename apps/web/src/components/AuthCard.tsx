@@ -23,6 +23,7 @@ type AuthCardProps = {
   googleLoadError: string;
   onRetryGoogleRender: () => void;
   onBackToLoginFromReset: () => void;
+  onBackToLanding?: () => void;
 };
 
 export function AuthCard({
@@ -45,23 +46,26 @@ export function AuthCard({
   googleReady,
   googleLoadError,
   onRetryGoogleRender,
-  onBackToLoginFromReset
+  onBackToLoginFromReset,
+  onBackToLanding
 }: AuthCardProps) {
+  const buttonLabel = () => {
+    if (loading) return "L\u00E4dt\u2026";
+    if (mode === "login") return "Einloggen";
+    if (mode === "register") return "Konto erstellen";
+    if (mode === "forgot") return "Link senden";
+    return "Absenden";
+  };
+
   return (
     <main className="app-shell auth-shell">
       <section className={resetTokenFromLink ? "auth-card reset-card" : "auth-card"}>
         <div className="auth-brand">
           <img src="/chat-net-logo.svg" alt="Chat-Net Logo" className="auth-logo" />
-          <p className="eyebrow">chat-net.tech</p>
           <h1>Chat-Net</h1>
           <p className="subtitle">
-            Der sichere Chat f{"\u00FC"}r echte Gespr{"\u00E4"}che. Schnell, modern und Community-ready.
+            Willkommen zur{"\u00FC"}ck. Melde dich an, um fortzufahren.
           </p>
-          <div className="auth-brand-badges" aria-hidden="true">
-            <span className="auth-brand-pill">Realtime</span>
-            <span className="auth-brand-pill">Sicher</span>
-            <span className="auth-brand-pill">Community</span>
-          </div>
         </div>
 
         <div className="auth-panel">
@@ -80,7 +84,7 @@ export function AuthCard({
                 />
               </label>
               <button onClick={submit} disabled={loading} className="primary wide">
-                {loading ? "L\u00E4dt..." : "Passwort speichern"}
+                {loading ? "L\u00E4dt\u2026" : "Passwort speichern"}
               </button>
               <button className="secondary wide" onClick={onBackToLoginFromReset}>
                 {"Zur\u00FCck zum Login"}
@@ -95,9 +99,6 @@ export function AuthCard({
                 </button>
                 <button className={mode === "register" ? "tab active" : "tab"} onClick={() => setMode("register")}>
                   Registrieren
-                </button>
-                <button className={mode === "forgot" ? "tab active" : "tab"} onClick={() => setMode("forgot")}>
-                  Passwort vergessen
                 </button>
               </div>
 
@@ -120,7 +121,7 @@ export function AuthCard({
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     type="password"
-                    autoComplete="current-password"
+                    autoComplete={mode === "register" ? "new-password" : "current-password"}
                     placeholder="Mindestens 8 Zeichen"
                   />
                 </label>
@@ -146,8 +147,20 @@ export function AuthCard({
               )}
 
               <button onClick={submit} disabled={loading} className="primary wide">
-                {loading ? "L\u00E4dt..." : "Absenden"}
+                {buttonLabel()}
               </button>
+
+              {mode === "login" && (
+                <div className="auth-back-link">
+                  <button onClick={() => setMode("forgot")}>Passwort vergessen?</button>
+                </div>
+              )}
+
+              {mode === "forgot" && (
+                <div className="auth-back-link">
+                  <button onClick={() => setMode("login")}>{"Zur\u00FCck zum Login"}</button>
+                </div>
+              )}
 
               <div className="auth-divider">
                 <span>oder</span>
@@ -168,11 +181,17 @@ export function AuthCard({
                 </>
               ) : (
                 <p className="hint">
-                  {"Setze in Vercel zus\u00E4tzlich `VITE_GOOGLE_CLIENT_ID`, um Google Login zu aktivieren."}
+                  {"Google Login ist derzeit nicht verf\u00FCgbar."}
                 </p>
               )}
 
               {message && <p className="message-banner">{message}</p>}
+
+              {onBackToLanding && (
+                <div className="auth-back-link">
+                  <button onClick={onBackToLanding}>{"Zur\u00FCck zur Startseite"}</button>
+                </div>
+              )}
             </>
           )}
         </div>

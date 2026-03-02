@@ -859,6 +859,10 @@ export function App() {
         setMode("login");
         setToken("");
       }}
+      onBackToLanding={() => {
+        setShowAuthPage(false);
+        setMessage("");
+      }}
     />
   );
 }

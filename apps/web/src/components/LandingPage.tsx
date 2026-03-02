@@ -35,6 +35,14 @@ export function LandingPage({ onOpenLogin, onOpenRegister }: LandingPageProps) {
             <span className="landing-stat">Roles & Moderation</span>
             <span className="landing-stat">Web + Mobile</span>
           </div>
+          <div className="landing-hero-cta">
+            <button className="primary landing-hero-btn" onClick={onOpenRegister}>
+              Jetzt starten
+            </button>
+            <button className="secondary landing-hero-btn" onClick={onOpenLogin}>
+              Einloggen
+            </button>
+          </div>
         </div>
 
         <div className="landing-visual-strip" aria-hidden="true">
