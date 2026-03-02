@@ -748,6 +748,31 @@ export function App() {
   }, [isMobileLayout, activeChannelId]);
 
   useEffect(() => {
+    if (!isMobileLayout) {
+      return;
+    }
+
+    if (mobilePane === "chat") {
+      window.requestAnimationFrame(() => {
+        composerRef.current?.focus();
+      });
+      return;
+    }
+
+    if (mobilePane === "list") {
+      window.requestAnimationFrame(() => {
+        const channelButtons = Array.from(
+          document.querySelectorAll<HTMLButtonElement>(".channel-item[data-channel-id]")
+        );
+        const preferred = activeChannelId
+          ? channelButtons.find((button) => button.dataset.channelId === activeChannelId)
+          : null;
+        (preferred ?? channelButtons[0])?.focus();
+      });
+    }
+  }, [isMobileLayout, mobilePane, activeChannelId]);
+
+  useEffect(() => {
     const listElement = messageListRef.current;
     if (!listElement) {
       return;

@@ -362,6 +362,7 @@ export function ChatLayout({
                   <button
                     key={channel.id}
                     className={channel.id === activeChannelId ? "channel-item active" : "channel-item"}
+                    data-channel-id={channel.id}
                     onClick={() => openChannel(channel.id)}
                   >
                     <div className="channel-main">
@@ -382,7 +383,7 @@ export function ChatLayout({
           <section className="panel message-panel">
             <div className="chat-room-header">
               {isMobileLayout && (
-                <button className="secondary compact mobile-back" onClick={() => setMobilePane("list")}>
+                <button className="secondary compact mobile-back" aria-label="Zur Kanalliste" onClick={() => setMobilePane("list")}>
                   ←
                 </button>
               )}
@@ -535,7 +536,13 @@ export function ChatLayout({
 
         {settingsOpen && (
           <div className="modal-backdrop" onClick={() => setSettingsOpen(false)}>
-            <section className="modal-panel settings-panel" onClick={(event) => event.stopPropagation()}>
+            <section
+              className="modal-panel settings-panel"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Einstellungen"
+              onClick={(event) => event.stopPropagation()}
+            >
               <div className="settings-head">
                 <h3>Einstellungen</h3>
                 <button className="secondary compact" onClick={() => setSettingsOpen(false)}>
@@ -655,7 +662,7 @@ export function ChatLayout({
 
         {createChannelModalOpen && (
           <div className="modal-backdrop" onClick={() => setCreateChannelModalOpen(false)}>
-            <section className="modal-panel" onClick={(event) => event.stopPropagation()}>
+            <section className="modal-panel" role="dialog" aria-modal="true" aria-label="Neuen Kanal erstellen" onClick={(event) => event.stopPropagation()}>
               <h3>Neuen Kanal erstellen</h3>
               <input value={newChannelName} onChange={(event) => setNewChannelName(event.target.value)} placeholder="Neuer Gruppenchat" />
               <div className="modal-actions">
@@ -672,7 +679,7 @@ export function ChatLayout({
 
         {directModalOpen && (
           <div className="modal-backdrop" onClick={() => setDirectModalOpen(false)}>
-            <section className="modal-panel" onClick={(event) => event.stopPropagation()}>
+            <section className="modal-panel" role="dialog" aria-modal="true" aria-label="Direktchat starten" onClick={(event) => event.stopPropagation()}>
               <h3>Direktchat starten</h3>
               <input
                 value={directUsername}
@@ -694,7 +701,7 @@ export function ChatLayout({
 
         {addMemberModalOpen && (
           <div className="modal-backdrop" onClick={() => setAddMemberModalOpen(false)}>
-            <section className="modal-panel" onClick={(event) => event.stopPropagation()}>
+            <section className="modal-panel" role="dialog" aria-modal="true" aria-label="Person hinzufügen" onClick={(event) => event.stopPropagation()}>
               <h3>Person zu {getChannelDisplayName(activeChannel)} hinzufügen</h3>
               <input
                 value={addMemberUsername}
