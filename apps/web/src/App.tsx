@@ -176,8 +176,8 @@ export function App() {
   const [directUsername, setDirectUsername] = useState("");
   const [addMemberUsername, setAddMemberUsername] = useState("");
   const [channelMembers, setChannelMembers] = useState<ChannelMemberItem[]>([]);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [ownerStudioOpen, setOwnerStudioOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<"profile" | "owner">("profile");
   const [profileNickname, setProfileNickname] = useState("");
   const [profileUsername, setProfileUsername] = useState("");
   const [mentionNotice, setMentionNotice] = useState("");
@@ -1400,7 +1400,7 @@ export function App() {
           : current
       );
       setMessage("Profil gespeichert.");
-      setProfileOpen(false);
+      setSettingsOpen(false);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Profil konnte nicht gespeichert werden");
     }
@@ -1446,137 +1446,30 @@ export function App() {
                 </span>
               </div>
               {currentUserIsPlatformOwner && (
-                <button className="secondary" onClick={() => setOwnerStudioOpen((current) => !current)}>
+                <button
+                  className="secondary"
+                  onClick={() => {
+                    setSettingsTab("owner");
+                    setSettingsOpen(true);
+                  }}
+                >
                   Owner Menü
                 </button>
               )}
-              <button className="secondary" onClick={() => setProfileOpen((current) => !current)}>
-                Profil
+              <button
+                className="secondary"
+                onClick={() => {
+                  setSettingsTab("profile");
+                  setSettingsOpen(true);
+                }}
+              >
+                Einstellungen
               </button>
               <button className="secondary" onClick={logout}>
                 Abmelden
               </button>
             </div>
           </header>
-
-          {profileOpen && (
-            <section className="panel profile-panel">
-              <div className="panel-header">
-                <h3>Profil</h3>
-                <span>{auth.user.userHandle}</span>
-              </div>
-              <div className="profile-grid">
-                <label>
-                  Nickname
-                  <input
-                    value={profileNickname}
-                    onChange={(event) => setProfileNickname(event.target.value)}
-                    placeholder="Dein Nickname"
-                  />
-                </label>
-                <label>
-                  Username
-                  <input
-                    value={profileUsername}
-                    onChange={(event) => setProfileUsername(event.target.value.toLowerCase())}
-                    placeholder="discord_style"
-                  />
-                </label>
-                <p className="inline-note">
-                  Deine eindeutige ID: <strong>{auth.user.userHandle}</strong>
-                </p>
-                <button className="primary" onClick={onSaveProfile}>
-                  Profil speichern
-                </button>
-              </div>
-
-            </section>
-          )}
-
-          {currentUserIsPlatformOwner && ownerStudioOpen && (
-            <section className="panel owner-studio-panel">
-              <div className="owner-studio">
-                <div className="panel-header owner-studio-header">
-                  <h3>Owner-Badge Studio</h3>
-                  <span>Owner-Bereich</span>
-                </div>
-                <label>
-                  Badge-Zielperson
-                  <select
-                    value={badgeTargetUserId}
-                    onChange={(event) => setBadgeTargetUserId(event.target.value)}
-                    className="owner-studio-select"
-                  >
-                    {knownUsers.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.displayName} {user.username ? `(@${user.username})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                {badgeTargetUser && (
-                  <div className="owner-studio-badges">
-                    {badgeDefinitions.map((badge) => {
-                      const active = (customBadgesByUserId[badgeTargetUser.id] ?? []).includes(badge.id);
-                      return (
-                        <label key={badge.id} className={active ? "badge-toggle active" : "badge-toggle"}>
-                          <input
-                            type="checkbox"
-                            checked={active}
-                            onChange={() => toggleBadgeForUser(badgeTargetUser.id, badge.id)}
-                          />
-                          <span>{badge.label}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-
-                <div className="owner-studio-create">
-                  <p className="inline-note">Eigenes Badge erstellen (wird automatisch dir zugewiesen)</p>
-                  <div className="owner-studio-create-grid">
-                    <input
-                      value={newBadgeLabel}
-                      onChange={(event) => setNewBadgeLabel(event.target.value)}
-                      placeholder="Badge-Name (z. B. Founder)"
-                    />
-                    <input
-                      value={newBadgeShortLabel}
-                      onChange={(event) => setNewBadgeShortLabel(event.target.value)}
-                      placeholder="Kurzlabel (z. B. FND)"
-                      maxLength={10}
-                    />
-                    <button className="secondary" onClick={createCustomBadge}>
-                      Badge erstellen
-                    </button>
-                  </div>
-                </div>
-
-                {canManagePlatformSettings && (
-                  <div className="owner-studio-create">
-                    <p className="inline-note">Globale Plattform-Einstellungen</p>
-                    <div className="owner-studio-toggle-row">
-                      <button
-                        className={uploadsEnabledForAll ? "primary" : "secondary"}
-                        disabled={platformToggleLoading}
-                        onClick={() => onToggleGlobalUploads(true)}
-                      >
-                        Uploads für alle AN
-                      </button>
-                      <button
-                        className={!uploadsEnabledForAll ? "primary" : "secondary"}
-                        disabled={platformToggleLoading}
-                        onClick={() => onToggleGlobalUploads(false)}
-                      >
-                        Uploads für alle AUS
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </section>
-          )}
 
           <div
             className={
@@ -1871,6 +1764,146 @@ export function App() {
 
           {message && <p className="message-banner">{message}</p>}
           {mentionNotice && <p className="message-banner mention-banner">{mentionNotice}</p>}
+
+          {settingsOpen && (
+            <div className="modal-backdrop" onClick={() => setSettingsOpen(false)}>
+              <section className="modal-panel settings-panel" onClick={(event) => event.stopPropagation()}>
+                <div className="settings-head">
+                  <h3>Einstellungen</h3>
+                  <button className="secondary compact" onClick={() => setSettingsOpen(false)}>
+                    Schließen
+                  </button>
+                </div>
+
+                <div className="settings-tabs">
+                  <button
+                    className={settingsTab === "profile" ? "settings-tab active" : "settings-tab"}
+                    onClick={() => setSettingsTab("profile")}
+                  >
+                    Profil
+                  </button>
+                  {currentUserIsPlatformOwner && (
+                    <button
+                      className={settingsTab === "owner" ? "settings-tab active" : "settings-tab"}
+                      onClick={() => setSettingsTab("owner")}
+                    >
+                      Owner
+                    </button>
+                  )}
+                </div>
+
+                {settingsTab === "profile" && (
+                  <div className="profile-grid">
+                    <label>
+                      Nickname
+                      <input
+                        value={profileNickname}
+                        onChange={(event) => setProfileNickname(event.target.value)}
+                        placeholder="Dein Nickname"
+                      />
+                    </label>
+                    <label>
+                      Username
+                      <input
+                        value={profileUsername}
+                        onChange={(event) => setProfileUsername(event.target.value.toLowerCase())}
+                        placeholder="discord_style"
+                      />
+                    </label>
+                    <p className="inline-note">
+                      Deine eindeutige ID: <strong>{auth.user.userHandle}</strong>
+                    </p>
+                    <button className="primary" onClick={onSaveProfile}>
+                      Profil speichern
+                    </button>
+                  </div>
+                )}
+
+                {settingsTab === "owner" && currentUserIsPlatformOwner && (
+                  <div className="owner-studio owner-studio-in-settings">
+                    <div className="panel-header owner-studio-header">
+                      <h3>Owner-Badge Studio</h3>
+                      <span>Owner-Bereich</span>
+                    </div>
+                    <label>
+                      Badge-Zielperson
+                      <select
+                        value={badgeTargetUserId}
+                        onChange={(event) => setBadgeTargetUserId(event.target.value)}
+                        className="owner-studio-select"
+                      >
+                        {knownUsers.map((user) => (
+                          <option key={user.id} value={user.id}>
+                            {user.displayName} {user.username ? `(@${user.username})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    {badgeTargetUser && (
+                      <div className="owner-studio-badges">
+                        {badgeDefinitions.map((badge) => {
+                          const active = (customBadgesByUserId[badgeTargetUser.id] ?? []).includes(badge.id);
+                          return (
+                            <label key={badge.id} className={active ? "badge-toggle active" : "badge-toggle"}>
+                              <input
+                                type="checkbox"
+                                checked={active}
+                                onChange={() => toggleBadgeForUser(badgeTargetUser.id, badge.id)}
+                              />
+                              <span>{badge.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div className="owner-studio-create">
+                      <p className="inline-note">Eigenes Badge erstellen (wird automatisch dir zugewiesen)</p>
+                      <div className="owner-studio-create-grid">
+                        <input
+                          value={newBadgeLabel}
+                          onChange={(event) => setNewBadgeLabel(event.target.value)}
+                          placeholder="Badge-Name (z. B. Founder)"
+                        />
+                        <input
+                          value={newBadgeShortLabel}
+                          onChange={(event) => setNewBadgeShortLabel(event.target.value)}
+                          placeholder="Kurzlabel (z. B. FND)"
+                          maxLength={10}
+                        />
+                        <button className="secondary" onClick={createCustomBadge}>
+                          Badge erstellen
+                        </button>
+                      </div>
+                    </div>
+
+                    {canManagePlatformSettings && (
+                      <div className="owner-studio-create">
+                        <p className="inline-note">Globale Plattform-Einstellungen</p>
+                        <div className="owner-studio-toggle-row">
+                          <button
+                            className={uploadsEnabledForAll ? "primary" : "secondary"}
+                            disabled={platformToggleLoading}
+                            onClick={() => onToggleGlobalUploads(true)}
+                          >
+                            Uploads für alle AN
+                          </button>
+                          <button
+                            className={!uploadsEnabledForAll ? "primary" : "secondary"}
+                            disabled={platformToggleLoading}
+                            onClick={() => onToggleGlobalUploads(false)}
+                          >
+                            Uploads für alle AUS
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            </div>
+          )}
 
           {createChannelModalOpen && (
             <div className="modal-backdrop" onClick={() => setCreateChannelModalOpen(false)}>
