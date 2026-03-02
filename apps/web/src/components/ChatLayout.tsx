@@ -12,6 +12,7 @@ type ChatLayoutProps = {
   theme: "dark" | "light";
   onToggleTheme: () => void;
   onLogout: () => void;
+  realtimeState: "connecting" | "online" | "offline";
   currentUserIsPlatformOwner: boolean;
   renderPlatformOwnerBadge: (userId?: string, username?: string) => ReactNode;
   renderCustomBadges: (userId?: string) => ReactNode;
@@ -118,6 +119,7 @@ export function ChatLayout({
   theme,
   onToggleTheme,
   onLogout,
+  realtimeState,
   currentUserIsPlatformOwner,
   renderPlatformOwnerBadge,
   renderCustomBadges,
@@ -241,6 +243,18 @@ export function ChatLayout({
                 <small className="chip-handle">@{auth.user.username}</small>
               </span>
             </div>
+            <span
+              className={
+                realtimeState === "online"
+                  ? "realtime-pill online"
+                  : realtimeState === "connecting"
+                    ? "realtime-pill connecting"
+                    : "realtime-pill offline"
+              }
+              aria-live="polite"
+            >
+              {realtimeState === "online" ? "Live" : realtimeState === "connecting" ? "Verbinde…" : "Offline"}
+            </span>
             {currentUserIsPlatformOwner && (
               <button
                 className="secondary"

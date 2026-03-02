@@ -199,6 +199,7 @@ export function App() {
   const [uploadsEnabledForAll, setUploadsEnabledForAll] = useState(true);
   const [canManagePlatformSettings, setCanManagePlatformSettings] = useState(false);
   const [platformToggleLoading, setPlatformToggleLoading] = useState(false);
+  const [realtimeState, setRealtimeState] = useState<"connecting" | "online" | "offline">("offline");
   const [unreadByChannelId, setUnreadByChannelId] = useState<Record<string, number>>({});
   const [isMobileLayout, setIsMobileLayout] = useState(() => {
     if (typeof window === "undefined") {
@@ -665,6 +666,7 @@ export function App() {
       if (!auth) {
         setChannels([]);
         setActiveChannelId(null);
+        setRealtimeState("offline");
         return;
       }
 
@@ -809,6 +811,7 @@ export function App() {
       }
     });
     socketRef.current = socket;
+    setRealtimeState("connecting");
 
     const onNewMessage = (incoming: MessageItem) => {
       const incomingChannelId = incoming.channelId;
@@ -879,11 +882,26 @@ export function App() {
       setMessages((previous) => previous.filter((entry) => entry.id !== payload.id));
     };
 
+    const onConnect = () => {
+      setRealtimeState("online");
+    };
+
+    const onDisconnect = () => {
+      setRealtimeState("offline");
+    };
+
+    const onConnectError = () => {
+      setRealtimeState("offline");
+    };
+
     socket.on("new_message", onNewMessage);
     socket.on("typing", onTyping);
     socket.on("presence_update", onPresenceUpdate);
     socket.on("message_updated", onMessageUpdated);
     socket.on("message_deleted", onMessageDeleted);
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+    socket.on("connect_error", onConnectError);
 
     if (activeChannelId) {
       socket.emit("join_room", activeChannelId);
@@ -895,8 +913,12 @@ export function App() {
       socket.off("presence_update", onPresenceUpdate);
       socket.off("message_updated", onMessageUpdated);
       socket.off("message_deleted", onMessageDeleted);
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+      socket.off("connect_error", onConnectError);
       socket.disconnect();
       socketRef.current = null;
+      setRealtimeState("offline");
     };
   }, [auth, activeChannelId]);
 
@@ -1462,6 +1484,7 @@ export function App() {
         theme={theme}
         onToggleTheme={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
         onLogout={logout}
+        realtimeState={realtimeState}
         currentUserIsPlatformOwner={currentUserIsPlatformOwner}
         renderPlatformOwnerBadge={renderPlatformOwnerBadge}
         renderCustomBadges={renderCustomBadges}

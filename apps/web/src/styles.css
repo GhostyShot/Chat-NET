@@ -601,6 +601,38 @@ button:hover {
   padding: 8px 11px;
 }
 
+.realtime-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid color-mix(in srgb, var(--input-border) 78%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 84%, transparent);
+  color: var(--text-sub);
+}
+
+.realtime-pill.online {
+  border-color: color-mix(in srgb, #2fd180 58%, var(--input-border));
+  background: color-mix(in srgb, #2fd180 18%, var(--input-bg));
+  color: color-mix(in srgb, #2fd180 75%, var(--text-main));
+}
+
+.realtime-pill.connecting {
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--input-border));
+  background: color-mix(in srgb, var(--accent) 16%, var(--input-bg));
+  color: color-mix(in srgb, var(--text-main) 92%, var(--accent));
+}
+
+.realtime-pill.offline {
+  border-color: color-mix(in srgb, #ff6f7a 48%, var(--input-border));
+  background: color-mix(in srgb, #ff6f7a 14%, var(--input-bg));
+  color: color-mix(in srgb, #ff7e88 70%, var(--text-main));
+}
+
 .chip-handle {
   display: block;
   font-size: 12px;
