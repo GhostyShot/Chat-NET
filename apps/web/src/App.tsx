@@ -197,6 +197,13 @@ export function App() {
   const [canManagePlatformSettings, setCanManagePlatformSettings] = useState(false);
   const [platformToggleLoading, setPlatformToggleLoading] = useState(false);
   const [unreadByChannelId, setUnreadByChannelId] = useState<Record<string, number>>({});
+  const [isMobileLayout, setIsMobileLayout] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+    return window.matchMedia("(max-width: 900px)").matches;
+  });
+  const [mobilePane, setMobilePane] = useState<"list" | "chat">("list");
 
   const isPlatformOwner = (userId?: string, username?: string) => {
     const normalizedUsername = username?.toLowerCase();
@@ -270,6 +277,30 @@ export function App() {
     [channels, activeChannelId]
   );
 
+  const activeDirectPartner = useMemo(() => {
+    if (!activeChannel || activeChannel.type !== "DIRECT") {
+      return null;
+    }
+    return activeChannel.memberships?.find((membership) => membership.user.id !== auth?.user.id)?.user ?? null;
+  }, [activeChannel, auth?.user.id]);
+
+  const activeConversationStatus = useMemo(() => {
+    if (typingHint) {
+      return typingHint;
+    }
+    if (!activeChannel) {
+      return "Bereit";
+    }
+    if (activeChannel.type === "DIRECT") {
+      if (!activeDirectPartner?.id) {
+        return "Offline";
+      }
+      return presenceMap[activeDirectPartner.id] ? "Online" : "Offline";
+    }
+    const onlineCount = (activeChannel.memberships ?? []).filter((member) => presenceMap[member.user.id]).length;
+    return `${onlineCount} online`;
+  }, [typingHint, activeChannel, activeDirectPartner?.id, presenceMap]);
+
   const sortedChannels = useMemo(() => {
     const parseTimestamp = (value?: string) => {
       if (!value) {
@@ -301,6 +332,13 @@ export function App() {
 
   const getChannelTypeLabel = (channel: ChannelItem) => {
     return channel.type === "GROUP" ? "Gruppe" : "Direkt";
+  };
+
+  const openChannel = (channelId: string) => {
+    setActiveChannelId(channelId);
+    if (isMobileLayout) {
+      setMobilePane("chat");
+    }
   };
 
   const formatTimeLabel = (value?: string) => {
@@ -601,6 +639,25 @@ export function App() {
   }, [auth]);
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const media = window.matchMedia("(max-width: 900px)");
+    const onChange = (event: MediaQueryListEvent) => {
+      setIsMobileLayout(event.matches);
+      if (!event.matches) {
+        setMobilePane("chat");
+      }
+    };
+    setIsMobileLayout(media.matches);
+    if (!media.matches) {
+      setMobilePane("chat");
+    }
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, []);
+
+  useEffect(() => {
     const loadChannels = async () => {
       if (!auth) {
         setChannels([]);
@@ -677,6 +734,15 @@ export function App() {
       return rest;
     });
   }, [activeChannelId]);
+
+  useEffect(() => {
+    if (!isMobileLayout) {
+      return;
+    }
+    if (!activeChannelId) {
+      setMobilePane("list");
+    }
+  }, [isMobileLayout, activeChannelId]);
 
   useEffect(() => {
     const listElement = messageListRef.current;
@@ -983,7 +1049,7 @@ export function App() {
     try {
       const channel = await createGroupChannel(auth.tokens.accessToken, newChannelName.trim(), []);
       setChannels((previous) => [channel, ...previous]);
-      setActiveChannelId(channel.id);
+      openChannel(channel.id);
       setNewChannelName("");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Channel konnte nicht erstellt werden");
@@ -1130,7 +1196,7 @@ export function App() {
         }
         return [channel, ...previous];
       });
-      setActiveChannelId(channel.id);
+      openChannel(channel.id);
       setDirectUsername("");
       setDirectModalOpen(false);
       setMessage("Direktchat wurde erstellt.");
@@ -1355,7 +1421,7 @@ export function App() {
   if (auth) {
     return (
       <main className="app-shell chat-app-shell">
-        <section className="chat-shell">
+        <section className={isMobileLayout && mobilePane === "chat" ? "chat-shell mobile-chat-focus" : "chat-shell"}>
           <header className="chat-topbar">
             <div className="brand-block">
               <img src="/chat-net-logo.svg" alt="Chat-Net Logo" className="brand-logo" />
@@ -1512,7 +1578,15 @@ export function App() {
             </section>
           )}
 
-          <div className="chat-layout">
+          <div
+            className={
+              isMobileLayout
+                ? mobilePane === "chat"
+                  ? "chat-layout mobile-chat-open"
+                  : "chat-layout mobile-list-open"
+                : "chat-layout"
+            }
+          >
             <aside className="panel channel-panel">
               <div className="panel-header">
                 <h3>Kanäle</h3>
@@ -1607,7 +1681,7 @@ export function App() {
                   <button
                     key={channel.id}
                     className={channel.id === activeChannelId ? "channel-item active" : "channel-item"}
-                    onClick={() => setActiveChannelId(channel.id)}
+                    onClick={() => openChannel(channel.id)}
                   >
                     <div className="channel-main">
                       <span className="channel-name">{getChannelDisplayName(channel)}</span>
@@ -1625,9 +1699,16 @@ export function App() {
             </aside>
 
             <section className="panel message-panel">
-              <div className="panel-header">
-                <h3>{getChannelDisplayName(activeChannel)}</h3>
-                <span>{typingHint || "Bereit"}</span>
+              <div className="chat-room-header">
+                {isMobileLayout && (
+                  <button className="secondary compact mobile-back" onClick={() => setMobilePane("list")}>
+                    ←
+                  </button>
+                )}
+                <div className="chat-room-meta">
+                  <h3>{getChannelDisplayName(activeChannel)}</h3>
+                  <span>{activeConversationStatus}</span>
+                </div>
               </div>
 
               <div className="search-row">
@@ -1705,19 +1786,21 @@ export function App() {
 
                       {ownMessage ? (
                         <div className={showActions ? "message-actions visible" : "message-actions"}>
-                          <button className="secondary" onClick={() => onEditMessage(entry)}>
-                            Bearbeiten
+                          <button className="message-action-chip" onClick={() => onEditMessage(entry)} title="Bearbeiten" aria-label="Bearbeiten">
+                            ✎
                           </button>
-                          <button className="secondary" onClick={() => onDeleteMessage(entry.id)}>
-                            Löschen
+                          <button className="message-action-chip delete" onClick={() => onDeleteMessage(entry.id)} title="Löschen" aria-label="Löschen">
+                            🗑
                           </button>
                         </div>
                       ) : (
                         <button
-                          className={showActions ? "secondary compact message-inline-action visible" : "secondary compact message-inline-action"}
+                          className={showActions ? "message-inline-action visible" : "message-inline-action"}
                           onClick={() => onBlockSender(entry.sender.id)}
+                          title="Blockieren"
+                          aria-label="Blockieren"
                         >
-                          Blockieren
+                          🚫
                         </button>
                       )}
                     </article>
