@@ -85,6 +85,7 @@ body {
   margin: 0;
   background: var(--bg-main);
   color: var(--text-main);
+  line-height: 1.45;
 }
 
 .app-shell {
@@ -106,7 +107,7 @@ body {
   margin: 0 auto;
   display: grid;
   grid-template-rows: auto auto 1fr;
-  gap: 18px;
+  gap: 20px;
 }
 
 .landing-topbar {
@@ -149,13 +150,13 @@ body {
     var(--surface-main);
   backdrop-filter: blur(14px);
   box-shadow: var(--shadow-soft), var(--shadow-glow);
-  padding: 34px;
+  padding: 36px;
 }
 
 .landing-hero h2 {
-  margin: 8px 0 0;
+  margin: 8px 0 2px;
   font-size: clamp(1.7rem, 4vw, 2.5rem);
-  line-height: 1.15;
+  line-height: 1.2;
 }
 
 .landing-stat-row {
@@ -234,18 +235,18 @@ body {
   background: var(--surface-panel);
   padding: 18px;
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .landing-feature-card h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 1.02rem;
 }
 
 .landing-feature-card p {
   margin: 0;
   color: var(--text-sub);
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .landing-store-row {
@@ -346,7 +347,7 @@ body {
   padding: 40px;
   display: grid;
   align-content: center;
-  gap: 10px;
+  gap: 12px;
   background:
     radial-gradient(circle at 88% 16%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 58%),
     var(--surface-brand);
@@ -361,7 +362,7 @@ body {
 .auth-panel {
   padding: 32px;
   display: grid;
-  gap: 14px;
+  gap: 16px;
   align-content: center;
 }
 
@@ -386,7 +387,7 @@ body {
 .eyebrow {
   margin: 0;
   font-size: 12px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--text-sub);
 }
@@ -403,12 +404,14 @@ h1 {
 
 .subtitle {
   color: var(--text-sub);
+  line-height: 1.5;
 }
 
 .mode-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-bottom: 2px;
 }
 
 .tab {
@@ -416,7 +419,8 @@ h1 {
   background: var(--input-bg);
   color: var(--text-main);
   font-size: 13px;
-  padding: 8px 11px;
+  font-weight: 600;
+  padding: 8px 12px;
 }
 
 .tab.active {
@@ -427,7 +431,8 @@ h1 {
 label {
   display: grid;
   gap: 6px;
-  font-size: 14px;
+  font-size: 13px;
+  letter-spacing: 0.01em;
 }
 
 input,
@@ -435,7 +440,7 @@ textarea,
 button {
   border-radius: 12px;
   border: 1px solid var(--input-border);
-  padding: 11px 12px;
+  padding: 10px 12px;
   background: var(--input-bg);
   color: var(--text-main);
   font: inherit;
@@ -519,7 +524,7 @@ button:hover {
   );
   backdrop-filter: blur(12px);
   box-shadow: var(--shadow-soft), var(--shadow-glow);
-  padding: 14px;
+  padding: 13px;
   display: grid;
   gap: 14px;
 }
@@ -540,12 +545,12 @@ button:hover {
     );
   backdrop-filter: blur(10px);
   box-shadow: var(--shadow-soft);
-  padding: 12px 14px;
+  padding: 11px 13px;
 }
 
 .brand-block {
   display: grid;
-  gap: 2px;
+  gap: 1px;
 }
 
 .brand-block h1 {
@@ -555,6 +560,7 @@ button:hover {
 .brand-block .subtitle {
   color: var(--text-sub);
   letter-spacing: 0.01em;
+  font-size: 12px;
 }
 
 .brand-logo {
@@ -744,9 +750,9 @@ button:hover {
   background: color-mix(in srgb, var(--surface-panel) 88%, transparent);
   backdrop-filter: blur(10px);
   box-shadow: var(--shadow-soft);
-  padding: 13px;
+  padding: 12px;
   display: grid;
-  gap: 11px;
+  gap: 10px;
 }
 
 .profile-panel {
@@ -810,6 +816,7 @@ button:hover {
 .channel-name {
   font-size: 13px;
   font-weight: 600;
+  line-height: 1.25;
   color: var(--text-main);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -819,6 +826,7 @@ button:hover {
 .channel-subline {
   margin: 0;
   font-size: 10px;
+  line-height: 1.25;
   color: var(--text-sub);
 }
 
@@ -932,7 +940,7 @@ button:hover {
 .search-row {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 8px;
+  gap: 7px;
 }
 
 .search-row input {
@@ -942,17 +950,18 @@ button:hover {
 .search-results {
   border: 1px solid color-mix(in srgb, var(--input-border) 78%, transparent);
   border-radius: 12px;
-  padding: 8px 10px;
+  padding: 7px 10px;
   background: color-mix(in srgb, var(--surface-panel) 82%, var(--accent) 18%);
   display: grid;
-  gap: 4px;
+  gap: 3px;
   max-height: 132px;
   overflow: auto;
 }
 
 .result-item {
   margin: 0;
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .message-list {
@@ -960,18 +969,18 @@ button:hover {
   max-height: calc(100dvh - 360px);
   overflow: auto;
   display: grid;
-  gap: 6px;
+  gap: 7px;
   padding-right: 2px;
 }
 
 .message-bubble {
   border: 1px solid color-mix(in srgb, var(--bubble-border) 80%, transparent);
-  border-radius: 13px;
+  border-radius: 14px;
   background: color-mix(in srgb, var(--bubble-bg) 90%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--bubble-border) 28%, transparent) inset;
-  padding: 7px 9px;
+  padding: 8px 10px;
   display: grid;
-  gap: 4px;
+  gap: 5px;
   cursor: pointer;
 }
 
@@ -995,8 +1004,9 @@ button:hover {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 6px;
   font-size: 11px;
+  line-height: 1.25;
   font-weight: 600;
   color: color-mix(in srgb, var(--text-main) 92%, var(--text-sub));
 }
@@ -1057,7 +1067,7 @@ button:hover {
 .message-content {
   margin: 0;
   white-space: pre-wrap;
-  line-height: 1.35;
+  line-height: 1.45;
   font-size: 13px;
 }
 
@@ -1146,11 +1156,11 @@ button:hover {
 .composer {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 8px;
+  gap: 7px;
   align-items: end;
   border: 1px solid color-mix(in srgb, var(--input-border) 78%, var(--accent));
   border-radius: 14px;
-  padding: 7px;
+  padding: 6px;
   background: color-mix(in srgb, var(--surface-panel) 76%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--surface-panel) 45%, transparent);
 }
@@ -1164,7 +1174,7 @@ button:hover {
   min-height: 40px;
   max-height: 160px;
   resize: vertical;
-  padding: 9px 10px;
+  padding: 8px 10px;
   font-size: 13px;
 }
 
@@ -1175,22 +1185,23 @@ button:hover {
   gap: 8px;
   border: 1px solid color-mix(in srgb, var(--input-border) 78%, transparent);
   border-radius: 12px;
-  padding: 8px 10px;
+  padding: 7px 10px;
   background: color-mix(in srgb, var(--surface-panel) 82%, transparent);
 }
 
 .chat-room-meta {
   display: grid;
-  gap: 2px;
+  gap: 1px;
 }
 
 .chat-room-meta h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
+  line-height: 1.25;
 }
 
 .chat-room-meta span {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-sub);
 }
 
@@ -1344,6 +1355,8 @@ button:hover {
   background:
     radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 54%),
     color-mix(in srgb, var(--surface-panel) 92%, transparent);
+  padding: 16px;
+  gap: 12px;
 }
 
 .settings-head {
@@ -1354,7 +1367,8 @@ button:hover {
 }
 
 .settings-intro {
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.4;
   color: var(--text-sub);
   margin-top: -4px;
 }
@@ -1370,8 +1384,9 @@ button:hover {
   background: color-mix(in srgb, var(--input-bg) 88%, transparent);
   color: var(--text-main);
   border-radius: 10px;
-  padding: 8px 12px;
-  font-size: 13px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .settings-tab.active {
