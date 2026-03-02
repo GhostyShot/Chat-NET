@@ -38,6 +38,9 @@ import {
 import { AuthCard } from "./components/AuthCard";
 import { ChatLayout } from "./components/ChatLayout";
 import { LandingPage } from "./components/LandingPage";
+import { usePersistentAuth } from "./hooks/usePersistentAuth";
+import { useResponsiveChatLayout } from "./hooks/useResponsiveChatLayout";
+import { useThemePreference } from "./hooks/useThemePreference";
 
 type Mode = "login" | "register" | "forgot" | "reset";
 type BadgeId = string;
@@ -84,9 +87,6 @@ const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefin
 const platformOwnerUserId = (import.meta.env.VITE_PLATFORM_OWNER_USER_ID as string | undefined)?.trim();
 const PLATFORM_OWNER_FALLBACK_USERNAME = "paul_fmp";
 const BADGE_STORAGE_PREFIX = "chat-net-custom-badges";
-const AUTH_COOKIE_KEY = "chat_net_auth";
-const AUTH_STORAGE_KEY = "chat_net_auth_v1";
-const AUTH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 14;
 const DEFAULT_BADGE_DEFINITIONS: BadgeDefinition[] = [
   { id: "owner_chatnet", label: "Owner (Logo + OWNER)", shortLabel: "OWNER", style: "owner_chatnet" },
   { id: "verified_blue", label: "Blauer Haken (X Style)", shortLabel: "✓", style: "verified_blue" },
@@ -95,60 +95,8 @@ const DEFAULT_BADGE_DEFINITIONS: BadgeDefinition[] = [
   { id: "core_team", label: "Core Team", shortLabel: "TEAM" }
 ];
 
-function readPersistedAuth(): AuthResponse | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const tryParse = (raw: string | null): AuthResponse | null => {
-    if (!raw) {
-      return null;
-    }
-    try {
-      return JSON.parse(raw) as AuthResponse;
-    } catch {
-      return null;
-    }
-  };
-
-  const cookieMatch = document.cookie
-    .split("; ")
-    .find((entry) => entry.startsWith(`${AUTH_COOKIE_KEY}=`));
-  const fromCookie = tryParse(cookieMatch ? decodeURIComponent(cookieMatch.split("=").slice(1).join("=")) : null);
-  if (fromCookie) {
-    return fromCookie;
-  }
-
-  return tryParse(window.localStorage.getItem(AUTH_STORAGE_KEY));
-}
-
-function persistAuth(auth: AuthResponse | null) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  if (!auth) {
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    document.cookie = `${AUTH_COOKIE_KEY}=; Max-Age=0; Path=/; SameSite=Lax`;
-    return;
-  }
-
-  const payload = JSON.stringify(auth);
-  window.localStorage.setItem(AUTH_STORAGE_KEY, payload);
-  document.cookie = `${AUTH_COOKIE_KEY}=${encodeURIComponent(payload)}; Max-Age=${AUTH_COOKIE_MAX_AGE_SECONDS}; Path=/; SameSite=Lax`;
-}
-
 export function App() {
-  const [theme, setTheme] = useState<"dark" | "light">(() => {
-    if (typeof window === "undefined") {
-      return "dark";
-    }
-    const stored = window.localStorage.getItem("chat-net-theme");
-    if (stored === "dark" || stored === "light") {
-      return stored;
-    }
-    return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
-  });
+  const [theme, setTheme] = useThemePreference();
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -156,7 +104,7 @@ export function App() {
   const [token, setToken] = useState("");
   const [resetTokenFromLink, setResetTokenFromLink] = useState<string | null>(null);
   const [message, setMessage] = useState("");
-  const [auth, setAuth] = useState<AuthResponse | null>(() => readPersistedAuth());
+  const [auth, setAuth] = usePersistentAuth();
   const [loading, setLoading] = useState(false);
   const [channels, setChannels] = useState<ChannelItem[]>([]);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
@@ -201,13 +149,7 @@ export function App() {
   const [platformToggleLoading, setPlatformToggleLoading] = useState(false);
   const [realtimeState, setRealtimeState] = useState<"connecting" | "online" | "offline">("offline");
   const [unreadByChannelId, setUnreadByChannelId] = useState<Record<string, number>>({});
-  const [isMobileLayout, setIsMobileLayout] = useState(() => {
-    if (typeof window === "undefined") {
-      return false;
-    }
-    return window.matchMedia("(max-width: 900px)").matches;
-  });
-  const [mobilePane, setMobilePane] = useState<"list" | "chat">("list");
+  const { isMobileLayout, mobilePane, setMobilePane } = useResponsiveChatLayout(activeChannelId, composerRef);
 
   const isPlatformOwner = (userId?: string, username?: string) => {
     const normalizedUsername = username?.toLowerCase();
@@ -619,15 +561,6 @@ export function App() {
   };
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    window.localStorage.setItem("chat-net-theme", theme);
-  }, [theme]);
-
-  useEffect(() => {
-    persistAuth(auth);
-  }, [auth]);
-
-  useEffect(() => {
     if (typeof window === "undefined" || auth) {
       return;
     }
@@ -641,25 +574,6 @@ export function App() {
       setShowAuthPage(true);
     }
   }, [auth]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    const media = window.matchMedia("(max-width: 900px)");
-    const onChange = (event: MediaQueryListEvent) => {
-      setIsMobileLayout(event.matches);
-      if (!event.matches) {
-        setMobilePane("chat");
-      }
-    };
-    setIsMobileLayout(media.matches);
-    if (!media.matches) {
-      setMobilePane("chat");
-    }
-    media.addEventListener("change", onChange);
-    return () => media.removeEventListener("change", onChange);
-  }, []);
 
   useEffect(() => {
     const loadChannels = async () => {
@@ -739,40 +653,6 @@ export function App() {
       return rest;
     });
   }, [activeChannelId]);
-
-  useEffect(() => {
-    if (!isMobileLayout) {
-      return;
-    }
-    if (!activeChannelId) {
-      setMobilePane("list");
-    }
-  }, [isMobileLayout, activeChannelId]);
-
-  useEffect(() => {
-    if (!isMobileLayout) {
-      return;
-    }
-
-    if (mobilePane === "chat") {
-      window.requestAnimationFrame(() => {
-        composerRef.current?.focus();
-      });
-      return;
-    }
-
-    if (mobilePane === "list") {
-      window.requestAnimationFrame(() => {
-        const channelButtons = Array.from(
-          document.querySelectorAll<HTMLButtonElement>(".channel-item[data-channel-id]")
-        );
-        const preferred = activeChannelId
-          ? channelButtons.find((button) => button.dataset.channelId === activeChannelId)
-          : null;
-        (preferred ?? channelButtons[0])?.focus();
-      });
-    }
-  }, [isMobileLayout, mobilePane, activeChannelId]);
 
   useEffect(() => {
     const listElement = messageListRef.current;
