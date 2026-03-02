@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma.js";
+import { API_ERROR_CODES } from "@chatnet/shared";
 
 function dedupeMemberIds(ownerId: string, memberIds: string[]) {
   return Array.from(new Set([ownerId, ...memberIds]));
@@ -75,18 +76,18 @@ export class ChatService {
     const memberIds = dedupeMemberIds(input.ownerId, input.memberIds);
 
     if (input.type === "direct" && memberIds.length !== 2) {
-      throw new Error("DIRECT_REQUIRES_TWO_MEMBERS");
+      throw new Error(API_ERROR_CODES.DIRECT_REQUIRES_TWO_MEMBERS);
     }
 
     if (input.type === "direct") {
       const otherId = memberIds.find((id) => id !== input.ownerId);
       if (otherId && (await this.areUsersBlocked(input.ownerId, otherId))) {
-        throw new Error("USER_BLOCKED");
+        throw new Error(API_ERROR_CODES.USER_BLOCKED);
       }
     }
 
     if (input.type === "group" && !input.name) {
-      throw new Error("GROUP_NAME_REQUIRED");
+      throw new Error(API_ERROR_CODES.GROUP_NAME_REQUIRED);
     }
 
     return prisma.channel.create({
@@ -112,16 +113,16 @@ export class ChatService {
   async deleteGroupChannel(input: { channelId: string; requesterId: string }) {
     const channel = await prisma.channel.findUnique({ where: { id: input.channelId } });
     if (!channel) {
-      throw new Error("FORBIDDEN_CHANNEL");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
     if (channel.type !== "GROUP") {
-      throw new Error("GROUP_ONLY");
+      throw new Error(API_ERROR_CODES.GROUP_ONLY);
     }
 
     const requesterRole = await this.getMembershipRole(input.channelId, input.requesterId);
     if (requesterRole !== "OWNER") {
-      throw new Error("FORBIDDEN_CHANNEL");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
     await prisma.channel.delete({
@@ -136,11 +137,11 @@ export class ChatService {
 
     const owner = await prisma.user.findUnique({ where: { id: input.ownerId } });
     if (!owner) {
-      throw new Error("INVALID_TARGET_USER");
+      throw new Error(API_ERROR_CODES.INVALID_TARGET_USER);
     }
 
     if (owner.username === targetUsername) {
-      throw new Error("INVALID_TARGET_USER");
+      throw new Error(API_ERROR_CODES.INVALID_TARGET_USER);
     }
 
     const targetUser = await prisma.user.findUnique({
@@ -148,11 +149,11 @@ export class ChatService {
     });
 
     if (!targetUser) {
-      throw new Error("USER_NOT_FOUND");
+      throw new Error(API_ERROR_CODES.USER_NOT_FOUND);
     }
 
     if (await this.areUsersBlocked(input.ownerId, targetUser.id)) {
-      throw new Error("USER_BLOCKED");
+      throw new Error(API_ERROR_CODES.USER_BLOCKED);
     }
 
     const existing = await prisma.channel.findFirst({
@@ -191,7 +192,7 @@ export class ChatService {
 
     const targetUser = await prisma.user.findUnique({ where: { username: targetUsername } });
     if (!targetUser) {
-      throw new Error("USER_NOT_FOUND");
+      throw new Error(API_ERROR_CODES.USER_NOT_FOUND);
     }
 
     const channel = await prisma.channel.findUnique({
@@ -202,30 +203,30 @@ export class ChatService {
     });
 
     if (!channel) {
-      throw new Error("FORBIDDEN_CHANNEL");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
     if (channel.type !== "GROUP") {
-      throw new Error("GROUP_ONLY");
+      throw new Error(API_ERROR_CODES.GROUP_ONLY);
     }
 
     const requesterMembership = channel.memberships.find((item) => item.userId === input.requesterId);
     if (!requesterMembership || requesterMembership.role !== "OWNER") {
-      throw new Error("FORBIDDEN_CHANNEL");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
     if (targetUser.id === input.requesterId) {
-      throw new Error("INVALID_TARGET_USER");
+      throw new Error(API_ERROR_CODES.INVALID_TARGET_USER);
     }
 
     const alreadyMember = channel.memberships.some((item) => item.userId === targetUser.id);
     if (alreadyMember) {
-      throw new Error("MEMBER_EXISTS");
+      throw new Error(API_ERROR_CODES.MEMBER_EXISTS);
     }
 
     for (const membership of channel.memberships) {
       if (await this.areUsersBlocked(targetUser.id, membership.userId)) {
-        throw new Error("USER_BLOCKED");
+        throw new Error(API_ERROR_CODES.USER_BLOCKED);
       }
     }
 
@@ -258,12 +259,12 @@ export class ChatService {
   async listChannelMembers(input: { channelId: string; requesterId: string }) {
     const requesterRole = await this.getMembershipRole(input.channelId, input.requesterId);
     if (!requesterRole) {
-      throw new Error("FORBIDDEN_CHANNEL");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
     const channel = await prisma.channel.findUnique({ where: { id: input.channelId } });
     if (!channel) {
-      throw new Error("FORBIDDEN_CHANNEL");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
     return prisma.channelMembership.findMany({
@@ -290,16 +291,16 @@ export class ChatService {
   }) {
     const channel = await prisma.channel.findUnique({ where: { id: input.channelId } });
     if (!channel) {
-      throw new Error("FORBIDDEN_CHANNEL");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
     if (channel.type !== "GROUP") {
-      throw new Error("GROUP_ONLY");
+      throw new Error(API_ERROR_CODES.GROUP_ONLY);
     }
 
     const requesterRole = await this.getMembershipRole(input.channelId, input.requesterId);
     if (requesterRole !== "OWNER") {
-      throw new Error("FORBIDDEN_CHANNEL");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
     const targetMembership = await prisma.channelMembership.findUnique({
@@ -312,11 +313,11 @@ export class ChatService {
     });
 
     if (!targetMembership) {
-      throw new Error("USER_NOT_FOUND");
+      throw new Error(API_ERROR_CODES.USER_NOT_FOUND);
     }
 
     if (targetMembership.role === "OWNER" || input.targetUserId === input.requesterId) {
-      throw new Error("INVALID_TARGET_USER");
+      throw new Error(API_ERROR_CODES.INVALID_TARGET_USER);
     }
 
     const nextRole = input.role === "admin" ? "ADMIN" : "MEMBER";
@@ -346,16 +347,16 @@ export class ChatService {
   async removeChannelMember(input: { channelId: string; requesterId: string; targetUserId: string }) {
     const channel = await prisma.channel.findUnique({ where: { id: input.channelId } });
     if (!channel) {
-      throw new Error("FORBIDDEN_CHANNEL");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
     if (channel.type !== "GROUP") {
-      throw new Error("GROUP_ONLY");
+      throw new Error(API_ERROR_CODES.GROUP_ONLY);
     }
 
     const requesterRole = await this.getMembershipRole(input.channelId, input.requesterId);
     if (!requesterRole || (requesterRole !== "OWNER" && requesterRole !== "ADMIN")) {
-      throw new Error("FORBIDDEN_CHANNEL");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
     const targetMembership = await prisma.channelMembership.findUnique({
@@ -368,19 +369,19 @@ export class ChatService {
     });
 
     if (!targetMembership) {
-      throw new Error("USER_NOT_FOUND");
+      throw new Error(API_ERROR_CODES.USER_NOT_FOUND);
     }
 
     if (targetMembership.role === "OWNER") {
-      throw new Error("INVALID_TARGET_USER");
+      throw new Error(API_ERROR_CODES.INVALID_TARGET_USER);
     }
 
     if (input.targetUserId === input.requesterId) {
-      throw new Error("INVALID_TARGET_USER");
+      throw new Error(API_ERROR_CODES.INVALID_TARGET_USER);
     }
 
     if (requesterRole === "ADMIN" && targetMembership.role !== "MEMBER") {
-      throw new Error("FORBIDDEN_CHANNEL");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
     await prisma.channelMembership.delete({
@@ -398,20 +399,20 @@ export class ChatService {
   async transferChannelOwnership(input: { channelId: string; requesterId: string; targetUserId: string }) {
     const channel = await prisma.channel.findUnique({ where: { id: input.channelId } });
     if (!channel) {
-      throw new Error("FORBIDDEN_CHANNEL");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
     if (channel.type !== "GROUP") {
-      throw new Error("GROUP_ONLY");
+      throw new Error(API_ERROR_CODES.GROUP_ONLY);
     }
 
     if (input.requesterId === input.targetUserId) {
-      throw new Error("INVALID_TARGET_USER");
+      throw new Error(API_ERROR_CODES.INVALID_TARGET_USER);
     }
 
     const requesterRole = await this.getMembershipRole(input.channelId, input.requesterId);
     if (requesterRole !== "OWNER") {
-      throw new Error("FORBIDDEN_CHANNEL");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
     const targetMembership = await prisma.channelMembership.findUnique({
@@ -424,7 +425,7 @@ export class ChatService {
     });
 
     if (!targetMembership) {
-      throw new Error("USER_NOT_FOUND");
+      throw new Error(API_ERROR_CODES.USER_NOT_FOUND);
     }
 
     await prisma.$transaction([
@@ -462,11 +463,11 @@ export class ChatService {
   async leaveChannel(input: { channelId: string; requesterId: string }) {
     const channel = await prisma.channel.findUnique({ where: { id: input.channelId } });
     if (!channel) {
-      throw new Error("FORBIDDEN_CHANNEL");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
     if (channel.type !== "GROUP") {
-      throw new Error("GROUP_ONLY");
+      throw new Error(API_ERROR_CODES.GROUP_ONLY);
     }
 
     const membership = await prisma.channelMembership.findUnique({
@@ -479,11 +480,11 @@ export class ChatService {
     });
 
     if (!membership) {
-      throw new Error("FORBIDDEN_CHANNEL");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
     if (membership.role === "OWNER") {
-      throw new Error("OWNER_TRANSFER_REQUIRED");
+      throw new Error(API_ERROR_CODES.OWNER_TRANSFER_REQUIRED);
     }
 
     await prisma.channelMembership.delete({
@@ -514,7 +515,7 @@ export class ChatService {
     });
 
     if (!membership) {
-      throw new Error("FORBIDDEN_CHANNEL");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
     const memberships = await prisma.channelMembership.findMany({
@@ -524,7 +525,7 @@ export class ChatService {
 
     for (const participant of memberships) {
       if (participant.userId !== input.userId && (await this.areUsersBlocked(input.userId, participant.userId))) {
-        throw new Error("USER_BLOCKED");
+        throw new Error(API_ERROR_CODES.USER_BLOCKED);
       }
     }
 
@@ -565,7 +566,7 @@ export class ChatService {
     });
 
     if (!membership) {
-      throw new Error("FORBIDDEN_CHANNEL");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
     const messages = await prisma.message.findMany({
@@ -610,7 +611,7 @@ export class ChatService {
     });
 
     if (!message) {
-      throw new Error("MESSAGE_NOT_FOUND");
+      throw new Error(API_ERROR_CODES.MESSAGE_NOT_FOUND);
     }
 
     const membership = await prisma.channelMembership.findUnique({
@@ -623,7 +624,7 @@ export class ChatService {
     });
 
     if (!membership) {
-      throw new Error("FORBIDDEN_CHANNEL");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
     const receipt = await prisma.readReceipt.upsert({
@@ -656,7 +657,7 @@ export class ChatService {
     });
 
     if (!membership) {
-      throw new Error("FORBIDDEN_CHANNEL");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
     const message = await prisma.message.findFirst({
@@ -667,11 +668,11 @@ export class ChatService {
     });
 
     if (!message) {
-      throw new Error("MESSAGE_NOT_FOUND");
+      throw new Error(API_ERROR_CODES.MESSAGE_NOT_FOUND);
     }
 
     if (message.senderId !== input.userId) {
-      throw new Error("FORBIDDEN_MESSAGE");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_MESSAGE);
     }
 
     return prisma.message.update({
@@ -701,7 +702,7 @@ export class ChatService {
     });
 
     if (!membership) {
-      throw new Error("FORBIDDEN_CHANNEL");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
     const message = await prisma.message.findFirst({
@@ -712,11 +713,11 @@ export class ChatService {
     });
 
     if (!message) {
-      throw new Error("MESSAGE_NOT_FOUND");
+      throw new Error(API_ERROR_CODES.MESSAGE_NOT_FOUND);
     }
 
     if (message.senderId !== input.userId) {
-      throw new Error("FORBIDDEN_MESSAGE");
+      throw new Error(API_ERROR_CODES.FORBIDDEN_MESSAGE);
     }
 
     await prisma.message.delete({ where: { id: message.id } });
@@ -767,7 +768,7 @@ export class ChatService {
 
   async blockUser(input: { blockerId: string; blockedId: string }) {
     if (input.blockerId === input.blockedId) {
-      throw new Error("INVALID_BLOCK_TARGET");
+      throw new Error(API_ERROR_CODES.INVALID_BLOCK_TARGET);
     }
 
     return prisma.userBlock.upsert({

@@ -1,4 +1,5 @@
 import { OAuth2Client } from "google-auth-library";
+import { API_ERROR_CODES } from "@chatnet/shared";
 import { appConfig } from "../../config.js";
 
 export interface VerifiedGoogleProfile {
@@ -13,7 +14,7 @@ const googleClient = new OAuth2Client();
 export async function verifyGoogleIdToken(idToken: string): Promise<VerifiedGoogleProfile> {
   if (idToken.startsWith("dev_")) {
     if (!appConfig.googleAllowDevTokens) {
-      throw new Error("INVALID_GOOGLE_TOKEN");
+      throw new Error(API_ERROR_CODES.INVALID_GOOGLE_TOKEN);
     }
 
     return {
@@ -35,11 +36,11 @@ export async function verifyGoogleIdToken(idToken: string): Promise<VerifiedGoog
     const payload = ticket.getPayload();
 
     if (!payload?.email) {
-      throw new Error("INVALID_GOOGLE_TOKEN_EMAIL");
+      throw new Error(API_ERROR_CODES.INVALID_GOOGLE_TOKEN_EMAIL);
     }
 
     if (!payload.email_verified) {
-      throw new Error("INVALID_GOOGLE_TOKEN_UNVERIFIED_EMAIL");
+      throw new Error(API_ERROR_CODES.INVALID_GOOGLE_TOKEN_UNVERIFIED_EMAIL);
     }
 
     return {
@@ -51,8 +52,8 @@ export async function verifyGoogleIdToken(idToken: string): Promise<VerifiedGoog
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message.includes("Wrong recipient") || message.includes("audience")) {
-      throw new Error("INVALID_GOOGLE_TOKEN_AUDIENCE");
+      throw new Error(API_ERROR_CODES.INVALID_GOOGLE_TOKEN_AUDIENCE);
     }
-    throw new Error("INVALID_GOOGLE_TOKEN");
+    throw new Error(API_ERROR_CODES.INVALID_GOOGLE_TOKEN);
   }
 }

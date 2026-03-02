@@ -10,6 +10,7 @@ import { authStore } from "./auth.store.js";
 import { buildAuthResponse, hashPassword, verifyPassword } from "./auth.security.js";
 import { verifyGoogleIdToken } from "./auth.google.js";
 import { sendPasswordResetEmail } from "./auth.mail.js";
+import { API_ERROR_CODES } from "@chatnet/shared";
 
 const RESET_TOKEN_TTL_MS = 1000 * 60 * 30;
 
@@ -17,7 +18,7 @@ export class AuthService {
   async register(input: RegisterInput) {
     const existing = await authStore.getByEmail(input.email);
     if (existing) {
-      throw new Error("EMAIL_EXISTS");
+      throw new Error(API_ERROR_CODES.EMAIL_EXISTS);
     }
 
     const passwordHash = await hashPassword(input.password);
@@ -38,12 +39,12 @@ export class AuthService {
   async login(input: LoginInput) {
     const user = await authStore.getByEmail(input.email);
     if (!user || !user.passwordHash) {
-      throw new Error("INVALID_CREDENTIALS");
+      throw new Error(API_ERROR_CODES.INVALID_CREDENTIALS);
     }
 
     const valid = await verifyPassword(user.passwordHash, input.password);
     if (!valid) {
-      throw new Error("INVALID_CREDENTIALS");
+      throw new Error(API_ERROR_CODES.INVALID_CREDENTIALS);
     }
 
     return buildAuthResponse(user);
@@ -97,12 +98,12 @@ export class AuthService {
   async resetPassword(input: PasswordResetInput) {
     const tokenRecord = await authStore.consumeEmailToken(input.token, "reset");
     if (!tokenRecord) {
-      throw new Error("INVALID_TOKEN");
+      throw new Error(API_ERROR_CODES.INVALID_TOKEN);
     }
 
     const user = await authStore.getById(tokenRecord.userId);
     if (!user) {
-      throw new Error("INVALID_TOKEN");
+      throw new Error(API_ERROR_CODES.INVALID_TOKEN);
     }
 
     user.passwordHash = await hashPassword(input.newPassword);
@@ -113,7 +114,7 @@ export class AuthService {
   async getProfile(userId: string) {
     const user = await authStore.getById(userId);
     if (!user) {
-      throw new Error("INVALID_TOKEN");
+      throw new Error(API_ERROR_CODES.INVALID_TOKEN);
     }
     return {
       id: user.id,
@@ -131,7 +132,7 @@ export class AuthService {
   async updateProfile(userId: string, input: UpdateProfileInput) {
     const user = await authStore.getById(userId);
     if (!user) {
-      throw new Error("INVALID_TOKEN");
+      throw new Error(API_ERROR_CODES.INVALID_TOKEN);
     }
 
     if (input.displayName !== undefined) {
@@ -141,11 +142,11 @@ export class AuthService {
     if (input.username !== undefined) {
       const normalized = authStore.normalizeUsername(input.username);
       if (normalized.length < 3) {
-        throw new Error("USERNAME_INVALID_FORMAT");
+        throw new Error(API_ERROR_CODES.USERNAME_INVALID_FORMAT);
       }
       const taken = await authStore.isUsernameTaken(normalized, user.id);
       if (taken) {
-        throw new Error("USERNAME_TAKEN");
+        throw new Error(API_ERROR_CODES.USERNAME_TAKEN);
       }
       user.username = normalized;
     }
