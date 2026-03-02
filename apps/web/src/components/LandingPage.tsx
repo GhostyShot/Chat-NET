@@ -10,10 +10,7 @@ export function LandingPage({ onOpenLogin, onOpenRegister }: LandingPageProps) {
         <header className="landing-topbar">
           <div className="landing-brand">
             <img src="/chat-net-logo.svg" alt="Chat-Net Logo" className="landing-logo" />
-            <div>
-              <p className="eyebrow">chat-net.tech</p>
-              <h1>Chat-Net</h1>
-            </div>
+            <h1>Chat-Net</h1>
           </div>
           <div className="landing-auth-actions">
             <button className="secondary compact" onClick={onOpenLogin}>
@@ -26,16 +23,17 @@ export function LandingPage({ onOpenLogin, onOpenRegister }: LandingPageProps) {
         </header>
 
         <div className="landing-hero">
-          <p className="eyebrow">Warum Chat-Net?</p>
-          <h2>Ein moderner Chat für Communities, Teams und Gamer.</h2>
+          <h2>Dein Space.{"\u00A0"}Dein Vibe.</h2>
           <p className="subtitle">
-            Schneller Realtime-Chat, starke Gruppenfeatures, klare Rollen und ein UX, das sich wie eine moderne
-            Community-Plattform anfühlt.
+            Wo echte Gespr{"\u00E4"}che stattfinden.
           </p>
-          <div className="landing-stat-row" aria-label="Highlights">
-            <span className="landing-stat">Realtime</span>
-            <span className="landing-stat">Roles & Moderation</span>
-            <span className="landing-stat">Web + Mobile</span>
+          <div className="landing-hero-cta">
+            <button className="primary landing-hero-btn" onClick={onOpenRegister}>
+              Jetzt starten
+            </button>
+            <button className="secondary landing-hero-btn" onClick={onOpenLogin}>
+              Einloggen
+            </button>
           </div>
         </div>
 
@@ -46,7 +44,7 @@ export function LandingPage({ onOpenLogin, onOpenRegister }: LandingPageProps) {
               alt=""
               loading="lazy"
             />
-            <p>Glow Feed</p>
+            <p>Community</p>
           </article>
           <article className="landing-visual-card">
             <img
@@ -54,7 +52,7 @@ export function LandingPage({ onOpenLogin, onOpenRegister }: LandingPageProps) {
               alt=""
               loading="lazy"
             />
-            <p>Neon Pulse</p>
+            <p>Teams</p>
           </article>
           <article className="landing-visual-card">
             <img
@@ -62,41 +60,8 @@ export function LandingPage({ onOpenLogin, onOpenRegister }: LandingPageProps) {
               alt=""
               loading="lazy"
             />
-            <p>Frost View</p>
+            <p>Gaming</p>
           </article>
-        </div>
-
-        <div className="landing-feature-grid">
-          <article className="landing-feature-card">
-            <h3>Realtime by Default</h3>
-            <p>Tippindikatoren, Presence, Read Receipts und direkte Antworten ohne Page-Reload.</p>
-          </article>
-          <article className="landing-feature-card">
-            <h3>Community-Fokus</h3>
-            <p>Owner/Admin-Moderation, Gruppenverwaltung, Mentions und klare Rollenstruktur.</p>
-          </article>
-          <article className="landing-feature-card">
-            <h3>Modernes Interface</h3>
-            <p>Dark/Light Themes, cleaner Glas-Look und mobile + web konsistent aus einem Guss.</p>
-          </article>
-        </div>
-
-        <div className="landing-store-row">
-          <a href="#" className="store-badge" onClick={(event) => event.preventDefault()} aria-label="App Store Coming soon">
-            <span className="store-badge-label">Download on the</span>
-            <strong>App Store</strong>
-            <span className="store-soon">Coming soon</span>
-          </a>
-          <a
-            href="#"
-            className="store-badge"
-            onClick={(event) => event.preventDefault()}
-            aria-label="Google Play Coming soon"
-          >
-            <span className="store-badge-label">Get it on</span>
-            <strong>Google Play</strong>
-            <span className="store-soon">Coming soon</span>
-          </a>
         </div>
       </section>
     </main>
