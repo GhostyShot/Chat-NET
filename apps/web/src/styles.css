@@ -21,6 +21,7 @@
   --banner-border: #544497;
   --shadow-soft: 0 18px 48px rgba(0, 0, 0, 0.35);
   --shadow-glow: 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent), 0 0 38px color-mix(in srgb, var(--accent) 20%, transparent);
+  --focus-ring: color-mix(in srgb, var(--accent) 78%, #ffffff 22%);
   background: var(--bg-main);
   color: var(--text-main);
 }
@@ -46,6 +47,7 @@
   --banner-bg: #e8f0ff;
   --banner-border: #b8cbf7;
   --shadow-soft: 0 14px 34px rgba(50, 80, 150, 0.16);
+  --focus-ring: color-mix(in srgb, var(--accent) 70%, #0f1a3d 30%);
 }
 
 :root[data-theme="light"] .chat-shell {
@@ -474,6 +476,11 @@ button:hover {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--input-border));
 }
 
+:where(button, a, input, textarea, select, [role="button"]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .compact {
   width: fit-content;
 }
@@ -508,7 +515,7 @@ button:hover {
 
 .hint {
   text-align: center;
-  color: var(--text-sub);
+  color: color-mix(in srgb, var(--text-sub) 88%, var(--text-main));
   font-size: 13px;
 }
 
@@ -827,7 +834,7 @@ button:hover {
   margin: 0;
   font-size: 10px;
   line-height: 1.25;
-  color: var(--text-sub);
+  color: color-mix(in srgb, var(--text-sub) 90%, var(--text-main));
 }
 
 .channel-kind {
@@ -1061,7 +1068,7 @@ button:hover {
 .message-time {
   border: 1px solid color-mix(in srgb, var(--input-border) 78%, transparent);
   background: color-mix(in srgb, var(--input-bg) 70%, transparent);
-  color: var(--text-sub);
+  color: color-mix(in srgb, var(--text-sub) 90%, var(--text-main));
 }
 
 .message-content {
@@ -1087,6 +1094,10 @@ button:hover {
 .file-link {
   color: var(--accent);
   font-weight: 600;
+}
+
+.file-link:hover {
+  text-decoration: underline;
 }
 
 .edit-row,
@@ -1202,7 +1213,7 @@ button:hover {
 
 .chat-room-meta span {
   font-size: 11px;
-  color: var(--text-sub);
+  color: color-mix(in srgb, var(--text-sub) 90%, var(--text-main));
 }
 
 .chat-room-type-pill {
