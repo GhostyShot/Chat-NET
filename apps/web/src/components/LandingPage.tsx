@@ -23,9 +23,9 @@ export function LandingPage({ onOpenLogin, onOpenRegister }: LandingPageProps) {
         </header>
 
         <div className="landing-hero">
-          <h2>Chat f{"\u00FC"}r echte{"\u00A0"}Gespr{"\u00E4"}che.</h2>
+          <h2>Dein Space.{"\u00A0"}Dein Vibe.</h2>
           <p className="subtitle">
-            Schnell. Sicher. Gemeinsam.
+            Wo echte Gespr{"\u00E4"}che stattfinden.
           </p>
           <div className="landing-hero-cta">
             <button className="primary landing-hero-btn" onClick={onOpenRegister}>
