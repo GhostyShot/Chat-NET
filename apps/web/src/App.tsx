@@ -1,16 +1,21 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import type { AuthResponse } from "@chatnet/shared";
 import {
+  createPoll,
   forgotPassword,
+  listPolls,
   login,
   loginWithGoogle,
   register,
   resetPassword,
   sendMessage,
+  summarizeChannel,
   uploadFile,
+  votePoll,
   type ChannelMemberItem,
   type ChannelItem,
-  type MessageItem
+  type MessageItem,
+  type PollItem
 } from "./lib/api";
 import { AuthCard } from "./components/AuthCard";
 import { ChatLayout } from "./components/ChatLayout";
@@ -58,7 +63,9 @@ export function App() {
   const [channels, setChannels] = useState<ChannelItem[]>([]);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
   const [messages, setMessages] = useState<MessageItem[]>([]);
+  const [polls, setPolls] = useState<PollItem[]>([]);
   const [composerText, setComposerText] = useState("");
+  const [replyingToMessageId, setReplyingToMessageId] = useState<string | null>(null);
   const [newChannelName, setNewChannelName] = useState("");
   const [createChannelModalOpen, setCreateChannelModalOpen] = useState(false);
   const [directModalOpen, setDirectModalOpen] = useState(false);
@@ -98,6 +105,8 @@ export function App() {
   const [realtimeState, setRealtimeState] = useState<"connecting" | "online" | "offline">("offline");
   const [unreadByChannelId, setUnreadByChannelId] = useState<Record<string, number>>({});
   const [voiceNoteState, setVoiceNoteState] = useState<"idle" | "recording" | "uploading">("idle");
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [pollLoading, setPollLoading] = useState(false);
   const voiceRecorderRef = useRef<MediaRecorder | null>(null);
   const voiceStreamRef = useRef<MediaStream | null>(null);
   const voiceChunksRef = useRef<Blob[]>([]);
@@ -592,6 +601,7 @@ export function App() {
     setEditingMessageId,
     setEditingContent,
     setComposerText,
+    setReplyingToMessageId,
     setSearchResults,
     setDirectUsername,
     setDirectModalOpen,
@@ -607,6 +617,7 @@ export function App() {
     setAuth,
     searchQuery,
     composerText,
+    replyingToMessageId,
     editingContent,
     newChannelName,
     directUsername,
@@ -615,6 +626,22 @@ export function App() {
     profileUsername,
     uploadsEnabledForAll
   });
+
+  useEffect(() => {
+    const loadPolls = async () => {
+      if (!auth || !activeChannelId) {
+        setPolls([]);
+        return;
+      }
+      try {
+        const list = await listPolls(auth.tokens.accessToken, activeChannelId);
+        setPolls(list);
+      } catch {
+        setPolls([]);
+      }
+    };
+    void loadPolls();
+  }, [auth, activeChannelId]);
 
   const updateMentionState = (value: string, caretPosition: number) => {
     const uptoCaret = value.slice(0, caretPosition);
@@ -780,6 +807,89 @@ export function App() {
     setMessage("Sprachnachricht wird verarbeitet …");
   };
 
+  const onSummarizeChannel = async () => {
+    if (!auth || !activeChannelId) {
+      setMessage("Öffne zuerst einen Kanal für die Zusammenfassung.");
+      return;
+    }
+    if (summaryLoading) {
+      return;
+    }
+
+    setSummaryLoading(true);
+    setMessage("Erstelle AI-Zusammenfassung …");
+    try {
+      const result = await summarizeChannel(auth.tokens.accessToken, activeChannelId, { days: 7, limit: 150 });
+      const source = result.source === "ai" ? "Free-AI" : "Fallback";
+      setMessage(`Zusammenfassung (${source}, ${result.messageCount} Nachrichten):\n${result.summary}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Zusammenfassung fehlgeschlagen");
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  const onReplyToMessage = (messageId: string) => {
+    setReplyingToMessageId(messageId);
+    composerRef.current?.focus();
+  };
+
+  const onCancelReply = () => {
+    setReplyingToMessageId(null);
+  };
+
+  const onCreatePoll = async () => {
+    if (!auth || !activeChannelId || pollLoading) {
+      return;
+    }
+
+    const question = window.prompt("Frage der Umfrage:", "");
+    if (!question?.trim()) {
+      return;
+    }
+    const optionsRaw = window.prompt("Antwortoptionen (mit Komma trennen):", "Ja,Nein");
+    if (!optionsRaw?.trim()) {
+      return;
+    }
+
+    const options = optionsRaw
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+
+    if (options.length < 2) {
+      setMessage("Mindestens 2 Optionen für die Umfrage erforderlich.");
+      return;
+    }
+
+    setPollLoading(true);
+    try {
+      const created = await createPoll(auth.tokens.accessToken, activeChannelId, {
+        question: question.trim(),
+        options
+      });
+      setPolls((previous) => [created, ...previous]);
+      setMessage("Umfrage erstellt.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Umfrage konnte nicht erstellt werden");
+    } finally {
+      setPollLoading(false);
+    }
+  };
+
+  const onVotePoll = async (pollId: string, optionId: string) => {
+    if (!auth || !activeChannelId) {
+      return;
+    }
+
+    try {
+      const updated = await votePoll(auth.tokens.accessToken, activeChannelId, pollId, optionId);
+      setPolls((previous) => previous.map((entry) => (entry.id === updated.id ? updated : entry)));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Abstimmung fehlgeschlagen");
+    }
+  };
+
   useEffect(() => {
     return () => {
       if (voiceRecorderRef.current && voiceRecorderRef.current.state !== "inactive") {
@@ -808,8 +918,10 @@ export function App() {
   const logout = () => {
     setAuth(null);
     setMessages([]);
+    setPolls([]);
     setChannels([]);
     setActiveChannelId(null);
+    setReplyingToMessageId(null);
     setSearchResults([]);
     setSearchQuery("");
     setComposerText("");
@@ -855,6 +967,12 @@ export function App() {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         onSearch={onSearch}
+        onSummarizeChannel={onSummarizeChannel}
+        summaryLoading={summaryLoading}
+        polls={polls}
+        pollLoading={pollLoading}
+        onCreatePoll={onCreatePoll}
+        onVotePoll={onVotePoll}
         searchResults={searchResults}
         activeConversationStatus={activeConversationStatus}
         voiceSupported={voiceSupported}
@@ -865,6 +983,9 @@ export function App() {
         onLeaveVoiceCall={onLeaveVoiceCall}
         onToggleVoiceMute={onToggleVoiceMute}
         messages={messages}
+        replyingToMessageId={replyingToMessageId}
+        onReplyToMessage={onReplyToMessage}
+        onCancelReply={onCancelReply}
         messageListRef={messageListRef}
         activeMessageId={activeMessageId}
         setActiveMessageId={setActiveMessageId}

@@ -6,6 +6,8 @@ import multer from "multer";
 import { requireAuth, type AuthenticatedRequest } from "./chat.auth.js";
 import { chatService } from "./chat.service.js";
 import {
+  channelSummarySchema,
+  createPollSchema,
   createChannelSchema,
   usernameTargetSchema,
   pagingQuerySchema,
@@ -15,7 +17,8 @@ import {
   sendMessageSchema,
   transferOwnershipSchema,
   updateMemberRoleSchema,
-  updateMessageSchema
+  updateMessageSchema,
+  votePollSchema
 } from "./chat.validators.js";
 import { getRealtimeServer } from "../../realtime.state.js";
 import { getBulkPresence } from "../../realtime.presence.js";
@@ -44,7 +47,10 @@ const CHAT_BAD_REQUEST_ERRORS = [
   API_ERROR_CODES.GROUP_ONLY,
   API_ERROR_CODES.MEMBER_EXISTS,
   API_ERROR_CODES.INVALID_TARGET_USER,
-  API_ERROR_CODES.OWNER_TRANSFER_REQUIRED
+  API_ERROR_CODES.OWNER_TRANSFER_REQUIRED,
+  API_ERROR_CODES.POLL_NOT_FOUND,
+  API_ERROR_CODES.POLL_OPTION_INVALID,
+  API_ERROR_CODES.POLL_CLOSED
 ] as const;
 
 const CHAT_FORBIDDEN_ERRORS = [API_ERROR_CODES.FORBIDDEN_CHANNEL, API_ERROR_CODES.USER_BLOCKED] as const;
@@ -439,6 +445,120 @@ chatRouter.get("/channels/:channelId/messages", async (req: AuthenticatedRequest
   );
 });
 
+chatRouter.post("/channels/:channelId/summary", async (req: AuthenticatedRequest, res) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
+  }
+
+  const channelId = singleParam(req.params.channelId);
+  if (!channelId) {
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_CHANNEL_ID });
+  }
+
+  const parsed = channelSummarySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_BODY, details: parsed.error.issues });
+  }
+
+  return withErrorBoundary(
+    () =>
+      chatService.summarizeChannel({
+        channelId,
+        userId,
+        days: parsed.data.days ?? 7,
+        limit: parsed.data.limit ?? 150
+      }),
+    res,
+    {
+      badRequest: CHAT_BAD_REQUEST_ERRORS,
+      forbidden: CHAT_FORBIDDEN_ERRORS
+    }
+  );
+});
+
+chatRouter.get("/channels/:channelId/polls", async (req: AuthenticatedRequest, res) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
+  }
+
+  const channelId = singleParam(req.params.channelId);
+  if (!channelId) {
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_CHANNEL_ID });
+  }
+
+  return withErrorBoundary(() => chatService.listPolls({ channelId, userId }), res, {
+    badRequest: CHAT_BAD_REQUEST_ERRORS,
+    forbidden: CHAT_FORBIDDEN_ERRORS
+  });
+});
+
+chatRouter.post("/channels/:channelId/polls", async (req: AuthenticatedRequest, res) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
+  }
+
+  const channelId = singleParam(req.params.channelId);
+  if (!channelId) {
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_CHANNEL_ID });
+  }
+
+  const parsed = createPollSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_BODY, details: parsed.error.issues });
+  }
+
+  return withErrorBoundary(
+    () =>
+      chatService.createPoll({
+        channelId,
+        userId,
+        question: parsed.data.question,
+        options: parsed.data.options
+      }),
+    res,
+    {
+      badRequest: CHAT_BAD_REQUEST_ERRORS,
+      forbidden: CHAT_FORBIDDEN_ERRORS
+    }
+  );
+});
+
+chatRouter.post("/channels/:channelId/polls/:pollId/vote", async (req: AuthenticatedRequest, res) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
+  }
+
+  const channelId = singleParam(req.params.channelId);
+  const pollId = singleParam(req.params.pollId);
+  if (!channelId || !pollId) {
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_PATH_PARAMS });
+  }
+
+  const parsed = votePollSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_BODY, details: parsed.error.issues });
+  }
+
+  return withErrorBoundary(
+    () =>
+      chatService.votePoll({
+        channelId,
+        pollId,
+        optionId: parsed.data.optionId,
+        userId
+      }),
+    res,
+    {
+      badRequest: CHAT_BAD_REQUEST_ERRORS,
+      forbidden: CHAT_FORBIDDEN_ERRORS
+    }
+  );
+});
+
 chatRouter.post("/channels/:channelId/messages", async (req: AuthenticatedRequest, res) => {
   const userId = req.user?.userId;
   if (!userId) {
@@ -459,7 +579,8 @@ chatRouter.post("/channels/:channelId/messages", async (req: AuthenticatedReques
     const sent = await chatService.sendMessage({
       channelId,
       userId,
-      content: parsed.data.content
+      content: parsed.data.content,
+      replyToMessageId: parsed.data.replyToMessageId
     });
 
     const io = getRealtimeServer();

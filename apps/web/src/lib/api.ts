@@ -1,8 +1,11 @@
 import type {
   AuthEnvelope,
   AuthResponse,
+  ChannelSummaryRequest,
+  ChannelSummaryResponse,
   ChannelItem,
   ChannelMemberItem,
+  PollItem,
   MessageListResponse,
   MessageItem,
   OkResponse,
@@ -14,8 +17,10 @@ import type {
 import { ApiRequestError, requestJson as sharedRequestJson } from "@chatnet/shared";
 
 export type {
+  ChannelSummaryResponse,
   ChannelItem,
   ChannelMemberItem,
+  PollItem,
   MessageItem,
   PlatformSettingsItem,
   PresenceItem,
@@ -288,15 +293,80 @@ export async function listMessages(accessToken: string, channelId: string): Prom
   return payload.items;
 }
 
-export async function sendMessage(accessToken: string, channelId: string, content: string): Promise<MessageItem> {
+export async function summarizeChannel(
+  accessToken: string,
+  channelId: string,
+  options: ChannelSummaryRequest = {}
+): Promise<ChannelSummaryResponse> {
+  return requestJson<ChannelSummaryResponse>(
+    `/chat/channels/${channelId}/summary`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify(options)
+    },
+    { fallbackError: "SUMMARY_FAILED", retry: false }
+  );
+}
+
+export async function sendMessage(
+  accessToken: string,
+  channelId: string,
+  content: string,
+  replyToMessageId?: string
+): Promise<MessageItem> {
   return requestJson<MessageItem>(
     `/chat/channels/${channelId}/messages`,
     {
       method: "POST",
       headers: authHeaders(accessToken),
-      body: JSON.stringify({ content })
+      body: JSON.stringify({ content, ...(replyToMessageId ? { replyToMessageId } : {}) })
     },
     { fallbackError: "SEND_MESSAGE_FAILED", retry: false }
+  );
+}
+
+export async function listPolls(accessToken: string, channelId: string): Promise<PollItem[]> {
+  return requestJson<PollItem[]>(
+    `/chat/channels/${channelId}/polls`,
+    {
+      method: "GET",
+      headers: authHeaders(accessToken)
+    },
+    { fallbackError: "POLLS_FAILED" }
+  );
+}
+
+export async function createPoll(
+  accessToken: string,
+  channelId: string,
+  payload: { question: string; options: string[] }
+): Promise<PollItem> {
+  return requestJson<PollItem>(
+    `/chat/channels/${channelId}/polls`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify(payload)
+    },
+    { fallbackError: "CREATE_POLL_FAILED", retry: false }
+  );
+}
+
+export async function votePoll(
+  accessToken: string,
+  channelId: string,
+  pollId: string,
+  optionId: string
+): Promise<PollItem> {
+  return requestJson<PollItem>(
+    `/chat/channels/${channelId}/polls/${pollId}/vote`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify({ optionId })
+    },
+    { fallbackError: "VOTE_POLL_FAILED", retry: false }
   );
 }
 

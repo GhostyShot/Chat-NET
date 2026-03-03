@@ -54,7 +54,30 @@ export interface MessageItem {
   channelId?: string;
   content: string;
   createdAt: string;
+  replyTo?: {
+    id: string;
+    content: string;
+    sender: ChannelUserSummary;
+  } | null;
   sender: ChannelUserSummary;
+}
+
+export interface PollOptionItem {
+  id: string;
+  label: string;
+  voteCount: number;
+}
+
+export interface PollItem {
+  id: string;
+  channelId: string;
+  question: string;
+  isClosed: boolean;
+  createdAt: string;
+  creator: ChannelUserSummary;
+  options: PollOptionItem[];
+  votedOptionId: string | null;
+  totalVotes: number;
 }
 
 export interface PresenceItem {
@@ -100,6 +123,19 @@ export interface OkResponse {
 
 export interface MessageListResponse {
   items: MessageItem[];
+}
+
+export interface ChannelSummaryRequest {
+  days?: number;
+  limit?: number;
+}
+
+export interface ChannelSummaryResponse {
+  summary: string;
+  source: "ai" | "fallback";
+  messageCount: number;
+  days: number;
+  limit: number;
 }
 
 export interface DeletedMessageResponse {
@@ -156,7 +192,11 @@ export const API_ERROR_CODES = {
   OWNER_TRANSFER_REQUIRED: "OWNER_TRANSFER_REQUIRED",
   FORBIDDEN_CHANNEL: "FORBIDDEN_CHANNEL",
   USER_BLOCKED: "USER_BLOCKED",
-  FORBIDDEN_MESSAGE: "FORBIDDEN_MESSAGE"
+  FORBIDDEN_MESSAGE: "FORBIDDEN_MESSAGE",
+  AI_SUMMARY_FAILED: "AI_SUMMARY_FAILED",
+  POLL_NOT_FOUND: "POLL_NOT_FOUND",
+  POLL_OPTION_INVALID: "POLL_OPTION_INVALID",
+  POLL_CLOSED: "POLL_CLOSED"
 } as const;
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[keyof typeof API_ERROR_CODES];

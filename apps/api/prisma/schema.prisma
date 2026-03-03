@@ -51,6 +51,8 @@ model User {
   channelMemberships ChannelMembership[]
   messagesSent  Message[]
   readReceipts  ReadReceipt[]
+  pollsCreated  Poll[]
+  pollVotes     PollVote[]
   channelsCreated Channel[] @relation("ChannelCreator")
   blocksInitiated UserBlock[] @relation("BlockerUser")
   blocksReceived UserBlock[]  @relation("BlockedUser")
@@ -92,6 +94,7 @@ model Channel {
   updatedAt     DateTime            @updatedAt
   memberships   ChannelMembership[]
   messages      Message[]
+  polls         Poll[]
 
   @@index([updatedAt])
 }
@@ -112,14 +115,58 @@ model Message {
   id          String        @id @default(uuid())
   channelId   String
   senderId    String
+  replyToId   String?
   content     String
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   channel     Channel       @relation(fields: [channelId], references: [id], onDelete: Cascade)
   sender      User          @relation(fields: [senderId], references: [id], onDelete: Restrict)
+  replyTo     Message?      @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies     Message[]     @relation("MessageReplies")
   readReceipts ReadReceipt[]
 
   @@index([channelId, createdAt])
+  @@index([replyToId])
+}
+
+model Poll {
+  id          String       @id @default(uuid())
+  channelId   String
+  creatorId   String
+  question    String
+  isClosed    Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  channel     Channel      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  creator     User         @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+  options     PollOption[]
+  votes       PollVote[]
+
+  @@index([channelId, createdAt])
+}
+
+model PollOption {
+  id          String      @id @default(uuid())
+  pollId      String
+  label       String
+  createdAt   DateTime    @default(now())
+  poll        Poll        @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes       PollVote[]
+
+  @@index([pollId])
+}
+
+model PollVote {
+  pollId      String
+  optionId    String
+  userId      String
+  createdAt   DateTime   @default(now())
+  poll        Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option      PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([pollId, userId])
+  @@index([optionId])
 }
 
 model ReadReceipt {

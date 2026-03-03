@@ -1,6 +1,6 @@
 import type { ChangeEvent, KeyboardEvent, MutableRefObject, ReactNode } from "react";
 import type { AuthResponse } from "@chatnet/shared";
-import type { ChannelItem, ChannelMemberItem, MessageItem } from "../lib/api";
+import type { ChannelItem, ChannelMemberItem, MessageItem, PollItem } from "../lib/api";
 
 type MentionCandidate = {
   username: string;
@@ -43,6 +43,12 @@ type ChatLayoutProps = {
   searchQuery: string;
   setSearchQuery: (value: string) => void;
   onSearch: () => void;
+  onSummarizeChannel: () => void;
+  summaryLoading: boolean;
+  polls: PollItem[];
+  pollLoading: boolean;
+  onCreatePoll: () => void;
+  onVotePoll: (pollId: string, optionId: string) => void;
   searchResults: MessageItem[];
   activeConversationStatus: string;
   voiceSupported: boolean;
@@ -53,6 +59,9 @@ type ChatLayoutProps = {
   onLeaveVoiceCall: () => void;
   onToggleVoiceMute: () => void;
   messages: MessageItem[];
+  replyingToMessageId: string | null;
+  onReplyToMessage: (messageId: string) => void;
+  onCancelReply: () => void;
   messageListRef: MutableRefObject<HTMLDivElement | null>;
   activeMessageId: string | null;
   setActiveMessageId: (id: string | null | ((current: string | null) => string | null)) => void;
@@ -161,6 +170,12 @@ export function ChatLayout({
   searchQuery,
   setSearchQuery,
   onSearch,
+  onSummarizeChannel,
+  summaryLoading,
+  polls,
+  pollLoading,
+  onCreatePoll,
+  onVotePoll,
   searchResults,
   activeConversationStatus,
   voiceSupported,
@@ -171,6 +186,9 @@ export function ChatLayout({
   onLeaveVoiceCall,
   onToggleVoiceMute,
   messages,
+  replyingToMessageId,
+  onReplyToMessage,
+  onCancelReply,
   messageListRef,
   activeMessageId,
   setActiveMessageId,
@@ -458,7 +476,38 @@ export function ChatLayout({
               <button className="secondary compact" onClick={onSearch}>
                 Suchen
               </button>
+              <button className="secondary compact" onClick={onSummarizeChannel} disabled={!activeChannelId || summaryLoading}>
+                {summaryLoading ? "Zusammenfassen …" : "AI-Zusammenfassung (7T)"}
+              </button>
+              <button className="secondary compact" onClick={onCreatePoll} disabled={!activeChannelId || pollLoading}>
+                {pollLoading ? "Umfrage …" : "Umfrage erstellen"}
+              </button>
             </div>
+
+            {polls.length > 0 && (
+              <div className="poll-list">
+                {polls.slice(0, 5).map((poll) => (
+                  <article key={poll.id} className="poll-card">
+                    <p className="poll-question">{poll.question}</p>
+                    <div className="poll-options">
+                      {poll.options.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          className={poll.votedOptionId === option.id ? "poll-option active" : "poll-option"}
+                          onClick={() => onVotePoll(poll.id, option.id)}
+                          disabled={poll.isClosed}
+                        >
+                          <span>{option.label}</span>
+                          <strong>{option.voteCount}</strong>
+                        </button>
+                      ))}
+                    </div>
+                    <small className="inline-note">{poll.totalVotes} Stimmen</small>
+                  </article>
+                ))}
+              </div>
+            )}
 
             {!!searchResults.length && (
               <div className="search-results">
@@ -479,6 +528,7 @@ export function ChatLayout({
                 const timeLabel = formatTimeLabel(entry.createdAt);
                 const voiceMatch = entry.content.match(/^\[voice\]\s+(https?:\/\/\S+)$/i);
                 const voiceUrl = voiceMatch?.[1] ?? null;
+                const isReplyingToEntry = replyingToMessageId === entry.id;
                 return (
                   <article
                     key={entry.id}
@@ -513,7 +563,15 @@ export function ChatLayout({
                         <audio controls preload="none" src={voiceUrl} className="voice-message-player" />
                       </div>
                     ) : (
-                      <p className="message-content">{renderContentWithMentions(entry.content)}</p>
+                      <>
+                        {entry.replyTo ? (
+                          <div className="reply-preview">
+                            <strong>{entry.replyTo.sender.displayName}</strong>
+                            <span>{entry.replyTo.content}</span>
+                          </div>
+                        ) : null}
+                        <p className="message-content">{renderContentWithMentions(entry.content)}</p>
+                      </>
                     )}
 
                     {entry.content.startsWith("http") && !voiceUrl && (
@@ -524,6 +582,9 @@ export function ChatLayout({
 
                     {ownMessage ? (
                       <div className={showActions ? "message-actions visible" : "message-actions"}>
+                        <button className="message-action-chip" onClick={() => onReplyToMessage(entry.id)} title="Antworten" aria-label="Antworten">
+                          ↩
+                        </button>
                         <button className="message-action-chip" onClick={() => onEditMessage(entry)} title="Bearbeiten" aria-label="Bearbeiten">
                           {"\u270E"}
                         </button>
@@ -532,15 +593,17 @@ export function ChatLayout({
                         </button>
                       </div>
                     ) : (
-                      <button
-                        className={showActions ? "message-inline-action visible" : "message-inline-action"}
-                        onClick={() => onBlockSender(entry.sender.id)}
-                        title="Blockieren"
-                        aria-label="Blockieren"
-                      >
-                        {"\uD83D\uDEAB"}
-                      </button>
+                      <div className={showActions ? "message-actions visible" : "message-actions"}>
+                        <button className="message-action-chip" onClick={() => onReplyToMessage(entry.id)} title="Antworten" aria-label="Antworten">
+                          ↩
+                        </button>
+                        <button className="message-action-chip delete" onClick={() => onBlockSender(entry.sender.id)} title="Blockieren" aria-label="Blockieren">
+                          {"\uD83D\uDEAB"}
+                        </button>
+                      </div>
                     )}
+
+                    {isReplyingToEntry ? <small className="inline-note">Antwort wird verfasst …</small> : null}
                   </article>
                 );
               })}
@@ -576,6 +639,14 @@ export function ChatLayout({
                 </button>
               )}
               <div className="composer-input-wrap">
+                {replyingToMessageId ? (
+                  <div className="reply-banner">
+                    <span>Antwort auf Nachricht</span>
+                    <button type="button" className="secondary compact" onClick={onCancelReply}>
+                      Abbrechen
+                    </button>
+                  </div>
+                ) : null}
                 <textarea
                   ref={composerRef}
                   value={composerText}

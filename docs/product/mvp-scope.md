@@ -8,6 +8,7 @@
 - Lesebestätigungen
 - Tippindikator
 - Suche in Nachrichten
+- AI-Chat-Zusammenfassung (letzte 7 Tage, max. 150 Nachrichten)
 - Push-Benachrichtigungen
 - Accounts mit Profilbild
 - Moderner, übersichtlicher, vertrauenswürdiger Look

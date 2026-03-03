@@ -39,6 +39,7 @@ type UseChatActionsParams = {
   setEditingMessageId: Dispatch<SetStateAction<string | null>>;
   setEditingContent: Dispatch<SetStateAction<string>>;
   setComposerText: Dispatch<SetStateAction<string>>;
+  setReplyingToMessageId: Dispatch<SetStateAction<string | null>>;
   setSearchResults: Dispatch<SetStateAction<MessageItem[]>>;
   setDirectUsername: Dispatch<SetStateAction<string>>;
   setDirectModalOpen: Dispatch<SetStateAction<boolean>>;
@@ -54,6 +55,7 @@ type UseChatActionsParams = {
   setAuth: Dispatch<SetStateAction<AuthResponse | null>>;
   searchQuery: string;
   composerText: string;
+  replyingToMessageId: string | null;
   editingContent: string;
   newChannelName: string;
   directUsername: string;
@@ -78,6 +80,7 @@ export function useChatActions({
   setEditingMessageId,
   setEditingContent,
   setComposerText,
+  setReplyingToMessageId,
   setSearchResults,
   setDirectUsername,
   setDirectModalOpen,
@@ -93,6 +96,7 @@ export function useChatActions({
   setAuth,
   searchQuery,
   composerText,
+  replyingToMessageId,
   editingContent,
   newChannelName,
   directUsername,
@@ -146,8 +150,9 @@ export function useChatActions({
     }
 
     try {
-      await sendMessage(auth.tokens.accessToken, activeChannelId, composerText.trim());
+      await sendMessage(auth.tokens.accessToken, activeChannelId, composerText.trim(), replyingToMessageId ?? undefined);
       setComposerText("");
+      setReplyingToMessageId(null);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Nachricht konnte nicht gesendet werden");
     }

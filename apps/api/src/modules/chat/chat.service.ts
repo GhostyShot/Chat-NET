@@ -1,5 +1,5 @@
 import { prisma } from "../../lib/prisma.js";
-import { API_ERROR_CODES } from "@chatnet/shared";
+import { API_ERROR_CODES, type ChannelSummaryResponse, type PollItem } from "@chatnet/shared";
 import { appConfig } from "../../config.js";
 
 function dedupeMemberIds(ownerId: string, memberIds: string[]) {
@@ -11,6 +11,137 @@ function normalizeUsername(username: string): string {
 }
 
 export class ChatService {
+  private mapPoll(poll: {
+    id: string;
+    channelId: string;
+    question: string;
+    isClosed: boolean;
+    createdAt: Date;
+    creator: {
+      id: string;
+      username: string;
+      displayName: string;
+      avatarUrl: string | null;
+    };
+    options: Array<{
+      id: string;
+      label: string;
+      votes: Array<{ userId: string }>;
+    }>;
+  }, userId: string): PollItem {
+    const options = poll.options.map((option) => ({
+      id: option.id,
+      label: option.label,
+      voteCount: option.votes.length
+    }));
+    const votedOption = poll.options.find((option) => option.votes.some((vote) => vote.userId === userId));
+    const totalVotes = options.reduce((sum, option) => sum + option.voteCount, 0);
+
+    return {
+      id: poll.id,
+      channelId: poll.channelId,
+      question: poll.question,
+      isClosed: poll.isClosed,
+      createdAt: poll.createdAt.toISOString(),
+      creator: {
+        id: poll.creator.id,
+        username: poll.creator.username,
+        displayName: poll.creator.displayName,
+        avatarUrl: poll.creator.avatarUrl
+      },
+      options,
+      votedOptionId: votedOption?.id ?? null,
+      totalVotes
+    };
+  }
+
+  private buildFallbackSummary(channelMessages: Array<{ content: string; sender: { displayName: string } }>, days: number): string {
+    const cleaned = channelMessages
+      .map((item) => ({
+        sender: item.sender.displayName,
+        content: item.content.replace(/\s+/g, " ").trim()
+      }))
+      .filter((item) => item.content.length > 0);
+
+    if (cleaned.length === 0) {
+      return `Keine auswertbaren Nachrichten in den letzten ${days} Tagen.`;
+    }
+
+    const senderCounter = new Map<string, number>();
+    for (const message of cleaned) {
+      senderCounter.set(message.sender, (senderCounter.get(message.sender) ?? 0) + 1);
+    }
+    const topSenders = Array.from(senderCounter.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([sender, count]) => `${sender} (${count})`)
+      .join(", ");
+
+    const highlights = cleaned
+      .slice(0, 80)
+      .sort((a, b) => b.content.length - a.content.length)
+      .slice(0, 5)
+      .map((item) => `${item.sender}: ${item.content}`);
+
+    return [
+      `Zusammenfassung der letzten ${days} Tage (${cleaned.length} Nachrichten).`,
+      topSenders ? `Aktivste Personen: ${topSenders}.` : "",
+      "Wichtige Punkte:",
+      ...highlights.map((entry) => `- ${entry}`)
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  private async summarizeWithFreeAi(text: string): Promise<string | null> {
+    const huggingFaceToken = process.env.HUGGINGFACE_API_TOKEN?.trim();
+    if (!huggingFaceToken) {
+      return null;
+    }
+
+    const model = process.env.HUGGINGFACE_SUMMARY_MODEL?.trim() || "facebook/bart-large-cnn";
+    const endpoint = `https://api-inference.huggingface.co/models/${encodeURIComponent(model)}`;
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${huggingFaceToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        inputs: text,
+        options: { wait_for_model: true }
+      })
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = (await response.json()) as unknown;
+
+    if (Array.isArray(data) && data.length > 0) {
+      const first = data[0] as { summary_text?: unknown; generated_text?: unknown };
+      if (typeof first.summary_text === "string" && first.summary_text.trim()) {
+        return first.summary_text.trim();
+      }
+      if (typeof first.generated_text === "string" && first.generated_text.trim()) {
+        return first.generated_text.trim();
+      }
+    }
+
+    if (data && typeof data === "object") {
+      const candidate = data as { summary_text?: unknown; generated_text?: unknown };
+      if (typeof candidate.summary_text === "string" && candidate.summary_text.trim()) {
+        return candidate.summary_text.trim();
+      }
+      if (typeof candidate.generated_text === "string" && candidate.generated_text.trim()) {
+        return candidate.generated_text.trim();
+      }
+    }
+
+    return null;
+  }
+
   private async getMembershipRole(channelId: string, userId: string): Promise<"OWNER" | "ADMIN" | "MEMBER" | null> {
     const membership = await prisma.channelMembership.findUnique({
       where: {
@@ -503,7 +634,7 @@ export class ChatService {
     return { ok: true, leftUserId: input.requesterId, channelId: input.channelId };
   }
 
-  async sendMessage(input: { channelId: string; userId: string; content: string }) {
+  async sendMessage(input: { channelId: string; userId: string; content: string; replyToMessageId?: string }) {
     const membership = await prisma.channelMembership.findUnique({
       where: {
         userId_channelId: {
@@ -546,6 +677,18 @@ export class ChatService {
       throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
+    if (input.replyToMessageId) {
+      const replyTarget = await prisma.message.findFirst({
+        where: {
+          id: input.replyToMessageId,
+          channelId: input.channelId
+        }
+      });
+      if (!replyTarget) {
+        throw new Error(API_ERROR_CODES.MESSAGE_NOT_FOUND);
+      }
+    }
+
     const memberships = await prisma.channelMembership.findMany({
       where: { channelId: input.channelId },
       select: { userId: true }
@@ -561,7 +704,8 @@ export class ChatService {
       data: {
         channelId: input.channelId,
         senderId: input.userId,
-        content: input.content
+        content: input.content,
+        replyToId: input.replyToMessageId
       },
       include: {
         sender: {
@@ -570,6 +714,20 @@ export class ChatService {
             username: true,
             displayName: true,
             avatarUrl: true
+          }
+        },
+        replyTo: {
+          select: {
+            id: true,
+            content: true,
+            sender: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true
+              }
+            }
           }
         }
       }
@@ -616,6 +774,20 @@ export class ChatService {
             avatarUrl: true
           }
         },
+        replyTo: {
+          select: {
+            id: true,
+            content: true,
+            sender: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true
+              }
+            }
+          }
+        },
         _count: {
           select: {
             readReceipts: true
@@ -627,6 +799,96 @@ export class ChatService {
     return {
       items: messages,
       nextCursor: messages.length === input.limit ? messages[messages.length - 1]?.id : undefined
+    };
+  }
+
+  async summarizeChannel(input: {
+    channelId: string;
+    userId: string;
+    days: number;
+    limit: number;
+  }): Promise<ChannelSummaryResponse> {
+    const membership = await prisma.channelMembership.findUnique({
+      where: {
+        userId_channelId: {
+          userId: input.userId,
+          channelId: input.channelId
+        }
+      }
+    });
+
+    if (!membership) {
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
+    }
+
+    const since = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
+
+    const messages = await prisma.message.findMany({
+      where: {
+        channelId: input.channelId,
+        createdAt: {
+          gte: since
+        }
+      },
+      orderBy: { createdAt: "desc" },
+      take: input.limit,
+      include: {
+        sender: {
+          select: {
+            displayName: true
+          }
+        }
+      }
+    });
+
+    if (messages.length === 0) {
+      return {
+        summary: `Keine Nachrichten in den letzten ${input.days} Tagen.`,
+        source: "fallback",
+        messageCount: 0,
+        days: input.days,
+        limit: input.limit
+      };
+    }
+
+    const orderedForPrompt = [...messages].reverse();
+    const plainTranscript = orderedForPrompt
+      .map((entry) => `${entry.sender.displayName}: ${entry.content.replace(/\s+/g, " ").trim()}`)
+      .filter((line) => line.length > 0)
+      .join("\n");
+
+    const prompt = [
+      "Du bist ein Assistent für Chat-Zusammenfassungen.",
+      "Fasse den Verlauf auf Deutsch zusammen.",
+      "Gib genau 5 kurze Stichpunkte mit klaren Entscheidungen, Aufgaben und offenen Punkten.",
+      "Wenn es keine Aufgaben gibt, schreibe das explizit.",
+      "",
+      "Chatverlauf:",
+      plainTranscript
+    ].join("\n");
+
+    try {
+      const aiSummary = await this.summarizeWithFreeAi(prompt);
+      if (aiSummary) {
+        return {
+          summary: aiSummary,
+          source: "ai",
+          messageCount: messages.length,
+          days: input.days,
+          limit: input.limit
+        };
+      }
+    } catch {}
+
+    return {
+      summary: this.buildFallbackSummary(
+        orderedForPrompt.map((entry) => ({ content: entry.content, sender: { displayName: entry.sender.displayName } })),
+        input.days
+      ),
+      source: "fallback",
+      messageCount: messages.length,
+      days: input.days,
+      limit: input.limit
     };
   }
 
@@ -714,6 +976,20 @@ export class ChatService {
             displayName: true,
             avatarUrl: true
           }
+        },
+        replyTo: {
+          select: {
+            id: true,
+            content: true,
+            sender: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true
+              }
+            }
+          }
         }
       }
     });
@@ -789,9 +1065,213 @@ export class ChatService {
             displayName: true,
             avatarUrl: true
           }
+        },
+        replyTo: {
+          select: {
+            id: true,
+            content: true,
+            sender: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true
+              }
+            }
+          }
         }
       }
     });
+  }
+
+  async listPolls(input: { channelId: string; userId: string }) {
+    const membership = await prisma.channelMembership.findUnique({
+      where: {
+        userId_channelId: {
+          userId: input.userId,
+          channelId: input.channelId
+        }
+      }
+    });
+
+    if (!membership) {
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
+    }
+
+    const polls = await prisma.poll.findMany({
+      where: { channelId: input.channelId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true
+          }
+        },
+        options: {
+          include: {
+            votes: {
+              select: {
+                userId: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return polls.map((poll) => this.mapPoll(poll, input.userId));
+  }
+
+  async createPoll(input: { channelId: string; userId: string; question: string; options: string[] }) {
+    const membership = await prisma.channelMembership.findUnique({
+      where: {
+        userId_channelId: {
+          userId: input.userId,
+          channelId: input.channelId
+        }
+      }
+    });
+
+    if (!membership) {
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
+    }
+
+    const uniqueOptions = Array.from(new Set(input.options.map((entry) => entry.trim()).filter(Boolean)));
+    if (uniqueOptions.length < 2) {
+      throw new Error(API_ERROR_CODES.POLL_OPTION_INVALID);
+    }
+
+    const poll = await prisma.poll.create({
+      data: {
+        channelId: input.channelId,
+        creatorId: input.userId,
+        question: input.question.trim(),
+        options: {
+          create: uniqueOptions.map((label) => ({ label }))
+        }
+      },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true
+          }
+        },
+        options: {
+          include: {
+            votes: {
+              select: {
+                userId: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    await prisma.channel.update({
+      where: { id: input.channelId },
+      data: { updatedAt: new Date() }
+    });
+
+    return this.mapPoll(poll, input.userId);
+  }
+
+  async votePoll(input: { channelId: string; pollId: string; optionId: string; userId: string }) {
+    const membership = await prisma.channelMembership.findUnique({
+      where: {
+        userId_channelId: {
+          userId: input.userId,
+          channelId: input.channelId
+        }
+      }
+    });
+
+    if (!membership) {
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
+    }
+
+    const poll = await prisma.poll.findFirst({
+      where: {
+        id: input.pollId,
+        channelId: input.channelId
+      },
+      select: {
+        id: true,
+        isClosed: true
+      }
+    });
+
+    if (!poll) {
+      throw new Error(API_ERROR_CODES.POLL_NOT_FOUND);
+    }
+
+    if (poll.isClosed) {
+      throw new Error(API_ERROR_CODES.POLL_CLOSED);
+    }
+
+    const option = await prisma.pollOption.findFirst({
+      where: {
+        id: input.optionId,
+        pollId: input.pollId
+      },
+      select: { id: true }
+    });
+
+    if (!option) {
+      throw new Error(API_ERROR_CODES.POLL_OPTION_INVALID);
+    }
+
+    await prisma.pollVote.upsert({
+      where: {
+        pollId_userId: {
+          pollId: input.pollId,
+          userId: input.userId
+        }
+      },
+      create: {
+        pollId: input.pollId,
+        userId: input.userId,
+        optionId: input.optionId
+      },
+      update: {
+        optionId: input.optionId
+      }
+    });
+
+    const refreshedPoll = await prisma.poll.findUnique({
+      where: { id: input.pollId },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true
+          }
+        },
+        options: {
+          include: {
+            votes: {
+              select: {
+                userId: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!refreshedPoll) {
+      throw new Error(API_ERROR_CODES.POLL_NOT_FOUND);
+    }
+
+    return this.mapPoll(refreshedPoll, input.userId);
   }
 
   async blockUser(input: { blockerId: string; blockedId: string }) {
