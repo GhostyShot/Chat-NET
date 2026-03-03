@@ -1,5 +1,6 @@
 import { prisma } from "../../lib/prisma.js";
 import { API_ERROR_CODES } from "@chatnet/shared";
+import { appConfig } from "../../config.js";
 
 function dedupeMemberIds(ownerId: string, memberIds: string[]) {
   return Array.from(new Set([ownerId, ...memberIds]));
@@ -61,9 +62,7 @@ export class ChatService {
           select: { messages: true }
         }
       },
-      orderBy: {
-        updatedAt: "desc"
-      }
+      orderBy: [{ isSystem: "desc" }, { updatedAt: "desc" }]
     });
   }
 
@@ -515,6 +514,35 @@ export class ChatService {
     });
 
     if (!membership) {
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
+    }
+
+    const channel = await prisma.channel.findUnique({
+      where: { id: input.channelId },
+      select: {
+        id: true,
+        isSystem: true,
+        postingPolicy: true
+      }
+    });
+
+    if (!channel) {
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
+    }
+
+    const isConfiguredPlatformOwner = Boolean(appConfig.platformOwnerUserId && input.userId === appConfig.platformOwnerUserId);
+    const isOwnerMembership = membership.role === "OWNER";
+    const canPostAsOwner = isConfiguredPlatformOwner || isOwnerMembership;
+
+    if (channel.isSystem && !canPostAsOwner) {
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
+    }
+
+    if (channel.postingPolicy === "OWNER_ONLY" && !canPostAsOwner) {
+      throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
+    }
+
+    if (channel.postingPolicy === "ADMINS_ONLY" && !(membership.role === "ADMIN" || canPostAsOwner)) {
       throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 

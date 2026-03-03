@@ -2,6 +2,9 @@ import type { AuthProvider as DbAuthProvider, EmailTokenType as DbEmailTokenType
 import { v4 as uuid } from "uuid";
 import { prisma } from "../../lib/prisma.js";
 import type { CreateEmailTokenInput, CreateUserInput, EmailTokenRecord, StoredUser } from "./auth.types.js";
+import { appConfig } from "../../config.js";
+
+const SYSTEM_CHANNEL_KEY = "SYSTEM_NEWS";
 
 export class AuthStore {
   private sanitizeUsername(value: string): string {
@@ -109,6 +112,52 @@ export class AuthStore {
         passwordHash: input.passwordHash ?? null
       }
     });
+
+    const systemChannel = await prisma.channel.upsert({
+      where: {
+        systemKey: SYSTEM_CHANNEL_KEY
+      },
+      update: {},
+      create: {
+        type: "GROUP",
+        name: "Systemnachrichten",
+        isSystem: true,
+        systemKey: SYSTEM_CHANNEL_KEY,
+        postingPolicy: "OWNER_ONLY",
+        createdById: user.id,
+        memberships: {
+          create: {
+            userId: user.id,
+            role: appConfig.platformOwnerUserId && appConfig.platformOwnerUserId !== user.id ? "MEMBER" : "OWNER"
+          }
+        }
+      },
+      select: {
+        id: true,
+        createdById: true
+      }
+    });
+
+    await prisma.channelMembership.upsert({
+      where: {
+        userId_channelId: {
+          userId: user.id,
+          channelId: systemChannel.id
+        }
+      },
+      update: {},
+      create: {
+        userId: user.id,
+        channelId: systemChannel.id,
+        role:
+          appConfig.platformOwnerUserId && user.id === appConfig.platformOwnerUserId
+            ? "OWNER"
+            : systemChannel.createdById === user.id
+              ? "OWNER"
+              : "MEMBER"
+      }
+    });
+
     return this.toStoredUser(user);
   }
 

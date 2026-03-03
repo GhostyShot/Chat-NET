@@ -29,6 +29,12 @@ enum MembershipRole {
   MEMBER
 }
 
+enum PostingPolicy {
+  ALL_MEMBERS
+  ADMINS_ONLY
+  OWNER_ONLY
+}
+
 model User {
   id            String       @id @default(uuid())
   email         String       @unique
@@ -77,6 +83,9 @@ model Channel {
   id            String              @id @default(uuid())
   type          ChannelType
   name          String?
+  isSystem      Boolean             @default(false)
+  systemKey     String?             @unique
+  postingPolicy PostingPolicy       @default(ALL_MEMBERS)
   createdById   String
   createdBy     User                @relation("ChannelCreator", fields: [createdById], references: [id], onDelete: Restrict)
   createdAt     DateTime            @default(now())

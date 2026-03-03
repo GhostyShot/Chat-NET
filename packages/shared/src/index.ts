@@ -24,6 +24,7 @@ export interface AuthResponse {
 
 export type ChannelType = "DIRECT" | "GROUP";
 export type ChannelMemberRole = "OWNER" | "ADMIN" | "MEMBER";
+export type ChannelPostingPolicy = "ALL_MEMBERS" | "ADMINS_ONLY" | "OWNER_ONLY";
 
 export interface ChannelUserSummary {
   id: string;
@@ -41,6 +42,9 @@ export interface ChannelItem {
   id: string;
   type: ChannelType;
   name: string | null;
+  isSystem?: boolean;
+  systemKey?: string | null;
+  postingPolicy?: ChannelPostingPolicy;
   updatedAt: string;
   memberships?: ChannelMembershipSummary[];
 }
