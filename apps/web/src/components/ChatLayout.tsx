@@ -77,6 +77,10 @@ type ChatLayoutProps = {
   onSendMessage: () => void;
   uploadsEnabledForAll: boolean;
   onUploadSelected: (event: ChangeEvent<HTMLInputElement>) => void;
+  voiceNoteSupported: boolean;
+  voiceNoteState: "idle" | "recording" | "uploading";
+  onStartVoiceNote: () => void;
+  onStopVoiceNote: () => void;
   message: string;
   mentionNotice: string;
   settingsOpen: boolean;
@@ -191,6 +195,10 @@ export function ChatLayout({
   onSendMessage,
   uploadsEnabledForAll,
   onUploadSelected,
+  voiceNoteSupported,
+  voiceNoteState,
+  onStartVoiceNote,
+  onStopVoiceNote,
   message,
   mentionNotice,
   settingsOpen,
@@ -469,6 +477,8 @@ export function ChatLayout({
                 const isOnline = Boolean(presenceMap[entry.sender.id]);
                 const role = memberRoleByUserId.get(entry.sender.id);
                 const timeLabel = formatTimeLabel(entry.createdAt);
+                const voiceMatch = entry.content.match(/^\[voice\]\s+(https?:\/\/\S+)$/i);
+                const voiceUrl = voiceMatch?.[1] ?? null;
                 return (
                   <article
                     key={entry.id}
@@ -498,11 +508,15 @@ export function ChatLayout({
                           Speichern
                         </button>
                       </div>
+                    ) : voiceUrl ? (
+                      <div className="voice-message-wrap">
+                        <audio controls preload="none" src={voiceUrl} className="voice-message-player" />
+                      </div>
                     ) : (
                       <p className="message-content">{renderContentWithMentions(entry.content)}</p>
                     )}
 
-                    {entry.content.startsWith("http") && (
+                    {entry.content.startsWith("http") && !voiceUrl && (
                       <a className="file-link" href={entry.content} target="_blank" rel="noreferrer">
                         {"Datei \u00F6ffnen"}
                       </a>
@@ -549,6 +563,18 @@ export function ChatLayout({
                 <span className="composer-icon">+</span>
               </label>
               <input id="upload-input" className="file-input" type="file" onChange={onUploadSelected} disabled={!uploadsEnabledForAll} />
+              {voiceNoteSupported && (
+                <button
+                  className={voiceNoteState === "uploading" ? "upload-button disabled" : "upload-button"}
+                  onClick={voiceNoteState === "recording" ? onStopVoiceNote : onStartVoiceNote}
+                  title={voiceNoteState === "recording" ? "Sprachnachricht stoppen" : "Sprachnachricht aufnehmen"}
+                  aria-label={voiceNoteState === "recording" ? "Sprachnachricht stoppen" : "Sprachnachricht aufnehmen"}
+                  disabled={voiceNoteState === "uploading"}
+                  type="button"
+                >
+                  <span className="composer-icon">{voiceNoteState === "recording" ? "●" : "🎙"}</span>
+                </button>
+              )}
               <div className="composer-input-wrap">
                 <textarea
                   ref={composerRef}

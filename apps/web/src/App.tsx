@@ -6,6 +6,8 @@ import {
   loginWithGoogle,
   register,
   resetPassword,
+  sendMessage,
+  uploadFile,
   type ChannelMemberItem,
   type ChannelItem,
   type MessageItem
@@ -95,6 +97,10 @@ export function App() {
   const [platformToggleLoading, setPlatformToggleLoading] = useState(false);
   const [realtimeState, setRealtimeState] = useState<"connecting" | "online" | "offline">("offline");
   const [unreadByChannelId, setUnreadByChannelId] = useState<Record<string, number>>({});
+  const [voiceNoteState, setVoiceNoteState] = useState<"idle" | "recording" | "uploading">("idle");
+  const voiceRecorderRef = useRef<MediaRecorder | null>(null);
+  const voiceStreamRef = useRef<MediaStream | null>(null);
+  const voiceChunksRef = useRef<Blob[]>([]);
   const { isMobileLayout, mobilePane, setMobilePane } = useResponsiveChatLayout(activeChannelId, composerRef);
 
   const socketRef = useRealtimeChat({
@@ -688,6 +694,101 @@ export function App() {
     }
   };
 
+  const stopVoiceStream = () => {
+    const stream = voiceStreamRef.current;
+    if (!stream) {
+      return;
+    }
+    for (const track of stream.getTracks()) {
+      track.stop();
+    }
+    voiceStreamRef.current = null;
+  };
+
+  const onStartVoiceNote = async () => {
+    if (!auth || !activeChannelId) {
+      setMessage("Öffne zuerst einen Kanal für Sprachnachrichten.");
+      return;
+    }
+    if (voiceNoteState !== "idle") {
+      return;
+    }
+    if (typeof window === "undefined" || typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setMessage("Sprachnachrichten werden von diesem Browser nicht unterstützt.");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      voiceStreamRef.current = stream;
+
+      const mimeCandidates = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/mp4"];
+      const selectedMimeType = mimeCandidates.find((mime) => MediaRecorder.isTypeSupported(mime));
+      const recorder = selectedMimeType ? new MediaRecorder(stream, { mimeType: selectedMimeType }) : new MediaRecorder(stream);
+
+      voiceChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          voiceChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        if (!auth || !activeChannelId) {
+          stopVoiceStream();
+          setVoiceNoteState("idle");
+          return;
+        }
+
+        setVoiceNoteState("uploading");
+        try {
+          const mimeType = recorder.mimeType || selectedMimeType || "audio/webm";
+          const blob = new Blob(voiceChunksRef.current, { type: mimeType });
+          const extension = mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") ? "m4a" : "webm";
+          const file = new File([blob], `voice-note-${Date.now()}.${extension}`, { type: mimeType });
+
+          const uploaded = await uploadFile(auth.tokens.accessToken, file);
+          await sendMessage(auth.tokens.accessToken, activeChannelId, `[voice] ${uploaded.url}`);
+          setMessage("Sprachnachricht gesendet.");
+        } catch (error) {
+          setMessage(error instanceof Error ? error.message : "Sprachnachricht konnte nicht gesendet werden");
+        } finally {
+          voiceChunksRef.current = [];
+          stopVoiceStream();
+          voiceRecorderRef.current = null;
+          setVoiceNoteState("idle");
+        }
+      };
+
+      recorder.start();
+      voiceRecorderRef.current = recorder;
+      setVoiceNoteState("recording");
+      setMessage("Sprachnachricht läuft …");
+    } catch (error) {
+      stopVoiceStream();
+      setVoiceNoteState("idle");
+      setMessage(error instanceof Error ? error.message : "Mikrofon konnte nicht gestartet werden");
+    }
+  };
+
+  const onStopVoiceNote = () => {
+    const recorder = voiceRecorderRef.current;
+    if (!recorder || voiceNoteState !== "recording") {
+      return;
+    }
+    recorder.stop();
+    setMessage("Sprachnachricht wird verarbeitet …");
+  };
+
+  useEffect(() => {
+    return () => {
+      if (voiceRecorderRef.current && voiceRecorderRef.current.state !== "inactive") {
+        voiceRecorderRef.current.stop();
+      }
+      stopVoiceStream();
+    };
+  }, []);
+
   const renderContentWithMentions = (content: string) => {
     const ownUsername = auth?.user.username?.toLowerCase();
     return content.split(/(@[a-z0-9_]{3,24})/gi).map((part, index) => {
@@ -788,6 +889,10 @@ export function App() {
         onSendMessage={onSendMessage}
         uploadsEnabledForAll={uploadsEnabledForAll}
         onUploadSelected={onUploadSelected}
+        voiceNoteSupported={typeof window !== "undefined" && typeof MediaRecorder !== "undefined"}
+        voiceNoteState={voiceNoteState}
+        onStartVoiceNote={onStartVoiceNote}
+        onStopVoiceNote={onStopVoiceNote}
         message={message}
         mentionNotice={mentionNotice}
         settingsOpen={settingsOpen}
