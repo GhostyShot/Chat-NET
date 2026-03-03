@@ -427,14 +427,14 @@ export function ChatLayout({
                 <h3>{getChannelDisplayName(activeChannel)}</h3>
                 <span>
                   {activeConversationStatus}
-                  {voiceCallState !== "idle" ? ` • VC ${voiceParticipants} Teilnehmende` : ""}
+                  {voiceCallState !== "idle" ? ` • Sprachanruf ${voiceParticipants} Teilnehmende` : ""}
                 </span>
               </div>
               <div className="channel-toolbar">
                 {voiceSupported && activeChannelId ? (
                   voiceCallState === "idle" ? (
                     <button className="secondary compact" onClick={onStartVoiceCall}>
-                      VC starten
+                      Sprachanruf starten
                     </button>
                   ) : (
                     <>
@@ -442,7 +442,7 @@ export function ChatLayout({
                         {isVoiceMuted ? "Mikro an" : "Stumm"}
                       </button>
                       <button className="secondary compact" onClick={onLeaveVoiceCall}>
-                        VC verlassen
+                        Sprachanruf verlassen
                       </button>
                     </>
                   )

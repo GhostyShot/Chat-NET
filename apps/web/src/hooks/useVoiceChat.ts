@@ -89,7 +89,7 @@ export function useVoiceChat({ auth, activeChannelId, socketRef, realtimeState, 
       return localStreamRef.current;
     }
     if (!voiceSupported) {
-      throw new Error("Voicechat wird von diesem Browser nicht unterstützt.");
+      throw new Error("Sprachanruf wird von diesem Browser nicht unterstützt.");
     }
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -206,11 +206,11 @@ export function useVoiceChat({ auth, activeChannelId, socketRef, realtimeState, 
   const onStartVoiceCall = useCallback(async () => {
     const socket = socketRef.current;
     if (!auth || !activeChannelId || !socket) {
-      setMessage("Voicechat ist gerade nicht verfügbar.");
+      setMessage("Sprachanruf ist gerade nicht verfügbar.");
       return;
     }
     if (!voiceSupported) {
-      setMessage("Dein Browser unterstützt Voicechat nicht.");
+      setMessage("Dein Browser unterstützt Sprachanruf nicht.");
       return;
     }
 
@@ -221,7 +221,7 @@ export function useVoiceChat({ auth, activeChannelId, socketRef, realtimeState, 
       setVoiceParticipants(1);
       activeVoiceRoomRef.current = activeChannelId;
       socket.emit(REALTIME_EVENTS.VC_JOIN, { roomId: activeChannelId });
-      setMessage("Voicechat verbunden.");
+      setMessage("Sprachanruf verbunden.");
     } catch (error) {
       setVoiceCallState("idle");
       setMessage(error instanceof Error ? error.message : "Mikrofonzugriff fehlgeschlagen.");
@@ -230,7 +230,7 @@ export function useVoiceChat({ auth, activeChannelId, socketRef, realtimeState, 
 
   const onLeaveVoiceCall = useCallback(() => {
     leaveVoiceCall({ emitLeave: true });
-    setMessage("Voicechat verlassen.");
+    setMessage("Sprachanruf verlassen.");
   }, [leaveVoiceCall, setMessage]);
 
   const onToggleVoiceMute = useCallback(() => {
@@ -253,7 +253,7 @@ export function useVoiceChat({ auth, activeChannelId, socketRef, realtimeState, 
 
     if (activeVoiceRoomRef.current && activeVoiceRoomRef.current !== activeChannelId) {
       leaveVoiceCall({ emitLeave: true });
-      setMessage("Voicechat wurde beim Kanalwechsel beendet.");
+      setMessage("Sprachanruf wurde beim Kanalwechsel beendet.");
     }
   }, [activeChannelId, auth, leaveVoiceCall, setMessage]);
 
@@ -285,7 +285,7 @@ export function useVoiceChat({ auth, activeChannelId, socketRef, realtimeState, 
         try {
           await createOfferForUser(userId, payload.roomId, socket);
         } catch {
-          setMessage("Voicechat-Verbindung wird aufgebaut …");
+          setMessage("Sprachanruf-Verbindung wird aufgebaut …");
         }
       }
 
@@ -305,7 +305,7 @@ export function useVoiceChat({ auth, activeChannelId, socketRef, realtimeState, 
       try {
         await createOfferForUser(payload.userId, payload.roomId, socket);
       } catch {
-        setMessage("Voicechat-Verbindung wird aufgebaut …");
+        setMessage("Sprachanruf-Verbindung wird aufgebaut …");
       }
     };
 
@@ -377,7 +377,7 @@ export function useVoiceChat({ auth, activeChannelId, socketRef, realtimeState, 
         return;
       }
       leaveVoiceCall({ emitLeave: false });
-      setMessage(payload.endedByUserId === auth?.user.id ? "Voicechat beendet." : "Voicechat wurde beendet.");
+      setMessage(payload.endedByUserId === auth?.user.id ? "Sprachanruf beendet." : "Sprachanruf wurde beendet.");
     };
 
     socket.on(REALTIME_EVENTS.VC_PARTICIPANTS, onParticipants);
