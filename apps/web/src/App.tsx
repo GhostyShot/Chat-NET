@@ -18,6 +18,7 @@ import { useChatActions } from "./hooks/useChatActions";
 import { googleClientId, useAuthFlow } from "./hooks/useAuthFlow";
 import { usePersistentAuth } from "./hooks/usePersistentAuth";
 import { useRealtimeChat } from "./hooks/useRealtimeChat";
+import { useVoiceChat } from "./hooks/useVoiceChat";
 import { useResponsiveChatLayout } from "./hooks/useResponsiveChatLayout";
 import { useThemePreference } from "./hooks/useThemePreference";
 import { REALTIME_EVENTS } from "@chatnet/shared";
@@ -107,6 +108,15 @@ export function App() {
     setTypingHint,
     setRealtimeState
   });
+
+  const { voiceSupported, voiceCallState, voiceParticipants, isVoiceMuted, onStartVoiceCall, onLeaveVoiceCall, onToggleVoiceMute } =
+    useVoiceChat({
+      auth,
+      activeChannelId,
+      socketRef,
+      realtimeState,
+      setMessage
+    });
 
   const isPlatformOwner = (userId?: string, username?: string) => {
     const normalizedUsername = username?.toLowerCase();
@@ -746,6 +756,13 @@ export function App() {
         onSearch={onSearch}
         searchResults={searchResults}
         activeConversationStatus={activeConversationStatus}
+        voiceSupported={voiceSupported}
+        voiceCallState={voiceCallState}
+        voiceParticipants={voiceParticipants}
+        isVoiceMuted={isVoiceMuted}
+        onStartVoiceCall={onStartVoiceCall}
+        onLeaveVoiceCall={onLeaveVoiceCall}
+        onToggleVoiceMute={onToggleVoiceMute}
         messages={messages}
         messageListRef={messageListRef}
         activeMessageId={activeMessageId}

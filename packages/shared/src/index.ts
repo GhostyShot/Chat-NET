@@ -170,6 +170,82 @@ export interface RealtimeReadReceiptEvent {
   userId: string;
 }
 
+export interface RealtimeVoiceJoinPayload {
+  roomId: string;
+}
+
+export interface RealtimeVoiceLeavePayload {
+  roomId: string;
+}
+
+export interface RealtimeVoiceEndPayload {
+  roomId: string;
+}
+
+export interface RealtimeVoiceOfferPayload {
+  roomId: string;
+  targetUserId: string;
+  sdp: string;
+}
+
+export interface RealtimeVoiceAnswerPayload {
+  roomId: string;
+  targetUserId: string;
+  sdp: string;
+}
+
+export interface RealtimeVoiceIceCandidatePayload {
+  roomId: string;
+  targetUserId: string;
+  candidate: {
+    candidate: string;
+    sdpMid?: string | null;
+    sdpMLineIndex?: number | null;
+    usernameFragment?: string | null;
+  };
+}
+
+export interface RealtimeVoiceParticipantsPayload {
+  roomId: string;
+  userIds: string[];
+}
+
+export interface RealtimeVoiceParticipantPayload {
+  roomId: string;
+  userId: string;
+}
+
+export interface RealtimeVoiceOfferEvent {
+  roomId: string;
+  fromUserId: string;
+  targetUserId: string;
+  sdp: string;
+}
+
+export interface RealtimeVoiceAnswerEvent {
+  roomId: string;
+  fromUserId: string;
+  targetUserId: string;
+  sdp: string;
+}
+
+export interface RealtimeVoiceIceCandidateEvent {
+  roomId: string;
+  fromUserId: string;
+  targetUserId: string;
+  candidate: {
+    candidate: string;
+    sdpMid?: string | null;
+    sdpMLineIndex?: number | null;
+    usernameFragment?: string | null;
+  };
+}
+
+export interface RealtimeVoiceEndedEvent {
+  roomId: string;
+  endedByUserId: string;
+}
+
 export interface RealtimeServerToClientEvents {
   new_message: (message: MessageItem) => void;
   typing: (payload: RealtimeTypingPayload) => void;
@@ -177,12 +253,25 @@ export interface RealtimeServerToClientEvents {
   message_updated: (message: MessageItem) => void;
   message_deleted: (payload: DeletedMessageResponse) => void;
   read_receipt: (payload: RealtimeReadReceiptEvent) => void;
+  vc_participants: (payload: RealtimeVoiceParticipantsPayload) => void;
+  vc_participant_joined: (payload: RealtimeVoiceParticipantPayload) => void;
+  vc_participant_left: (payload: RealtimeVoiceParticipantPayload) => void;
+  vc_offer: (payload: RealtimeVoiceOfferEvent) => void;
+  vc_answer: (payload: RealtimeVoiceAnswerEvent) => void;
+  vc_ice_candidate: (payload: RealtimeVoiceIceCandidateEvent) => void;
+  vc_ended: (payload: RealtimeVoiceEndedEvent) => void;
 }
 
 export interface RealtimeClientToServerEvents {
   join_room: (roomId: RealtimeJoinRoomPayload) => void;
   typing: (payload: RealtimeTypingPayload) => void;
   read_receipt: (payload: RealtimeReadReceiptEvent) => void;
+  vc_join: (payload: RealtimeVoiceJoinPayload) => void;
+  vc_leave: (payload: RealtimeVoiceLeavePayload) => void;
+  vc_end: (payload: RealtimeVoiceEndPayload) => void;
+  vc_offer: (payload: RealtimeVoiceOfferPayload) => void;
+  vc_answer: (payload: RealtimeVoiceAnswerPayload) => void;
+  vc_ice_candidate: (payload: RealtimeVoiceIceCandidatePayload) => void;
 }
 
 export const REALTIME_EVENTS = {
@@ -192,7 +281,17 @@ export const REALTIME_EVENTS = {
   MESSAGE_UPDATED: "message_updated",
   MESSAGE_DELETED: "message_deleted",
   READ_RECEIPT: "read_receipt",
-  JOIN_ROOM: "join_room"
+  JOIN_ROOM: "join_room",
+  VC_JOIN: "vc_join",
+  VC_LEAVE: "vc_leave",
+  VC_END: "vc_end",
+  VC_PARTICIPANTS: "vc_participants",
+  VC_PARTICIPANT_JOINED: "vc_participant_joined",
+  VC_PARTICIPANT_LEFT: "vc_participant_left",
+  VC_OFFER: "vc_offer",
+  VC_ANSWER: "vc_answer",
+  VC_ICE_CANDIDATE: "vc_ice_candidate",
+  VC_ENDED: "vc_ended"
 } as const;
 
 export { ApiRequestError, requestJson, type ApiRequestErrorOptions, type RequestJsonOptions } from "./http.js";

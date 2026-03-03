@@ -45,6 +45,13 @@ type ChatLayoutProps = {
   onSearch: () => void;
   searchResults: MessageItem[];
   activeConversationStatus: string;
+  voiceSupported: boolean;
+  voiceCallState: "idle" | "connecting" | "active";
+  voiceParticipants: number;
+  isVoiceMuted: boolean;
+  onStartVoiceCall: () => void;
+  onLeaveVoiceCall: () => void;
+  onToggleVoiceMute: () => void;
   messages: MessageItem[];
   messageListRef: MutableRefObject<HTMLDivElement | null>;
   activeMessageId: string | null;
@@ -152,6 +159,13 @@ export function ChatLayout({
   onSearch,
   searchResults,
   activeConversationStatus,
+  voiceSupported,
+  voiceCallState,
+  voiceParticipants,
+  isVoiceMuted,
+  onStartVoiceCall,
+  onLeaveVoiceCall,
+  onToggleVoiceMute,
   messages,
   messageListRef,
   activeMessageId,
@@ -403,11 +417,32 @@ export function ChatLayout({
               )}
               <div className="chat-room-meta">
                 <h3>{getChannelDisplayName(activeChannel)}</h3>
-                <span>{activeConversationStatus}</span>
+                <span>
+                  {activeConversationStatus}
+                  {voiceCallState !== "idle" ? ` • VC ${voiceParticipants} Teilnehmende` : ""}
+                </span>
               </div>
-              {activeChannel ? (
-                <span className="chat-room-type-pill">{activeChannel.type === "GROUP" ? "Gruppe" : "Direkt"}</span>
-              ) : null}
+              <div className="channel-toolbar">
+                {voiceSupported && activeChannelId ? (
+                  voiceCallState === "idle" ? (
+                    <button className="secondary compact" onClick={onStartVoiceCall}>
+                      VC starten
+                    </button>
+                  ) : (
+                    <>
+                      <button className="secondary compact" onClick={onToggleVoiceMute}>
+                        {isVoiceMuted ? "Mikro an" : "Stumm"}
+                      </button>
+                      <button className="secondary compact" onClick={onLeaveVoiceCall}>
+                        VC verlassen
+                      </button>
+                    </>
+                  )
+                ) : null}
+                {activeChannel ? (
+                  <span className="chat-room-type-pill">{activeChannel.type === "GROUP" ? "Gruppe" : "Direkt"}</span>
+                ) : null}
+              </div>
             </div>
 
             <div className="search-row">
