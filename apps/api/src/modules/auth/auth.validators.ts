@@ -23,6 +23,10 @@ export const googleSchema = z.object({
   displayName: z.string().min(2).max(40).optional()
 });
 
+export const refreshSchema = z.object({
+  refreshToken: z.string().min(10)
+});
+
 export const forgotPasswordSchema = z.object({
   email: z.email().max(320)
 });

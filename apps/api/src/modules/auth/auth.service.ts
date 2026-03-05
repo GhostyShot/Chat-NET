@@ -3,6 +3,7 @@ import type {
   LoginInput,
   PasswordResetInput,
   PasswordResetRequest,
+  RefreshInput,
   RegisterInput,
   UpdateProfileInput
 } from "./auth.types.js";
@@ -11,6 +12,8 @@ import { buildAuthResponse, hashPassword, verifyPassword } from "./auth.security
 import { verifyGoogleIdToken } from "./auth.google.js";
 import { sendPasswordResetEmail } from "./auth.mail.js";
 import { API_ERROR_CODES } from "@chatnet/shared";
+import jwt from "jsonwebtoken";
+import { appConfig } from "../../config.js";
 
 const RESET_TOKEN_TTL_MS = 1000 * 60 * 30;
 
@@ -66,6 +69,26 @@ export class AuthService {
       user.avatarUrl = googleProfile.avatarUrl ?? user.avatarUrl;
       user.verifiedEmail = true;
       await authStore.updateUser(user);
+    }
+
+    return buildAuthResponse(user);
+  }
+
+  async refresh(input: RefreshInput) {
+    let payload: { sub?: string; kind?: string };
+    try {
+      payload = jwt.verify(input.refreshToken, appConfig.jwtRefreshSecret) as { sub?: string; kind?: string };
+    } catch {
+      throw new Error(API_ERROR_CODES.INVALID_TOKEN);
+    }
+
+    if (!payload.sub || payload.kind !== "refresh") {
+      throw new Error(API_ERROR_CODES.INVALID_TOKEN);
+    }
+
+    const user = await authStore.getById(payload.sub);
+    if (!user) {
+      throw new Error(API_ERROR_CODES.INVALID_TOKEN);
     }
 
     return buildAuthResponse(user);

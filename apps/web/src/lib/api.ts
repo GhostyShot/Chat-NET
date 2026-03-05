@@ -103,6 +103,18 @@ export async function loginWithGoogle(idToken: string): Promise<AuthResponse> {
   );
 }
 
+export async function refreshSession(refreshToken: string): Promise<AuthResponse> {
+  return requestJson<AuthResponse>(
+    "/auth/refresh",
+    {
+      method: "POST",
+      headers: jsonHeaders(),
+      body: JSON.stringify({ refreshToken })
+    },
+    { fallbackError: "REFRESH_FAILED", retry: false }
+  );
+}
+
 export async function forgotPassword(email: string): Promise<void> {
   await requestJson<unknown>(
     "/auth/forgot-password",

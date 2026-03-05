@@ -4,6 +4,7 @@ import {
   forgotPasswordSchema,
   googleSchema,
   loginSchema,
+  refreshSchema,
   registerSchema,
   resetPasswordSchema,
   updateProfileSchema
@@ -68,6 +69,18 @@ authRouter.post("/google", loginLimiter, async (req, res) => {
   }
 
   return withErrorBoundary(() => authService.loginWithGoogle(parsed.data), res, {
+    badRequest: AUTH_BAD_REQUEST_ERRORS,
+    customStatus: (code) => (code.startsWith(API_ERROR_CODES.INVALID_GOOGLE_TOKEN) ? 400 : undefined)
+  });
+});
+
+authRouter.post("/refresh", async (req, res) => {
+  const parsed = refreshSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: API_ERROR_CODES.INVALID_BODY, details: parsed.error.issues });
+  }
+
+  return withErrorBoundary(() => authService.refresh(parsed.data), res, {
     badRequest: AUTH_BAD_REQUEST_ERRORS,
     customStatus: (code) => (code.startsWith(API_ERROR_CODES.INVALID_GOOGLE_TOKEN) ? 400 : undefined)
   });

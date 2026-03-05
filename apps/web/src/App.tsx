@@ -6,6 +6,7 @@ import {
   listPolls,
   login,
   loginWithGoogle,
+  refreshSession,
   register,
   resetPassword,
   sendMessage,
@@ -107,6 +108,7 @@ export function App() {
   const [voiceNoteState, setVoiceNoteState] = useState<"idle" | "recording" | "uploading">("idle");
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [pollLoading, setPollLoading] = useState(false);
+  const [sessionRefreshDone, setSessionRefreshDone] = useState(false);
   const voiceRecorderRef = useRef<MediaRecorder | null>(null);
   const voiceStreamRef = useRef<MediaStream | null>(null);
   const voiceChunksRef = useRef<Blob[]>([]);
@@ -139,6 +141,38 @@ export function App() {
   };
 
   const currentUserIsPlatformOwner = isPlatformOwner(auth?.user.id, auth?.user.username);
+
+  useEffect(() => {
+    if (!auth || sessionRefreshDone) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const refreshPersistedSession = async () => {
+      try {
+        const refreshed = await refreshSession(auth.tokens.refreshToken);
+        if (!cancelled) {
+          setAuth(refreshed);
+        }
+      } catch {
+        if (!cancelled) {
+          setAuth(null);
+          setMessage("Sitzung abgelaufen. Bitte neu anmelden.");
+        }
+      } finally {
+        if (!cancelled) {
+          setSessionRefreshDone(true);
+        }
+      }
+    };
+
+    void refreshPersistedSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [auth, sessionRefreshDone, setAuth]);
 
   const badgeDefinitionById = useMemo(() => {
     const map = new Map<BadgeId, BadgeDefinition>();
