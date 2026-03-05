@@ -26,7 +26,7 @@ BEGIN
   SELECT id INTO system_channel_id FROM "Channel" WHERE "systemKey" = 'SYSTEM_NEWS' LIMIT 1;
 
   IF system_channel_id IS NULL THEN
-    INSERT INTO "Channel" ("id", "type", "name", "isSystem", "systemKey", "postingPolicy", "createdById")
+    INSERT INTO "Channel" ("id", "type", "name", "isSystem", "systemKey", "postingPolicy", "createdById", "createdAt", "updatedAt")
     VALUES (
       'system_news_' || md5(random()::text || clock_timestamp()::text),
       'GROUP',
@@ -34,7 +34,9 @@ BEGIN
       true,
       'SYSTEM_NEWS',
       'OWNER_ONLY',
-      owner_id
+      owner_id,
+      NOW(),
+      NOW()
     )
     RETURNING id INTO system_channel_id;
   END IF;
