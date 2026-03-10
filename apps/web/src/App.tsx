@@ -300,11 +300,11 @@ export function App() {
       return channel.name ?? "Unbenannt";
     }
     const directPartner = channel.memberships?.find((membership) => membership.user.id !== auth?.user.id)?.user;
-    if (directPartner?.username) {
-      return `@${directPartner.username}`;
-    }
     if (directPartner?.displayName) {
       return directPartner.displayName;
+    }
+    if (directPartner?.username) {
+      return directPartner.username;
     }
     return channel.name ?? "Direktchat";
   };

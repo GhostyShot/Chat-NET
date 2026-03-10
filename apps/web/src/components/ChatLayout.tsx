@@ -384,17 +384,16 @@ export function ChatLayout({
                     data-channel-id={channel.id}
                     onClick={() => openChannel(channel.id)}
                   >
-                    <div className="ch-avatar" style={{ background: avatarColor(channel.id) }}>
-                      {getInitials(displayName)}
+                    <div className="ch-avatar" style={{ background: channel.isSystem ? "var(--accent)" : avatarColor(channel.id) }}>
+                      {channel.isSystem ? "📣" : getInitials(displayName)}
                     </div>
                     <div className="channel-main">
-                      <div className="ch-name-row">
-                        <span className="ch-type-icon">{isDirect ? "\u25CE" : channel.isSystem ? "\uD83D\uDCE3" : "#"}</span>
-                        <span className={hasUnread && channel.id !== activeChannelId ? "channel-name unread-name" : "channel-name"}>
-                          {displayName}
-                        </span>
-                      </div>
-                      <small className="channel-subline">{formatTimeLabel(channel.updatedAt)}</small>
+                      <span className={hasUnread && channel.id !== activeChannelId ? "channel-name unread-name" : "channel-name"}>
+                        {displayName}
+                      </span>
+                      <small className="channel-subline">
+                        {channel.isSystem ? "Ankündigungen" : isDirect ? "Direktnachricht" : "Gruppe"}
+                      </small>
                     </div>
                     {hasUnread && (
                       <span className="channel-unread">{unreadCount > 99 ? "99+" : unreadCount}</span>
@@ -648,8 +647,8 @@ export function ChatLayout({
                   <div className="empty-state-icon">\uD83D\uDCAC</div>
                   <p>
                     {activeChannel
-                      ? `Willkommen in ${activeChannel.type === "DIRECT" ? "" : "#"}${getChannelDisplayName(activeChannel)}!`
-                      : "Kanal ausw\u00E4hlen"}
+                      ? `Willkommen${activeChannel.type === "GROUP" ? " in " + getChannelDisplayName(activeChannel) : ", " + getChannelDisplayName(activeChannel)}!`
+                      : "Chat auswählen"}
                   </p>
                   <span>
                     {activeChannel
@@ -710,7 +709,7 @@ export function ChatLayout({
                   onKeyDown={onComposerKeyDown}
                   placeholder={
                     activeChannel
-                      ? `Nachricht an ${activeChannel.type === "DIRECT" ? "" : "#"}${getChannelDisplayName(activeChannel)}\u2026`
+                      ? `Nachricht an ${getChannelDisplayName(activeChannel)}…`
                       : "Nachricht schreiben\u2026"
                   }
                 />
