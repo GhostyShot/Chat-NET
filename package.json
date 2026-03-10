@@ -17,7 +17,9 @@
     "ci:test": "npm run test --workspaces --if-present",
     "ci:typecheck": "npm run typecheck",
     "ci:build": "npm run build",
-    "ci:verify": "npm run ci:typecheck && npm run ci:test && npm run ci:build"
+    "ci:verify": "npm run ci:typecheck && npm run ci:test && npm run ci:build",
+    "db:migrate:deploy": "DIRECT_URL=${DIRECT_URL:-$DATABASE_URL} npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma",
+    "db:repair:render": "npx prisma migrate resolve --rolled-back ${MIGRATION_NAME:-20260303162000_system_channel_foundation} --schema=apps/api/prisma/schema.prisma && npm run db:migrate:deploy"
   },
   "engines": {
     "node": ">=20"

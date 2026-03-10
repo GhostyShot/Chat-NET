@@ -7,7 +7,11 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "icon": "./assets/chat-net-logo.png",
     "splash": {
       "image": "./assets/chat-net-logo.png",
@@ -22,6 +26,9 @@
     },
     "web": {
       "favicon": "./assets/chat-net-logo.png"
+    },
+    "ios": {
+      "bundleIdentifier": "com.anonymous.chat-net"
     }
   }
 }

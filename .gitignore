@@ -5,7 +5,10 @@ dist
 coverage
 apps/mobile/.expo
 apps/mobile/.expo-shared
+apps/mobile/ios/
+apps/mobile/android/
 .npm-cache
+.vscode/
 
 apps/api/uploads
 apps/api/apps/api/uploads
