@@ -397,6 +397,11 @@ export class ChatService {
       throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
+    // System channels hide their member list for privacy
+    if (channel.isSystem) {
+      return [];
+    }
+
     return prisma.channelMembership.findMany({
       where: { channelId: input.channelId },
       include: {
@@ -478,6 +483,10 @@ export class ChatService {
     const channel = await prisma.channel.findUnique({ where: { id: input.channelId } });
     if (!channel) {
       throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
+    }
+
+    if (channel.isSystem) {
+      throw new Error(API_ERROR_CODES.SYSTEM_CHANNEL_PROTECTED);
     }
 
     if (channel.type !== "GROUP") {
@@ -594,6 +603,10 @@ export class ChatService {
     const channel = await prisma.channel.findUnique({ where: { id: input.channelId } });
     if (!channel) {
       throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
+    }
+
+    if (channel.isSystem) {
+      throw new Error(API_ERROR_CODES.SYSTEM_CHANNEL_PROTECTED);
     }
 
     if (channel.type !== "GROUP") {

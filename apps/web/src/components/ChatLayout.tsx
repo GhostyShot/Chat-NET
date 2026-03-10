@@ -339,7 +339,7 @@ export function ChatLayout({
               ? mobilePane === "chat"
                 ? "chat-layout mobile-chat-open"
                 : "chat-layout mobile-list-open"
-              : showMembers && activeChannel?.type === "GROUP"
+              : showMembers && activeChannel?.type === "GROUP" && !activeChannel?.isSystem
                 ? "chat-layout with-members"
                 : "chat-layout"
           }
@@ -360,7 +360,7 @@ export function ChatLayout({
                 <span className="sab-icon">\u2709</span>
                 <span>DM</span>
               </button>
-              {activeChannel?.type === "GROUP" && (
+              {activeChannel?.type === "GROUP" && !activeChannel?.isSystem && (
                 <button className="sidebar-action-btn" onClick={onOpenAddMemberModal} disabled={ownMembershipRole !== "OWNER"} title="Mitglied hinzuf\u00FCgen">
                   <span className="sab-icon">\uD83D\uDC64</span>
                   <span>Hinzuf\u00FCgen</span>
@@ -392,7 +392,7 @@ export function ChatLayout({
                     </div>
                     <div className="channel-main">
                       <div className="ch-name-row">
-                        <span className="ch-type-icon">{isDirect ? "\u25CE" : "#"}</span>
+                        <span className="ch-type-icon">{isDirect ? "\u25CE" : channel.isSystem ? "\uD83D\uDCE3" : "#"}</span>
                         <span className={hasUnread && channel.id !== activeChannelId ? "channel-name unread-name" : "channel-name"}>
                           {displayName}
                         </span>
@@ -420,14 +420,17 @@ export function ChatLayout({
               )}
               <div className="chat-room-meta">
                 {activeChannel && (
-                  <div className="room-avatar" style={{ background: avatarColor(activeChannel.id) }}>
-                    {getInitials(getChannelDisplayName(activeChannel))}
+                  <div className="room-avatar" style={{ background: activeChannel.isSystem ? "var(--accent)" : avatarColor(activeChannel.id) }}>
+                    {activeChannel.isSystem ? "\uD83D\uDCE3" : getInitials(getChannelDisplayName(activeChannel))}
                   </div>
                 )}
                 <div className="room-info">
-                  <h3>{getChannelDisplayName(activeChannel)}</h3>
+                  <h3>
+                    {getChannelDisplayName(activeChannel)}
+                    {activeChannel?.isSystem && <span className="system-channel-badge">Offiziel</span>}
+                  </h3>
                   <span>
-                    {activeConversationStatus}
+                    {activeChannel?.isSystem ? "Nur das Team kann schreiben" : activeConversationStatus}
                     {voiceCallState !== "idle" ? ` \u00B7 \uD83D\uDD0A ${voiceParticipants} aktiv` : ""}
                   </span>
                 </div>
@@ -456,7 +459,7 @@ export function ChatLayout({
                 >
                   \uD83D\uDD0D
                 </button>
-                {activeChannel?.type === "GROUP" && (
+                {activeChannel?.type === "GROUP" && !activeChannel?.isSystem && (
                   <button
                     className={showMembers ? "icon-btn active-btn" : "icon-btn"}
                     title="Mitglieder"
@@ -467,7 +470,7 @@ export function ChatLayout({
                 )}
                 {activeChannel && (
                   <span className="chat-room-type-pill">
-                    {activeChannel.type === "GROUP" ? "Gruppe" : "Direkt"}
+                    {activeChannel.isSystem ? "\uD83D\uDCE3 Systemnachrichten" : activeChannel.type === "GROUP" ? "Gruppe" : "Direkt"}
                   </span>
                 )}
               </div>
@@ -752,7 +755,7 @@ export function ChatLayout({
           </section>
 
           {/* ── Right: Members Panel ── */}
-          {showMembers && activeChannel?.type === "GROUP" && !isMobileLayout && (
+          {showMembers && activeChannel?.type === "GROUP" && !activeChannel?.isSystem && !isMobileLayout && (
             <aside className="members-panel">
               <div className="members-panel-header">
                 <span>Mitglieder</span>
@@ -797,15 +800,17 @@ export function ChatLayout({
                 {!channelMembers.length && <p className="empty-hint">Keine Mitglieder.</p>}
               </div>
               <div className="mpanel-footer">
-                <button className="secondary compact full-width" onClick={onLeaveGroup} disabled={ownMembershipRole === "OWNER"}>
-                  Gruppe verlassen
-                </button>
-                {ownMembershipRole === "OWNER" && (
+                {!activeChannel?.isSystem && (
+                  <button className="secondary compact full-width" onClick={onLeaveGroup} disabled={ownMembershipRole === "OWNER"}>
+                    Gruppe verlassen
+                  </button>
+                )}
+                {!activeChannel?.isSystem && ownMembershipRole === "OWNER" && (
                   <button className="secondary compact full-width" onClick={onDeleteGroup}>
                     Gruppe l\u00F6schen
                   </button>
                 )}
-                {ownMembershipRole === "OWNER" && (
+                {!activeChannel?.isSystem && ownMembershipRole === "OWNER" && (
                   <p className="inline-note">\u00DCbertrage zuerst den Owner.</p>
                 )}
               </div>

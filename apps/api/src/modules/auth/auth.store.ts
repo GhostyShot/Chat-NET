@@ -158,6 +158,20 @@ export class AuthStore {
       }
     });
 
+    // Send automated welcome message for every new non-owner member
+    const isChannelOwner =
+      (appConfig.platformOwnerUserId && user.id === appConfig.platformOwnerUserId) ||
+      systemChannel.createdById === user.id;
+    if (!isChannelOwner) {
+      await prisma.message.create({
+        data: {
+          channelId: systemChannel.id,
+          senderId: systemChannel.createdById,
+          content: `Willkommen bei Chat-Net, ${user.displayName}! 🎉 Hier bekommst du wichtige Updates, Neuigkeiten und Ankündigungen direkt vom Team. Viel Spaß beim Chatten! 💬`
+        }
+      });
+    }
+
     return this.toStoredUser(user);
   }
 

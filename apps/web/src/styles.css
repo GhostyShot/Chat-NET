@@ -1885,6 +1885,20 @@ button:active {
   color: var(--accent);
 }
 
+.system-channel-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: var(--r-full);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--accent);
+  color: #fff;
+  vertical-align: middle;
+}
+
 
 /* ─── Search ─── */
 .search-row {
