@@ -97,8 +97,9 @@ async function isPlatformOwner(userId: string): Promise<boolean> {
   if (appConfig.platformOwnerUserId && userId === appConfig.platformOwnerUserId) {
     return true;
   }
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
-  return user?.username?.toLowerCase() === "paul_fmp";
+  // Hard-lock: require BOTH username AND userCode so nobody else can gain owner access
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true, userCode: true } });
+  return user?.username?.toLowerCase() === "paul_fmp" && user?.userCode?.toUpperCase() === "E75582";
 }
 
 async function requirePlatformOwner(req: AuthenticatedRequest, res: Response, next: NextFunction) {

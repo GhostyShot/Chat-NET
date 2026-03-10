@@ -261,7 +261,6 @@ export function ChatLayout({
   setAddMemberUsername,
   onAddMemberByUsername
 }: ChatLayoutProps) {
-  const [showMembers, setShowMembers] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
 
   const AVATAR_PALETTE = ["#0ea5e9", "#06b6d4", "#8b5cf6", "#ec4899", "#f97316", "#22c55e", "#f59e0b", "#64748b"];
@@ -339,9 +338,7 @@ export function ChatLayout({
               ? mobilePane === "chat"
                 ? "chat-layout mobile-chat-open"
                 : "chat-layout mobile-list-open"
-              : showMembers && activeChannel?.type === "GROUP" && !activeChannel?.isSystem
-                ? "chat-layout with-members"
-                : "chat-layout"
+              : "chat-layout"
           }
         >
           {/* ── Left: Channel Sidebar ── */}
@@ -360,12 +357,12 @@ export function ChatLayout({
                 <span className="sab-icon">\u2709</span>
                 <span>DM</span>
               </button>
-              {activeChannel?.type === "GROUP" && !activeChannel?.isSystem && (
-                <button className="sidebar-action-btn" onClick={onOpenAddMemberModal} disabled={ownMembershipRole !== "OWNER"} title="Mitglied hinzuf\u00FCgen">
-                  <span className="sab-icon">\uD83D\uDC64</span>
-                  <span>Hinzuf\u00FCgen</span>
-                </button>
-              )}
+                {activeChannel?.type === "GROUP" && !activeChannel?.isSystem && (
+                  <button className="sidebar-action-btn" onClick={onOpenAddMemberModal} disabled={ownMembershipRole !== "OWNER"} title="Mitglied hinzuf\u00FCgen">
+                    <span className="sab-icon">\uD83D\uDC64</span>
+                    <span>Hinzuf\u00FCgen</span>
+                  </button>
+                )}
             </div>
 
             <div className="channel-items">
@@ -459,15 +456,6 @@ export function ChatLayout({
                 >
                   \uD83D\uDD0D
                 </button>
-                {activeChannel?.type === "GROUP" && !activeChannel?.isSystem && (
-                  <button
-                    className={showMembers ? "icon-btn active-btn" : "icon-btn"}
-                    title="Mitglieder"
-                    onClick={() => setShowMembers(!showMembers)}
-                  >
-                    \uD83D\uDC65
-                  </button>
-                )}
                 {activeChannel && (
                   <span className="chat-room-type-pill">
                     {activeChannel.isSystem ? "\uD83D\uDCE3 Systemnachrichten" : activeChannel.type === "GROUP" ? "Gruppe" : "Direkt"}
@@ -556,27 +544,20 @@ export function ChatLayout({
                     onClick={() => setActiveMessageId((current) => (current === entry.id ? null : entry.id))}
                   >
                     <div className="msg-avatar-col">
-                      {entry.isGroupStart ? (
+                      {entry.isGroupStart && !ownMessage ? (
                         <div className="msg-avatar" style={{ background: color }}>
                           {getInitials(entry.sender.displayName)}
                           {isOnline && <span className="msg-presence-dot" />}
                         </div>
-                      ) : (
-                        <span className="msg-time-hover">{formatTimeLabel(entry.createdAt)}</span>
-                      )}
+                      ) : null}
                     </div>
                     <div className="msg-body">
-                      {entry.isGroupStart && (
+                      {entry.isGroupStart && !ownMessage && (
                         <div className="msg-header">
                           <span className="msg-author" style={{ color }}>{entry.sender.displayName}</span>
-                          {entry.sender.username && (
-                            <span className="msg-handle">@{entry.sender.username}</span>
-                          )}
                           {renderPlatformOwnerBadge(entry.sender.id, entry.sender.username)}
                           {renderCustomBadges(entry.sender.id)}
                           {role === "ADMIN" && <span className="role-pill">Admin</span>}
-                          {!isOnline && <span className="presence-pill offline">Offline</span>}
-                          <span className="msg-time">{formatTimeLabel(entry.createdAt)}</span>
                         </div>
                       )}
 
@@ -591,25 +572,30 @@ export function ChatLayout({
                           <button className="primary compact" onClick={() => onSaveEdit(entry.id)}>\u2713</button>
                           <button className="secondary compact" onClick={() => onEditMessage(entry)}>\u2715</button>
                         </div>
-                      ) : voiceUrl ? (
-                        <div className="voice-message-wrap">
-                          <audio controls preload="none" src={voiceUrl} className="voice-message-player" />
-                        </div>
                       ) : (
-                        <>
-                          {entry.replyTo && (
-                            <div className="reply-preview">
-                              <strong>{entry.replyTo.sender.displayName}</strong>
-                              <span>{entry.replyTo.content}</span>
+                        <div className="msg-bubble">
+                          {voiceUrl ? (
+                            <div className="voice-message-wrap">
+                              <audio controls preload="none" src={voiceUrl} className="voice-message-player" />
                             </div>
+                          ) : (
+                            <>
+                              {entry.replyTo && (
+                                <div className="reply-preview">
+                                  <strong>{entry.replyTo.sender.displayName}</strong>
+                                  <span>{entry.replyTo.content}</span>
+                                </div>
+                              )}
+                              <p className="message-content">{renderContentWithMentions(entry.content)}</p>
+                              {entry.content.startsWith("http") && !voiceUrl && (
+                                <a className="file-link" href={entry.content} target="_blank" rel="noreferrer">
+                                  Datei \u00F6ffnen \u2197
+                                </a>
+                              )}
+                            </>
                           )}
-                          <p className="message-content">{renderContentWithMentions(entry.content)}</p>
-                          {entry.content.startsWith("http") && !voiceUrl && (
-                            <a className="file-link" href={entry.content} target="_blank" rel="noreferrer">
-                              Datei \u00F6ffnen \u2197
-                            </a>
-                          )}
-                        </>
+                          <span className="bubble-time">{formatTimeLabel(entry.createdAt)}</span>
+                        </div>
                       )}
 
                       {isReplyingToEntry && (
@@ -754,68 +740,7 @@ export function ChatLayout({
             </div>
           </section>
 
-          {/* ── Right: Members Panel ── */}
-          {showMembers && activeChannel?.type === "GROUP" && !activeChannel?.isSystem && !isMobileLayout && (
-            <aside className="members-panel">
-              <div className="members-panel-header">
-                <span>Mitglieder</span>
-                <span className="members-badge">{channelMembers.length}</span>
-              </div>
-              <div className="members-panel-list">
-                {channelMembers.map((member) => {
-                  const isSelf = member.userId === auth.user.id;
-                  const online = Boolean(presenceMap[member.userId]);
-                  return (
-                    <div key={member.userId} className="mpanel-item">
-                      <div className="mpanel-avatar" style={{ background: avatarColor(member.userId) }}>
-                        {getInitials(member.user.displayName)}
-                        <span className={online ? "mpanel-dot online" : "mpanel-dot"} />
-                      </div>
-                      <div className="mpanel-info">
-                        <p className="mpanel-name">
-                          {member.user.displayName}
-                          {renderPlatformOwnerBadge(member.userId, member.user.username)}
-                          {renderCustomBadges(member.userId)}
-                        </p>
-                        <p className="mpanel-meta">@{member.user.username} \u00B7 {member.role}</p>
-                      </div>
-                      {!isSelf && (
-                        <div className="mpanel-actions">
-                          {canManageRoles && member.role !== "OWNER" && (
-                            <>
-                              <button className="icon-btn" title="Owner \u00FCbertragen" onClick={() => onTransferOwnership(member)}>\u2B06</button>
-                              <button className="icon-btn" title={member.role === "ADMIN" ? "Zu Member" : "Zu Admin"} onClick={() => onToggleMemberRole(member)}>
-                                {member.role === "ADMIN" ? "\u2193" : "\u2191"}
-                              </button>
-                            </>
-                          )}
-                          {canModerateMembers && member.role !== "OWNER" && (
-                            <button className="icon-btn danger-btn" title="Entfernen" onClick={() => onRemoveMember(member)}>\u2715</button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                {!channelMembers.length && <p className="empty-hint">Keine Mitglieder.</p>}
-              </div>
-              <div className="mpanel-footer">
-                {!activeChannel?.isSystem && (
-                  <button className="secondary compact full-width" onClick={onLeaveGroup} disabled={ownMembershipRole === "OWNER"}>
-                    Gruppe verlassen
-                  </button>
-                )}
-                {!activeChannel?.isSystem && ownMembershipRole === "OWNER" && (
-                  <button className="secondary compact full-width" onClick={onDeleteGroup}>
-                    Gruppe l\u00F6schen
-                  </button>
-                )}
-                {!activeChannel?.isSystem && ownMembershipRole === "OWNER" && (
-                  <p className="inline-note">\u00DCbertrage zuerst den Owner.</p>
-                )}
-              </div>
-            </aside>
-          )}
+          {/* Members panel removed – managed via modal */}
         </div>
 
         {message && <p className="message-banner">{message}</p>}
