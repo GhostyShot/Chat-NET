@@ -46,4 +46,12 @@ process.on("unhandledRejection", (reason) => {
 
 server.listen(appConfig.port, () => {
   console.log(`Chat-Net API läuft auf http://localhost:${appConfig.port}`);
+
+  // Keep-alive self-ping: prevents Render free-tier spin-down
+  // (pings /health every 10 s so the process never goes idle)
+  const PING_INTERVAL_MS = 10_000;
+  const selfUrl = `http://localhost:${appConfig.port}/health`;
+  setInterval(() => {
+    fetch(selfUrl).catch(() => { /* silently ignore – server might be shutting down */ });
+  }, PING_INTERVAL_MS);
 });

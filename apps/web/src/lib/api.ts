@@ -28,6 +28,17 @@ export type {
 } from "@chatnet/shared";
 
 export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+
+// Keep-alive ping: hits the API every 10 s from the browser so Render's
+// free-tier instance never enters the 50-second inactivity sleep window.
+// Runs automatically as soon as this module is imported.
+(function startKeepAlive() {
+  const PING_MS = 10_000;
+  const ping = () =>
+    fetch(`${API_URL}/health`, { method: "GET", cache: "no-store" }).catch(() => {});
+  ping(); // immediate first hit on page load
+  setInterval(ping, PING_MS);
+})();
 export class ApiError extends ApiRequestError {}
 
 function jsonHeaders() {
