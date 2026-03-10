@@ -1,16 +1,29 @@
 {
-  "name": "Chat-Net",
+  "name": "Chat-Net – Realtime Chat",
   "short_name": "Chat-Net",
+  "description": "Kostenloser Realtime-Chat für Teams & Communities. Gruppen, DMs, Voice-Nachrichten, Polls.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#111216",
-  "theme_color": "#1f1f26",
-  "description": "Moderne Realtime-Chat Plattform für Communities und Teams.",
+  "orientation": "any",
+  "background_color": "#02080f",
+  "theme_color": "#02080f",
+  "categories": ["communication", "social", "productivity"],
+  "lang": "de",
+  "dir": "ltr",
   "icons": [
     {
       "src": "/favicon.svg",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/og-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "label": "Chat-Net – Realtime Chat Platform"
     }
   ]
 }

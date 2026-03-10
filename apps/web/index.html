@@ -2,61 +2,108 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chat-Net – Moderner Realtime Chat für Communities & Teams</title>
+
+    <!-- Primary Meta -->
+    <title>Chat-Net – Kostenloser Realtime Chat für Teams &amp; Communities</title>
+    <meta name="description" content="Chat-Net: Gratis Realtime-Chat mit Gruppen, Direktchats, Voice-Nachrichten, Polls und Moderation. Starte sofort – kein Download nötig." />
+    <meta name="keywords" content="Realtime Chat, Chat App, Gruppen-Chat, Team-Chat, Community Chat, kostenloser Chat, WebSocket Chat, Chat-Net, Direktchat, Voice Nachrichten, Polls" />
+    <meta name="author" content="Chat-Net" />
+    <meta name="application-name" content="Chat-Net" />
+    <meta name="rating" content="general" />
     <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
     <meta name="googlebot" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
-    <meta name="theme-color" content="#1f1f26" />
-    <meta name="author" content="Chat-Net" />
-    <meta
-      name="description"
-      content="Chat-Net ist eine moderne Realtime-Chat Plattform mit Gruppen, Direktchats, Moderation und sauberem UI für Communities und Teams."
-    />
+
+    <!-- Canonical & Alternates -->
     <link rel="canonical" href="https://chat-net.tech/" />
     <link rel="alternate" href="https://chat-net.tech/" hreflang="de" />
     <link rel="alternate" href="https://chat-net.tech/" hreflang="x-default" />
+
+    <!-- PWA / Mobile -->
+    <meta name="theme-color" content="#02080f" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f0f4ff" media="(prefers-color-scheme: light)" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Chat-Net" />
+    <meta name="format-detection" content="telephone=no" />
     <link rel="manifest" href="/site.webmanifest" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260301" />
-    <link rel="shortcut icon" type="image/svg+xml" href="/favicon.svg?v=20260301" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260310" />
+    <link rel="shortcut icon" type="image/svg+xml" href="/favicon.svg?v=20260310" />
+
+    <!-- Performance hints -->
+    <link rel="preconnect" href="https://chat-net-api.onrender.com" />
+    <link rel="dns-prefetch" href="https://chat-net-api.onrender.com" />
+    <link rel="preconnect" href="https://images.unsplash.com" crossorigin />
+
+    <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Chat-Net" />
-    <meta property="og:title" content="Chat-Net – Moderner Realtime Chat" />
-    <meta
-      property="og:description"
-      content="Schneller Realtime-Chat mit Gruppen, Direktchats, Rollen und Moderation für moderne Communities."
-    />
+    <meta property="og:locale" content="de_DE" />
+    <meta property="og:title" content="Chat-Net – Kostenloser Realtime Chat für Teams &amp; Communities" />
+    <meta property="og:description" content="Schneller Realtime-Chat mit Gruppen, Direktchats, Voice-Nachrichten, Polls und Rollen-Moderation. Kostenlos starten." />
     <meta property="og:url" content="https://chat-net.tech/" />
-    <meta property="og:image" content="https://chat-net.tech/chat-net-logo.svg" />
+    <meta property="og:image" content="https://chat-net.tech/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Chat-Net – Realtime Chat Platform Screenshot" />
+
+    <!-- Twitter / X -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Chat-Net – Moderner Realtime Chat" />
-    <meta
-      name="twitter:description"
-      content="Realtime-Chat Plattform für Communities & Teams mit modernem, klarem UX."
-    />
-    <meta name="twitter:image" content="https://chat-net.tech/chat-net-logo.svg" />
+    <meta name="twitter:site" content="@ChatNetApp" />
+    <meta name="twitter:title" content="Chat-Net – Realtime Chat für Teams &amp; Communities" />
+    <meta name="twitter:description" content="Realtime-Chat mit Gruppen, DMs, Voice, Polls &amp; Moderation. Komplett kostenlos. Jetzt starten." />
+    <meta name="twitter:image" content="https://chat-net.tech/og-image.png" />
+    <meta name="twitter:image:alt" content="Chat-Net App Screenshot" />
+
+    <!-- JSON-LD Structured Data -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@graph": [
           {
             "@type": "WebSite",
+            "@id": "https://chat-net.tech/#website",
             "name": "Chat-Net",
             "url": "https://chat-net.tech/",
-            "description": "Moderne Realtime-Chat Plattform für Communities und Teams."
+            "description": "Moderne Realtime-Chat Plattform für Communities und Teams.",
+            "inLanguage": "de",
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://chat-net.tech/?q={search_term_string}",
+              "query-input": "required name=search_term_string"
+            }
           },
           {
             "@type": "Organization",
+            "@id": "https://chat-net.tech/#organization",
             "name": "Chat-Net",
             "url": "https://chat-net.tech/",
-            "logo": "https://chat-net.tech/chat-net-logo.svg"
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://chat-net.tech/chat-net-logo.svg",
+              "width": 512,
+              "height": 512
+            },
+            "sameAs": ["https://chat-net.tech/"]
           },
           {
             "@type": "SoftwareApplication",
+            "@id": "https://chat-net.tech/#app",
             "name": "Chat-Net",
             "applicationCategory": "CommunicationApplication",
-            "operatingSystem": "Web",
+            "applicationSubCategory": "Instant Messaging",
+            "operatingSystem": "Web, Android, iOS",
             "url": "https://chat-net.tech/",
-            "description": "Realtime Chat für Communities und Teams mit Gruppen, Direktchats und Moderation."
+            "description": "Realtime Chat für Communities und Teams mit Gruppen, Direktchats, Voice-Nachrichten und Moderation.",
+            "inLanguage": "de",
+            "keywords": "Chat, Realtime, Teams, Community, Gruppen, Direktchat, Voice, Polls",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+            "featureList": ["Realtime Messaging", "Gruppen-Channels", "Direktchats", "Voice-Nachrichten", "Polls & Abstimmungen", "Rollen & Moderation", "KI-Zusammenfassungen", "iOS & Android App"],
+            "screenshot": "https://chat-net.tech/og-image.png",
+            "publisher": { "@id": "https://chat-net.tech/#organization" }
           }
         ]
       }
@@ -64,10 +111,10 @@
   </head>
   <body>
     <noscript>
-      Chat-Net ist eine moderne Realtime-Chat Plattform für Communities und Teams. Aktiviere JavaScript, um Chat-Net
-      vollständig zu nutzen.
+      <h1>Chat-Net – Realtime Chat für Teams &amp; Communities</h1>
+      <p>Chat-Net ist eine kostenlose Realtime-Chat Plattform für Communities und Teams mit Gruppen, Direktchats, Voice-Nachrichten, Polls und Moderation. Aktiviere JavaScript, um Chat-Net vollständig zu nutzen.</p>
     </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
- </html>
+</html>

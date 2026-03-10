@@ -50,36 +50,43 @@ export function LandingPage({ onOpenLogin, onOpenRegister }: LandingPageProps) {
         </div>
 
         {/* ── Visual Strip ── */}
-        <div className="landing-visual-strip" aria-hidden="true">
+        <div className="landing-visual-strip" role="presentation">
           <article className="landing-visual-card">
             <img
               src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80"
-              alt=""
+              alt="Community-Gruppen chatten gemeinsam in Echtzeit"
               loading="lazy"
+              width="600"
+              height="400"
             />
             <p>Community</p>
           </article>
           <article className="landing-visual-card">
             <img
               src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80"
-              alt=""
+              alt="Teams kommunizieren effizient mit Chat-Net"
               loading="lazy"
+              width="600"
+              height="400"
             />
             <p>Teams</p>
           </article>
           <article className="landing-visual-card">
             <img
               src="https://images.unsplash.com/photo-1497215842964-222b430dc094?auto=format&fit=crop&w=1200&q=80"
-              alt=""
+              alt="Gaming-Communities nutzen Chat-Net für Koordination"
               loading="lazy"
+              width="600"
+              height="400"
             />
             <p>Gaming</p>
           </article>
         </div>
 
         {/* ── Features ── */}
-        <p className="landing-feature-section-label">Alles was du brauchst</p>
-        <div className="landing-feature-grid">
+        <section aria-labelledby="features-heading">
+          <p id="features-heading" className="landing-feature-section-label">Alles was du brauchst</p>
+          <div className="landing-feature-grid">
           <div className="landing-feature-card">
             <span className="landing-feature-i">⚡</span>
             <h3>Echtzeit-Messaging</h3>
@@ -128,7 +135,8 @@ export function LandingPage({ onOpenLogin, onOpenRegister }: LandingPageProps) {
               Einsatz &mdash; Tag und Nacht.
             </p>
           </div>
-        </div>
+          </div>
+        </section>
 
         {/* ── Download ── */}
         <div className="landing-store-row">
