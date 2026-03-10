@@ -246,6 +246,10 @@ export class ChatService {
       throw new Error(API_ERROR_CODES.FORBIDDEN_CHANNEL);
     }
 
+    if (channel.isSystem) {
+      throw new Error(API_ERROR_CODES.SYSTEM_CHANNEL_PROTECTED);
+    }
+
     if (channel.type !== "GROUP") {
       throw new Error(API_ERROR_CODES.GROUP_ONLY);
     }

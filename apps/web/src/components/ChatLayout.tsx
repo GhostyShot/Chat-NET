@@ -660,7 +660,13 @@ export function ChatLayout({
               )}
             </div>
 
-            {/* Composer */}
+            {/* Composer – locked for non-owners in system channels */}
+            {activeChannel?.isSystem && !currentUserIsPlatformOwner ? (
+              <div className="system-composer-lock">
+                <span className="system-lock-icon">🔒</span>
+                <span>Nur das Team kann in diesem Kanal schreiben.</span>
+              </div>
+            ) : (
             <div className="composer">
               <div className="composer-side-actions">
                 <label
@@ -735,9 +741,11 @@ export function ChatLayout({
                 title="Senden"
                 aria-label="Senden"
               >
-                <span className="composer-icon">\u27A4</span>
+                <span className="composer-icon">➤</span>
               </button>
             </div>
+            )}
+
           </section>
 
           {/* Members panel removed – managed via modal */}

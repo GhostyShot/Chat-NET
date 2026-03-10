@@ -1898,6 +1898,26 @@ button:active {
   vertical-align: middle;
 }
 
+/* ─── System channel locked composer banner ─── */
+.system-composer-lock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-subtle);
+  color: var(--text-tertiary);
+  font-size: 13px;
+  font-weight: 500;
+  user-select: none;
+}
+
+.system-lock-icon {
+  font-size: 15px;
+  opacity: 0.7;
+}
+
 
 /* ─── Search ─── */
 .search-row {
