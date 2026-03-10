@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ChangeEvent, KeyboardEvent, MutableRefObject, ReactNode } from "react";
 import type { AuthResponse } from "@chatnet/shared";
 import type { ChannelItem, ChannelMemberItem, MessageItem, PollItem } from "../lib/api";
@@ -260,9 +261,32 @@ export function ChatLayout({
   setAddMemberUsername,
   onAddMemberByUsername
 }: ChatLayoutProps) {
+  const [showMembers, setShowMembers] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+
+  const AVATAR_PALETTE = ["#0ea5e9", "#06b6d4", "#8b5cf6", "#ec4899", "#f97316", "#22c55e", "#f59e0b", "#64748b"];
+  function getInitials(name: string): string {
+    return name.split(" ").map((w) => w[0]?.toUpperCase() ?? "").slice(0, 2).join("") || "?";
+  }
+  function avatarColor(id: string): string {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = ((h * 31) + id.charCodeAt(i)) >>> 0;
+    return AVATAR_PALETTE[h % AVATAR_PALETTE.length];
+  }
+
+  const enrichedMessages = messages.map((entry, idx) => {
+    const prev = messages[idx - 1];
+    const sameAuthor = prev?.sender.id === entry.sender.id;
+    const withinWindow = prev
+      ? (new Date(entry.createdAt ?? "").getTime() - new Date(prev.createdAt ?? "").getTime()) < 5 * 60_000
+      : false;
+    return { ...entry, isGroupStart: !sameAuthor || !withinWindow };
+  });
+
   return (
     <main className="app-shell chat-app-shell">
       <section className={isMobileLayout && mobilePane === "chat" ? "chat-shell mobile-chat-focus" : "chat-shell"}>
+        {/* ─── Global Topbar ─── */}
         <header className="chat-topbar">
           <div className="brand-block">
             <img src="/chat-net-logo.svg" alt="Chat-Net Logo" className="brand-logo" />
@@ -270,80 +294,76 @@ export function ChatLayout({
           </div>
           <div className="user-block">
             <span
-              className={
-                realtimeState === "online"
-                  ? "realtime-pill online"
-                  : realtimeState === "connecting"
-                    ? "realtime-pill connecting"
-                    : "realtime-pill offline"
-              }
+              className={realtimeState === "online" ? "realtime-pill online" : realtimeState === "connecting" ? "realtime-pill connecting" : "realtime-pill offline"}
               aria-live="polite"
             >
-              {realtimeState === "online" ? "Live" : realtimeState === "connecting" ? "Verbinde\u2026" : "Offline"}
+              {realtimeState === "online" ? "● Live" : realtimeState === "connecting" ? "Verbinde\u2026" : "\u25CB Offline"}
             </span>
             <div className="user-chip">
-              <span className="status-dot" />
-              <span>
-                {auth.user.displayName}
-                {renderPlatformOwnerBadge(auth.user.id, auth.user.username)}
-                {renderCustomBadges(auth.user.id)}
+              <div className="chip-avatar" style={{ background: avatarColor(auth.user.id) }}>
+                {getInitials(auth.user.displayName)}
+                <span className="chip-presence" />
+              </div>
+              <div className="chip-info">
+                <span className="chip-display">
+                  {auth.user.displayName}
+                  {renderPlatformOwnerBadge(auth.user.id, auth.user.username)}
+                  {renderCustomBadges(auth.user.id)}
+                </span>
                 <small className="chip-handle">@{auth.user.username}</small>
-              </span>
+              </div>
             </div>
-            <button className="secondary compact" onClick={onToggleTheme}>
-              {theme === "dark" ? "Hell" : "Dunkel"}
-            </button>
-            {currentUserIsPlatformOwner && (
-              <button
-                className="secondary compact"
-                onClick={() => {
-                  setSettingsTab("owner");
-                  setSettingsOpen(true);
-                }}
-              >
-                {"Owner Men\u00FC"}
+            <div className="topbar-actions">
+              <button className="icon-btn" title={theme === "dark" ? "Helles Design" : "Dunkles Design"} onClick={onToggleTheme}>
+                {theme === "dark" ? "\u2600" : "\u263E"}
               </button>
-            )}
-            <button
-              className="secondary compact"
-              onClick={() => {
-                setSettingsTab("profile");
-                setSettingsOpen(true);
-              }}
-            >
-              Einstellungen
-            </button>
-            <button className="secondary compact" onClick={onLogout}>
-              Abmelden
-            </button>
+              {currentUserIsPlatformOwner && (
+                <button className="icon-btn" title="Owner Men\u00FC" onClick={() => { setSettingsTab("owner"); setSettingsOpen(true); }}>
+                  \u2699
+                </button>
+              )}
+              <button className="icon-btn" title="Einstellungen" onClick={() => { setSettingsTab("profile"); setSettingsOpen(true); }}>
+                \u25CE
+              </button>
+              <button className="icon-btn danger-btn" title="Abmelden" onClick={onLogout}>
+                \u23FB
+              </button>
+            </div>
           </div>
         </header>
 
+        {/* ─── Main Layout ─── */}
         <div
           className={
             isMobileLayout
               ? mobilePane === "chat"
                 ? "chat-layout mobile-chat-open"
                 : "chat-layout mobile-list-open"
-              : "chat-layout"
+              : showMembers && activeChannel?.type === "GROUP"
+                ? "chat-layout with-members"
+                : "chat-layout"
           }
         >
+          {/* ── Left: Channel Sidebar ── */}
           <aside className="panel channel-panel">
-            <div className="panel-header">
-              <h3>{"Kan\u00E4le"}</h3>
-              <span>{channels.length}</span>
+            <div className="sidebar-section-header">
+              <span className="sidebar-section-label">Kan\u00E4le</span>
+              <span className="sidebar-count">{channels.length}</span>
             </div>
 
             <div className="channel-toolbar">
-              <button className="secondary compact" onClick={onOpenCreateChannelModal}>
-                Neuer Kanal
+              <button className="sidebar-action-btn" onClick={onOpenCreateChannelModal} title="Neue Gruppe erstellen">
+                <span className="sab-icon">+</span>
+                <span>Gruppe</span>
               </button>
-              <button className="secondary compact" onClick={onOpenDirectModal}>
-                Direktchat
+              <button className="sidebar-action-btn" onClick={onOpenDirectModal} title="Direktnachricht starten">
+                <span className="sab-icon">\u2709</span>
+                <span>DM</span>
               </button>
               {activeChannel?.type === "GROUP" && (
-                <button className="secondary compact" onClick={onOpenAddMemberModal} disabled={ownMembershipRole !== "OWNER"}>
-                  {"Hinzuf\u00FCgen"}
+                <button className="sidebar-action-btn" onClick={onOpenAddMemberModal} disabled={ownMembershipRole !== "OWNER"} title="Mitglied hinzuf\u00FCgen">
+                  <span className="sab-icon">\uD83D\uDC64</span>
+                  <span>Hinzuf\u00FCgen</span>
                 </button>
               )}
             </div>
@@ -351,142 +371,142 @@ export function ChatLayout({
             <div className="channel-items">
               {sortedChannels.map((channel) => {
                 const unreadCount = unreadByChannelId[channel.id] ?? 0;
+                const isDirect = channel.type === "DIRECT";
+                const displayName = getChannelDisplayName(channel);
+                const hasUnread = unreadCount > 0;
                 return (
                   <button
                     key={channel.id}
-                    className={channel.id === activeChannelId ? "channel-item active" : "channel-item"}
+                    className={
+                      channel.id === activeChannelId
+                        ? "channel-item active"
+                        : hasUnread
+                          ? "channel-item unread"
+                          : "channel-item"
+                    }
                     data-channel-id={channel.id}
                     onClick={() => openChannel(channel.id)}
                   >
+                    <div className="ch-avatar" style={{ background: avatarColor(channel.id) }}>
+                      {getInitials(displayName)}
+                    </div>
                     <div className="channel-main">
-                      <span className="channel-name">{getChannelDisplayName(channel)}</span>
-                      <small className="channel-subline">{"Letzte Aktivit\u00E4t"} {formatTimeLabel(channel.updatedAt)}</small>
+                      <div className="ch-name-row">
+                        <span className="ch-type-icon">{isDirect ? "\u25CE" : "#"}</span>
+                        <span className={hasUnread && channel.id !== activeChannelId ? "channel-name unread-name" : "channel-name"}>
+                          {displayName}
+                        </span>
+                      </div>
+                      <small className="channel-subline">{formatTimeLabel(channel.updatedAt)}</small>
                     </div>
-                    <div className="channel-side">
-                      <span className="channel-kind">{getChannelTypeLabel(channel)}</span>
-                      {unreadCount > 0 ? <span className="channel-unread">{unreadCount > 99 ? "99+" : unreadCount}</span> : null}
-                    </div>
+                    {hasUnread && (
+                      <span className="channel-unread">{unreadCount > 99 ? "99+" : unreadCount}</span>
+                    )}
                   </button>
                 );
               })}
-              {!channels.length && <p className="empty-hint">{"Noch keine Kan\u00E4le vorhanden."}</p>}
+              {!channels.length && <p className="empty-hint">Noch keine Kan\u00E4le vorhanden.</p>}
             </div>
-
-            {activeChannel?.type === "GROUP" && (
-              <div className="member-panel">
-                <div className="panel-header">
-                  <h3>Mitglieder</h3>
-                  <span>{channelMembers.length}</span>
-                </div>
-                <div className="member-list">
-                  {channelMembers.map((member) => {
-                    const isSelf = member.userId === auth.user.id;
-                    return (
-                      <div key={member.userId} className="member-item">
-                        <div>
-                          <p className="member-name">
-                            {member.user.displayName}
-                            {renderPlatformOwnerBadge(member.userId, member.user.username)}
-                            {renderCustomBadges(member.userId)}
-                          </p>
-                          <p className="member-meta">
-                            @{member.user.username} {"\u00B7"} {member.role}
-                          </p>
-                        </div>
-                        <div className="member-actions">
-                          {canManageRoles && member.role !== "OWNER" && !isSelf && (
-                            <button className="secondary compact" onClick={() => onTransferOwnership(member)}>
-                              Owner geben
-                            </button>
-                          )}
-                          {canManageRoles && member.role !== "OWNER" && !isSelf && (
-                            <button className="secondary compact" onClick={() => onToggleMemberRole(member)}>
-                              {member.role === "ADMIN" ? "Zu Member" : "Zu Admin"}
-                            </button>
-                          )}
-                          {canModerateMembers && member.role !== "OWNER" && !isSelf && (
-                            <button className="secondary compact" onClick={() => onRemoveMember(member)}>
-                              Entfernen
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {!channelMembers.length && <p className="inline-note">{"Keine Mitgliederdaten verf\u00FCgbar."}</p>}
-                </div>
-                <div className="member-actions member-footer-actions">
-                  <button className="secondary compact" onClick={onLeaveGroup} disabled={ownMembershipRole === "OWNER"}>
-                    Gruppe verlassen
-                  </button>
-                  {ownMembershipRole === "OWNER" && (
-                    <button className="secondary compact" onClick={onDeleteGroup}>
-                      {"Gruppe l\u00F6schen"}
-                    </button>
-                  )}
-                </div>
-                {ownMembershipRole === "OWNER" && (
-                  <p className="inline-note">
-                    {"\u00DCbertrage erst den Owner an ein anderes Mitglied, bevor du die Gruppe verl\u00E4sst."}
-                  </p>
-                )}
-              </div>
-            )}
           </aside>
 
+          {/* ── Center: Message Panel ── */}
           <section className="panel message-panel">
+            {/* Room Header */}
             <div className="chat-room-header">
               {isMobileLayout && (
-                <button className="secondary compact mobile-back" aria-label="Zur Kanalliste" onClick={() => setMobilePane("list")}>
-                  {"\u2190"}
+                <button className="icon-btn" aria-label="Zur\u00FCck zur Kanalliste" onClick={() => setMobilePane("list")}>
+                  \u2190
                 </button>
               )}
               <div className="chat-room-meta">
-                <h3>{getChannelDisplayName(activeChannel)}</h3>
-                <span>
-                  {activeConversationStatus}
-                  {voiceCallState !== "idle" ? ` • Sprachanruf ${voiceParticipants} Teilnehmende` : ""}
-                </span>
+                {activeChannel && (
+                  <div className="room-avatar" style={{ background: avatarColor(activeChannel.id) }}>
+                    {getInitials(getChannelDisplayName(activeChannel))}
+                  </div>
+                )}
+                <div className="room-info">
+                  <h3>{getChannelDisplayName(activeChannel)}</h3>
+                  <span>
+                    {activeConversationStatus}
+                    {voiceCallState !== "idle" ? ` \u00B7 \uD83D\uDD0A ${voiceParticipants} aktiv` : ""}
+                  </span>
+                </div>
               </div>
-              <div className="channel-toolbar">
+              <div className="room-actions">
                 {voiceSupported && activeChannelId ? (
                   voiceCallState === "idle" ? (
-                    <button className="secondary compact" onClick={onStartVoiceCall}>
-                      Sprachanruf starten
-                    </button>
+                    <button className="icon-btn" title="Sprachanruf starten" onClick={onStartVoiceCall}>\uD83C\uDF99</button>
                   ) : (
                     <>
-                      <button className="secondary compact" onClick={onToggleVoiceMute}>
-                        {isVoiceMuted ? "Mikro an" : "Stumm"}
+                      <button
+                        className={isVoiceMuted ? "icon-btn danger-btn" : "icon-btn active-btn"}
+                        title={isVoiceMuted ? "Mikrofon einschalten" : "Stumm schalten"}
+                        onClick={onToggleVoiceMute}
+                      >
+                        {isVoiceMuted ? "\uD83D\uDD07" : "\uD83C\uDF99"}
                       </button>
-                      <button className="secondary compact" onClick={onLeaveVoiceCall}>
-                        Sprachanruf verlassen
-                      </button>
+                      <button className="icon-btn danger-btn" title="Sprachanruf verlassen" onClick={onLeaveVoiceCall}>\uD83D\uDCF5</button>
                     </>
                   )
                 ) : null}
-                {activeChannel ? (
-                  <span className="chat-room-type-pill">{activeChannel.type === "GROUP" ? "Gruppe" : "Direkt"}</span>
-                ) : null}
+                <button
+                  className={showSearch ? "icon-btn active-btn" : "icon-btn"}
+                  title="Suchen"
+                  onClick={() => setShowSearch(!showSearch)}
+                >
+                  \uD83D\uDD0D
+                </button>
+                {activeChannel?.type === "GROUP" && (
+                  <button
+                    className={showMembers ? "icon-btn active-btn" : "icon-btn"}
+                    title="Mitglieder"
+                    onClick={() => setShowMembers(!showMembers)}
+                  >
+                    \uD83D\uDC65
+                  </button>
+                )}
+                {activeChannel && (
+                  <span className="chat-room-type-pill">
+                    {activeChannel.type === "GROUP" ? "Gruppe" : "Direkt"}
+                  </span>
+                )}
               </div>
             </div>
 
-            <div className="search-row">
-              <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Nachrichten durchsuchen" />
-              <button className="secondary compact" onClick={onSearch}>
-                Suchen
-              </button>
-              <button className="secondary compact" onClick={onSummarizeChannel} disabled={!activeChannelId || summaryLoading}>
-                {summaryLoading ? "Zusammenfassen …" : "AI-Zusammenfassung (7T)"}
-              </button>
-              <button className="secondary compact" onClick={onCreatePoll} disabled={!activeChannelId || pollLoading}>
-                {pollLoading ? "Umfrage …" : "Umfrage erstellen"}
-              </button>
-            </div>
+            {/* Collapsible Search Bar */}
+            {showSearch && (
+              <div className="search-row">
+                <input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Nachrichten durchsuchen\u2026"
+                  autoFocus
+                />
+                <button className="secondary compact" onClick={onSearch}>Suchen</button>
+                <button className="secondary compact" onClick={onSummarizeChannel} disabled={!activeChannelId || summaryLoading}>
+                  {summaryLoading ? "L\u00E4dt\u2026" : "AI-Zusammenfassung"}
+                </button>
+                <button className="secondary compact" onClick={onCreatePoll} disabled={!activeChannelId || pollLoading}>
+                  {pollLoading ? "L\u00E4dt\u2026" : "Umfrage erstellen"}
+                </button>
+              </div>
+            )}
 
+            {/* Search Results */}
+            {searchResults.length > 0 && (
+              <div className="search-results">
+                {searchResults.slice(0, 5).map((entry) => (
+                  <p key={`search-${entry.id}`} className="result-item">
+                    <strong>{entry.sender.displayName}:</strong> {entry.content}
+                  </p>
+                ))}
+              </div>
+            )}
+
+            {/* Polls */}
             {polls.length > 0 && (
-              <div className="poll-list">
-                {polls.slice(0, 5).map((poll) => (
+              <div className="poll-strip">
+                {polls.slice(0, 3).map((poll) => (
                   <article key={poll.id} className="poll-card">
                     <p className="poll-question">{poll.question}</p>
                     <div className="poll-options">
@@ -498,153 +518,194 @@ export function ChatLayout({
                           onClick={() => onVotePoll(poll.id, option.id)}
                           disabled={poll.isClosed}
                         >
-                          <span>{option.label}</span>
-                          <strong>{option.voteCount}</strong>
+                          <span className="poll-label">{option.label}</span>
+                          <strong className="poll-count">{option.voteCount}</strong>
                         </button>
                       ))}
                     </div>
-                    <small className="inline-note">{poll.totalVotes} Stimmen</small>
+                    <small className="poll-total">{poll.totalVotes} Stimmen{poll.isClosed ? " \u00B7 Geschlossen" : ""}</small>
                   </article>
                 ))}
               </div>
             )}
 
-            {!!searchResults.length && (
-              <div className="search-results">
-                {searchResults.slice(0, 5).map((entry) => (
-                  <p key={`search-${entry.id}`} className="result-item">
-                    <strong>{entry.sender.displayName}:</strong> {entry.content}
-                  </p>
-                ))}
-              </div>
-            )}
-
+            {/* Message List */}
             <div className="message-list" ref={messageListRef}>
-              {messages.map((entry) => {
+              {enrichedMessages.map((entry) => {
                 const ownMessage = entry.sender.id === auth.user.id;
                 const showActions = activeMessageId === entry.id;
                 const isOnline = Boolean(presenceMap[entry.sender.id]);
                 const role = memberRoleByUserId.get(entry.sender.id);
-                const timeLabel = formatTimeLabel(entry.createdAt);
+                const color = avatarColor(entry.sender.id);
                 const voiceMatch = entry.content.match(/^\[voice\]\s+(https?:\/\/\S+)$/i);
                 const voiceUrl = voiceMatch?.[1] ?? null;
                 const isReplyingToEntry = replyingToMessageId === entry.id;
+
                 return (
                   <article
                     key={entry.id}
-                    className={ownMessage ? "message-bubble mine" : "message-bubble"}
+                    className={[
+                      "msg-row",
+                      ownMessage ? "mine" : "",
+                      entry.isGroupStart ? "group-start" : "group-cont",
+                      showActions ? "selected" : "",
+                    ].filter(Boolean).join(" ")}
                     onClick={() => setActiveMessageId((current) => (current === entry.id ? null : entry.id))}
                   >
-                    <div className="message-head">
-                      <div className="message-author-line">
-                        <p className="message-meta">
-                          {entry.sender.displayName}
-                          {entry.sender.username ? <span className="message-handle">@{entry.sender.username}</span> : null}
+                    <div className="msg-avatar-col">
+                      {entry.isGroupStart ? (
+                        <div className="msg-avatar" style={{ background: color }}>
+                          {getInitials(entry.sender.displayName)}
+                          {isOnline && <span className="msg-presence-dot" />}
+                        </div>
+                      ) : (
+                        <span className="msg-time-hover">{formatTimeLabel(entry.createdAt)}</span>
+                      )}
+                    </div>
+                    <div className="msg-body">
+                      {entry.isGroupStart && (
+                        <div className="msg-header">
+                          <span className="msg-author" style={{ color }}>{entry.sender.displayName}</span>
+                          {entry.sender.username && (
+                            <span className="msg-handle">@{entry.sender.username}</span>
+                          )}
                           {renderPlatformOwnerBadge(entry.sender.id, entry.sender.username)}
                           {renderCustomBadges(entry.sender.id)}
-                        </p>
-                        <div className="message-badges-row">
-                          {role === "ADMIN" ? <span className="role-pill">Admin</span> : null}
-                          <span className={isOnline ? "presence-pill online" : "presence-pill offline"}>{isOnline ? "Online" : "Offline"}</span>
-                          {timeLabel ? <span className="message-time">{timeLabel}</span> : null}
+                          {role === "ADMIN" && <span className="role-pill">Admin</span>}
+                          {!isOnline && <span className="presence-pill offline">Offline</span>}
+                          <span className="msg-time">{formatTimeLabel(entry.createdAt)}</span>
                         </div>
+                      )}
+
+                      {editingMessageId === entry.id ? (
+                        <div className="edit-row">
+                          <input
+                            value={editingContent}
+                            onChange={(event) => setEditingContent(event.target.value)}
+                            placeholder="Bearbeitete Nachricht"
+                            autoFocus
+                          />
+                          <button className="primary compact" onClick={() => onSaveEdit(entry.id)}>\u2713</button>
+                          <button className="secondary compact" onClick={() => onEditMessage(entry)}>\u2715</button>
+                        </div>
+                      ) : voiceUrl ? (
+                        <div className="voice-message-wrap">
+                          <audio controls preload="none" src={voiceUrl} className="voice-message-player" />
+                        </div>
+                      ) : (
+                        <>
+                          {entry.replyTo && (
+                            <div className="reply-preview">
+                              <strong>{entry.replyTo.sender.displayName}</strong>
+                              <span>{entry.replyTo.content}</span>
+                            </div>
+                          )}
+                          <p className="message-content">{renderContentWithMentions(entry.content)}</p>
+                          {entry.content.startsWith("http") && !voiceUrl && (
+                            <a className="file-link" href={entry.content} target="_blank" rel="noreferrer">
+                              Datei \u00F6ffnen \u2197
+                            </a>
+                          )}
+                        </>
+                      )}
+
+                      {isReplyingToEntry && (
+                        <small className="inline-note replying-note">Antwort wird verfasst\u2026</small>
+                      )}
+
+                      {/* Floating action bar */}
+                      <div className={showActions ? "msg-actions visible" : "msg-actions"}>
+                        <button
+                          className="msg-action-btn"
+                          onClick={(e) => { e.stopPropagation(); onReplyToMessage(entry.id); }}
+                          title="Antworten"
+                        >
+                          \u21A9
+                        </button>
+                        {ownMessage ? (
+                          <>
+                            <button
+                              className="msg-action-btn"
+                              onClick={(e) => { e.stopPropagation(); onEditMessage(entry); }}
+                              title="Bearbeiten"
+                            >
+                              \u270E
+                            </button>
+                            <button
+                              className="msg-action-btn danger"
+                              onClick={(e) => { e.stopPropagation(); onDeleteMessage(entry.id); }}
+                              title="L\u00F6schen"
+                            >
+                              \uD83D\uDDD1
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            className="msg-action-btn danger"
+                            onClick={(e) => { e.stopPropagation(); onBlockSender(entry.sender.id); }}
+                            title="Blockieren"
+                          >
+                            \uD83D\uDEAB
+                          </button>
+                        )}
                       </div>
                     </div>
-
-                    {editingMessageId === entry.id ? (
-                      <div className="edit-row">
-                        <input value={editingContent} onChange={(event) => setEditingContent(event.target.value)} placeholder="Neue Nachricht" />
-                        <button className="primary compact" onClick={() => onSaveEdit(entry.id)}>
-                          Speichern
-                        </button>
-                      </div>
-                    ) : voiceUrl ? (
-                      <div className="voice-message-wrap">
-                        <audio controls preload="none" src={voiceUrl} className="voice-message-player" />
-                      </div>
-                    ) : (
-                      <>
-                        {entry.replyTo ? (
-                          <div className="reply-preview">
-                            <strong>{entry.replyTo.sender.displayName}</strong>
-                            <span>{entry.replyTo.content}</span>
-                          </div>
-                        ) : null}
-                        <p className="message-content">{renderContentWithMentions(entry.content)}</p>
-                      </>
-                    )}
-
-                    {entry.content.startsWith("http") && !voiceUrl && (
-                      <a className="file-link" href={entry.content} target="_blank" rel="noreferrer">
-                        {"Datei \u00F6ffnen"}
-                      </a>
-                    )}
-
-                    {ownMessage ? (
-                      <div className={showActions ? "message-actions visible" : "message-actions"}>
-                        <button className="message-action-chip" onClick={() => onReplyToMessage(entry.id)} title="Antworten" aria-label="Antworten">
-                          ↩
-                        </button>
-                        <button className="message-action-chip" onClick={() => onEditMessage(entry)} title="Bearbeiten" aria-label="Bearbeiten">
-                          {"\u270E"}
-                        </button>
-                        <button className="message-action-chip delete" onClick={() => onDeleteMessage(entry.id)} title={"L\u00F6schen"} aria-label={"L\u00F6schen"}>
-                          {"\uD83D\uDDD1"}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className={showActions ? "message-actions visible" : "message-actions"}>
-                        <button className="message-action-chip" onClick={() => onReplyToMessage(entry.id)} title="Antworten" aria-label="Antworten">
-                          ↩
-                        </button>
-                        <button className="message-action-chip delete" onClick={() => onBlockSender(entry.sender.id)} title="Blockieren" aria-label="Blockieren">
-                          {"\uD83D\uDEAB"}
-                        </button>
-                      </div>
-                    )}
-
-                    {isReplyingToEntry ? <small className="inline-note">Antwort wird verfasst …</small> : null}
                   </article>
                 );
               })}
 
               {!messages.length && (
                 <div className="empty-state">
-                  <p>Noch keine Nachrichten in diesem Kanal.</p>
-                  <span>Starte die Unterhaltung mit deiner ersten Nachricht.</span>
+                  <div className="empty-state-icon">\uD83D\uDCAC</div>
+                  <p>
+                    {activeChannel
+                      ? `Willkommen in ${activeChannel.type === "DIRECT" ? "" : "#"}${getChannelDisplayName(activeChannel)}!`
+                      : "Kanal ausw\u00E4hlen"}
+                  </p>
+                  <span>
+                    {activeChannel
+                      ? "Noch keine Nachrichten. Schreib die erste!"
+                      : "W\u00E4hle links einen Kanal aus, um zu beginnen."}
+                  </span>
                 </div>
               )}
             </div>
 
+            {/* Composer */}
             <div className="composer">
-              <label
-                className={uploadsEnabledForAll ? "upload-button" : "upload-button disabled"}
-                htmlFor="upload-input"
-                title={"Datei anh\u00E4ngen"}
-                aria-label={"Datei anh\u00E4ngen"}
-              >
-                <span className="composer-icon">+</span>
-              </label>
-              <input id="upload-input" className="file-input" type="file" onChange={onUploadSelected} disabled={!uploadsEnabledForAll} />
-              {voiceNoteSupported && (
-                <button
-                  className={voiceNoteState === "uploading" ? "upload-button disabled" : "upload-button"}
-                  onClick={voiceNoteState === "recording" ? onStopVoiceNote : onStartVoiceNote}
-                  title={voiceNoteState === "recording" ? "Sprachnachricht stoppen" : "Sprachnachricht aufnehmen"}
-                  aria-label={voiceNoteState === "recording" ? "Sprachnachricht stoppen" : "Sprachnachricht aufnehmen"}
-                  disabled={voiceNoteState === "uploading"}
-                  type="button"
+              <div className="composer-side-actions">
+                <label
+                  className={uploadsEnabledForAll ? "composer-icon-btn" : "composer-icon-btn disabled"}
+                  htmlFor="upload-input"
+                  title="Datei anh\u00E4ngen"
+                  aria-label="Datei anh\u00E4ngen"
                 >
-                  <span className="composer-icon">{voiceNoteState === "recording" ? "●" : "🎙"}</span>
-                </button>
-              )}
+                  \uD83D\uDCCE
+                </label>
+                <input id="upload-input" className="file-input" type="file" onChange={onUploadSelected} disabled={!uploadsEnabledForAll} />
+                {voiceNoteSupported && (
+                  <button
+                    className={
+                      voiceNoteState === "uploading"
+                        ? "composer-icon-btn disabled"
+                        : voiceNoteState === "recording"
+                          ? "composer-icon-btn recording"
+                          : "composer-icon-btn"
+                    }
+                    onClick={voiceNoteState === "recording" ? onStopVoiceNote : onStartVoiceNote}
+                    title={voiceNoteState === "recording" ? "Aufnahme stoppen" : "Sprachnachricht aufnehmen"}
+                    disabled={voiceNoteState === "uploading"}
+                    type="button"
+                  >
+                    {voiceNoteState === "recording" ? "\u23F9" : "\uD83C\uDF99"}
+                  </button>
+                )}
+              </div>
               <div className="composer-input-wrap">
                 {replyingToMessageId ? (
                   <div className="reply-banner">
-                    <span>Antwort auf Nachricht</span>
-                    <button type="button" className="secondary compact" onClick={onCancelReply}>
-                      Abbrechen
-                    </button>
+                    <span>\u21A9 Antwort auf Nachricht</span>
+                    <button type="button" className="secondary compact" onClick={onCancelReply}>\u2715</button>
                   </div>
                 ) : null}
                 <textarea
@@ -652,7 +713,11 @@ export function ChatLayout({
                   value={composerText}
                   onChange={onComposerChange}
                   onKeyDown={onComposerKeyDown}
-                  placeholder="Nachricht schreiben..."
+                  placeholder={
+                    activeChannel
+                      ? `Nachricht an ${activeChannel.type === "DIRECT" ? "" : "#"}${getChannelDisplayName(activeChannel)}\u2026`
+                      : "Nachricht schreiben\u2026"
+                  }
                 />
                 {mentionQuery !== null && filteredMentionCandidates.length > 0 && (
                   <div className="mention-suggestions">
@@ -663,18 +728,89 @@ export function ChatLayout({
                         className={index === mentionIndex ? "mention-option active" : "mention-option"}
                         onClick={() => insertMention(item.username)}
                       >
-                        <span>@{item.username}</span>
-                        <small>{item.displayName}</small>
+                        <div className="mention-avatar" style={{ background: avatarColor(item.username) }}>
+                          {getInitials(item.displayName)}
+                        </div>
+                        <div>
+                          <span>@{item.username}</span>
+                          <small>{item.displayName}</small>
+                        </div>
                       </button>
                     ))}
                   </div>
                 )}
               </div>
-              <button className="primary composer-send" onClick={onSendMessage} title="Senden" aria-label="Senden">
-                <span className="composer-icon">{"\u27A4"}</span>
+              <button
+                className="composer-send"
+                onClick={onSendMessage}
+                title="Senden"
+                aria-label="Senden"
+              >
+                <span className="composer-icon">\u27A4</span>
               </button>
             </div>
           </section>
+
+          {/* ── Right: Members Panel ── */}
+          {showMembers && activeChannel?.type === "GROUP" && !isMobileLayout && (
+            <aside className="members-panel">
+              <div className="members-panel-header">
+                <span>Mitglieder</span>
+                <span className="members-badge">{channelMembers.length}</span>
+              </div>
+              <div className="members-panel-list">
+                {channelMembers.map((member) => {
+                  const isSelf = member.userId === auth.user.id;
+                  const online = Boolean(presenceMap[member.userId]);
+                  return (
+                    <div key={member.userId} className="mpanel-item">
+                      <div className="mpanel-avatar" style={{ background: avatarColor(member.userId) }}>
+                        {getInitials(member.user.displayName)}
+                        <span className={online ? "mpanel-dot online" : "mpanel-dot"} />
+                      </div>
+                      <div className="mpanel-info">
+                        <p className="mpanel-name">
+                          {member.user.displayName}
+                          {renderPlatformOwnerBadge(member.userId, member.user.username)}
+                          {renderCustomBadges(member.userId)}
+                        </p>
+                        <p className="mpanel-meta">@{member.user.username} \u00B7 {member.role}</p>
+                      </div>
+                      {!isSelf && (
+                        <div className="mpanel-actions">
+                          {canManageRoles && member.role !== "OWNER" && (
+                            <>
+                              <button className="icon-btn" title="Owner \u00FCbertragen" onClick={() => onTransferOwnership(member)}>\u2B06</button>
+                              <button className="icon-btn" title={member.role === "ADMIN" ? "Zu Member" : "Zu Admin"} onClick={() => onToggleMemberRole(member)}>
+                                {member.role === "ADMIN" ? "\u2193" : "\u2191"}
+                              </button>
+                            </>
+                          )}
+                          {canModerateMembers && member.role !== "OWNER" && (
+                            <button className="icon-btn danger-btn" title="Entfernen" onClick={() => onRemoveMember(member)}>\u2715</button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {!channelMembers.length && <p className="empty-hint">Keine Mitglieder.</p>}
+              </div>
+              <div className="mpanel-footer">
+                <button className="secondary compact full-width" onClick={onLeaveGroup} disabled={ownMembershipRole === "OWNER"}>
+                  Gruppe verlassen
+                </button>
+                {ownMembershipRole === "OWNER" && (
+                  <button className="secondary compact full-width" onClick={onDeleteGroup}>
+                    Gruppe l\u00F6schen
+                  </button>
+                )}
+                {ownMembershipRole === "OWNER" && (
+                  <p className="inline-note">\u00DCbertrage zuerst den Owner.</p>
+                )}
+              </div>
+            </aside>
+          )}
         </div>
 
         {message && <p className="message-banner">{message}</p>}
