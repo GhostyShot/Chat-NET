@@ -1,413 +1,182 @@
 import type {
-  AuthEnvelope,
-  AuthResponse,
-  ChannelSummaryRequest,
-  ChannelSummaryResponse,
-  ChannelItem,
-  ChannelMemberItem,
-  PollItem,
-  MessageListResponse,
-  MessageItem,
-  OkResponse,
-  PlatformSettingsItem,
-  PresenceItem,
-  ProfileItem,
-  UploadedFileResponse
+  AuthEnvelope, AuthResponse, ChannelSummaryRequest, ChannelSummaryResponse,
+  ChannelItem, ChannelMemberItem, PollItem, MessageListResponse, MessageItem,
+  OkResponse, PlatformSettingsItem, PresenceItem, ProfileItem, UploadedFileResponse,
 } from "@chatnet/shared";
 import { ApiRequestError, requestJson as sharedRequestJson } from "@chatnet/shared";
 
 export type {
-  ChannelSummaryResponse,
-  ChannelItem,
-  ChannelMemberItem,
-  PollItem,
-  MessageItem,
-  PlatformSettingsItem,
-  PresenceItem,
-  ProfileItem
+  ChannelSummaryResponse, ChannelItem, ChannelMemberItem, PollItem,
+  MessageItem, PlatformSettingsItem, PresenceItem, ProfileItem,
 } from "@chatnet/shared";
 
 export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 
-// Keep-alive ping so Render free-tier never hits 50 s inactivity sleep.
+// Keep-alive ping (Render free tier)
 (function startKeepAlive() {
-  const ping = () =>
-    fetch(`${API_URL}/health`, { method: "GET", cache: "no-store" }).catch(() => {});
+  const ping = () => fetch(`${API_URL}/health`, { method: "GET", cache: "no-store" }).catch(() => {});
   ping();
   setInterval(ping, 10_000);
 })();
 
 export class ApiError extends ApiRequestError {}
 
-function jsonHeaders() {
-  return { "Content-Type": "application/json" };
-}
+function jsonHeaders() { return { "Content-Type": "application/json" }; }
+function authHeaders(token: string) { return { "Content-Type": "application/json", Authorization: `Bearer ${token}` }; }
 
-function authHeaders(accessToken: string) {
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${accessToken}`,
-  };
-}
-
-async function requestJson<T>(
-  path: string,
-  init: RequestInit,
-  options: { fallbackError: string; timeoutMs?: number; retry?: boolean }
-): Promise<T> {
+async function requestJson<T>(path: string, init: RequestInit, options: { fallbackError: string; timeoutMs?: number; retry?: boolean }): Promise<T> {
   try {
     return await sharedRequestJson<T>(API_URL, path, init, {
       ...options,
       requestCode: options.fallbackError,
-      timeoutMessage: "Anfrage hat zu lange gedauert. Bitte erneut versuchen.",
+      timeoutMessage: "Anfrage hat zu lange gedauert.",
       networkMessage: "Netzwerkfehler. Bitte Verbindung prüfen.",
     });
   } catch (error) {
-    if (error instanceof ApiRequestError) {
-      throw new ApiError(error.message, {
-        status: error.status,
-        code: error.code,
-        isNetwork: error.isNetwork,
-        isTimeout: error.isTimeout,
-      });
-    }
+    if (error instanceof ApiRequestError) throw new ApiError(error.message, { status: error.status, code: error.code, isNetwork: error.isNetwork, isTimeout: error.isTimeout });
     throw error;
   }
 }
 
-// ─── Auth ────────────────────────────────────────────────────────────────────
-
+// ── Auth
 export async function register(email: string, password: string, displayName: string): Promise<AuthResponse> {
-  const payload = await requestJson<AuthEnvelope>(
-    "/auth/register",
-    { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ email, password, displayName }) },
-    { fallbackError: "REGISTER_FAILED", retry: false }
-  );
+  const payload = await requestJson<AuthEnvelope>("/auth/register", { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ email, password, displayName }) }, { fallbackError: "REGISTER_FAILED", retry: false });
   return payload.auth;
 }
-
 export async function login(email: string, password: string): Promise<AuthResponse> {
-  return requestJson<AuthResponse>(
-    "/auth/login",
-    { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ email, password }) },
-    { fallbackError: "LOGIN_FAILED", retry: false }
-  );
+  return requestJson<AuthResponse>("/auth/login", { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ email, password }) }, { fallbackError: "LOGIN_FAILED", retry: false });
 }
-
 export async function loginWithGoogle(idToken: string): Promise<AuthResponse> {
-  return requestJson<AuthResponse>(
-    "/auth/google",
-    { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ idToken }) },
-    { fallbackError: "GOOGLE_LOGIN_FAILED", retry: false }
-  );
+  return requestJson<AuthResponse>("/auth/google", { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ idToken }) }, { fallbackError: "GOOGLE_LOGIN_FAILED", retry: false });
 }
-
 export async function refreshSession(refreshToken: string): Promise<AuthResponse> {
-  return requestJson<AuthResponse>(
-    "/auth/refresh",
-    { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ refreshToken }) },
-    { fallbackError: "REFRESH_FAILED", retry: false }
-  );
+  return requestJson<AuthResponse>("/auth/refresh", { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ refreshToken }) }, { fallbackError: "REFRESH_FAILED", retry: false });
 }
-
 export async function forgotPassword(email: string): Promise<void> {
-  await requestJson<unknown>(
-    "/auth/forgot-password",
-    { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ email }) },
-    { fallbackError: "FORGOT_PASSWORD_FAILED", retry: false }
-  );
+  await requestJson<unknown>("/auth/forgot-password", { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ email }) }, { fallbackError: "FORGOT_PASSWORD_FAILED", retry: false });
 }
-
 export async function resetPassword(token: string, newPassword: string): Promise<void> {
-  await requestJson<unknown>(
-    "/auth/reset-password",
-    { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ token, newPassword }) },
-    { fallbackError: "RESET_PASSWORD_FAILED", retry: false }
-  );
+  await requestJson<unknown>("/auth/reset-password", { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ token, newPassword }) }, { fallbackError: "RESET_PASSWORD_FAILED", retry: false });
 }
-
 export async function getProfile(accessToken: string): Promise<ProfileItem> {
-  return requestJson<ProfileItem>(
-    "/auth/me",
-    { method: "GET", headers: authHeaders(accessToken) },
-    { fallbackError: "PROFILE_FAILED" }
-  );
+  return requestJson<ProfileItem>("/auth/me", { method: "GET", headers: authHeaders(accessToken) }, { fallbackError: "PROFILE_FAILED" });
+}
+export async function updateProfile(accessToken: string, data: { displayName?: string; username?: string; statusEmoji?: string; statusText?: string; statusExpiresAt?: string | null }): Promise<ProfileItem> {
+  return requestJson<ProfileItem>("/auth/profile", { method: "PATCH", headers: authHeaders(accessToken), body: JSON.stringify(data) }, { fallbackError: "PROFILE_UPDATE_FAILED", retry: false });
+}
+export async function uploadAvatar(accessToken: string, file: File): Promise<{ avatarUrl: string }> {
+  const fd = new FormData();
+  fd.append("avatar", file);
+  const res = await fetch(`${API_URL}/auth/avatar`, { method: "POST", headers: { Authorization: `Bearer ${accessToken}` }, body: fd });
+  if (!res.ok) throw new ApiError("AVATAR_UPLOAD_FAILED");
+  return res.json() as Promise<{ avatarUrl: string }>;
+}
+export async function searchUsers(accessToken: string, q: string): Promise<Array<{ id: string; displayName: string; username: string; avatarUrl?: string | null }>> {
+  return requestJson("/auth/users/search?q=" + encodeURIComponent(q), { method: "GET", headers: authHeaders(accessToken) }, { fallbackError: "USER_SEARCH_FAILED" });
 }
 
-export async function updateProfile(
-  accessToken: string,
-  data: { displayName?: string; username?: string }
-): Promise<ProfileItem> {
-  return requestJson<ProfileItem>(
-    "/auth/profile",
-    { method: "PATCH", headers: authHeaders(accessToken), body: JSON.stringify(data) },
-    { fallbackError: "PROFILE_UPDATE_FAILED", retry: false }
-  );
-}
-
-// ─── Channels ────────────────────────────────────────────────────────────────
-
+// ── Channels
 export async function listChannels(accessToken: string): Promise<ChannelItem[]> {
-  return requestJson<ChannelItem[]>(
-    "/chat/channels",
-    { method: "GET", headers: authHeaders(accessToken) },
-    { fallbackError: "CHANNELS_FAILED" }
-  );
+  return requestJson<ChannelItem[]>("/chat/channels", { method: "GET", headers: authHeaders(accessToken) }, { fallbackError: "CHANNELS_FAILED" });
 }
-
-export async function createGroupChannel(
-  accessToken: string,
-  name: string,
-  memberIds: string[]
-): Promise<ChannelItem> {
-  return requestJson<ChannelItem>(
-    "/chat/channels",
-    { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify({ type: "group", name, memberIds }) },
-    { fallbackError: "CREATE_CHANNEL_FAILED", retry: false }
-  );
+export async function createGroupChannel(accessToken: string, name: string, memberIds: string[]): Promise<ChannelItem> {
+  return requestJson<ChannelItem>("/chat/channels", { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify({ type: "group", name, memberIds }) }, { fallbackError: "CREATE_CHANNEL_FAILED", retry: false });
 }
-
 export async function deleteGroupChannel(accessToken: string, channelId: string): Promise<void> {
-  await requestJson<OkResponse>(
-    `/chat/channels/${channelId}`,
-    { method: "DELETE", headers: authHeaders(accessToken) },
-    { fallbackError: "DELETE_CHANNEL_FAILED", retry: false }
-  );
+  await requestJson<OkResponse>(`/chat/channels/${channelId}`, { method: "DELETE", headers: authHeaders(accessToken) }, { fallbackError: "DELETE_CHANNEL_FAILED", retry: false });
 }
-
 export async function createDirectByUsername(accessToken: string, username: string): Promise<ChannelItem> {
-  return requestJson<ChannelItem>(
-    "/chat/direct/by-username",
-    { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify({ username }) },
-    { fallbackError: "CREATE_DIRECT_FAILED", retry: false }
-  );
+  return requestJson<ChannelItem>("/chat/direct/by-username", { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify({ username }) }, { fallbackError: "CREATE_DIRECT_FAILED", retry: false });
 }
-
 export async function addGroupMemberByUsername(accessToken: string, channelId: string, username: string): Promise<void> {
-  await requestJson<OkResponse>(
-    `/chat/channels/${channelId}/members/by-username`,
-    { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify({ username }) },
-    { fallbackError: "ADD_MEMBER_FAILED", retry: false }
-  );
+  await requestJson<OkResponse>(`/chat/channels/${channelId}/members/by-username`, { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify({ username }) }, { fallbackError: "ADD_MEMBER_FAILED", retry: false });
 }
-
 export async function listChannelMembers(accessToken: string, channelId: string): Promise<ChannelMemberItem[]> {
-  return requestJson<ChannelMemberItem[]>(
-    `/chat/channels/${channelId}/members`,
-    { method: "GET", headers: authHeaders(accessToken) },
-    { fallbackError: "MEMBERS_FAILED" }
-  );
+  return requestJson<ChannelMemberItem[]>(`/chat/channels/${channelId}/members`, { method: "GET", headers: authHeaders(accessToken) }, { fallbackError: "MEMBERS_FAILED" });
 }
-
-export async function updateChannelMemberRole(
-  accessToken: string,
-  channelId: string,
-  targetUserId: string,
-  role: "admin" | "member"
-): Promise<ChannelMemberItem> {
-  return requestJson<ChannelMemberItem>(
-    `/chat/channels/${channelId}/members/${targetUserId}/role`,
-    { method: "PATCH", headers: authHeaders(accessToken), body: JSON.stringify({ role }) },
-    { fallbackError: "UPDATE_MEMBER_ROLE_FAILED", retry: false }
-  );
+export async function updateChannelMemberRole(accessToken: string, channelId: string, targetUserId: string, role: "admin" | "member"): Promise<ChannelMemberItem> {
+  return requestJson<ChannelMemberItem>(`/chat/channels/${channelId}/members/${targetUserId}/role`, { method: "PATCH", headers: authHeaders(accessToken), body: JSON.stringify({ role }) }, { fallbackError: "UPDATE_MEMBER_ROLE_FAILED", retry: false });
 }
-
 export async function removeChannelMember(accessToken: string, channelId: string, targetUserId: string): Promise<void> {
-  await requestJson<OkResponse>(
-    `/chat/channels/${channelId}/members/${targetUserId}`,
-    { method: "DELETE", headers: authHeaders(accessToken) },
-    { fallbackError: "REMOVE_MEMBER_FAILED", retry: false }
-  );
+  await requestJson<OkResponse>(`/chat/channels/${channelId}/members/${targetUserId}`, { method: "DELETE", headers: authHeaders(accessToken) }, { fallbackError: "REMOVE_MEMBER_FAILED", retry: false });
 }
-
 export async function transferChannelOwnership(accessToken: string, channelId: string, targetUserId: string): Promise<void> {
-  await requestJson<OkResponse>(
-    `/chat/channels/${channelId}/ownership/transfer`,
-    { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify({ targetUserId }) },
-    { fallbackError: "TRANSFER_OWNERSHIP_FAILED", retry: false }
-  );
+  await requestJson<OkResponse>(`/chat/channels/${channelId}/ownership/transfer`, { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify({ targetUserId }) }, { fallbackError: "TRANSFER_OWNERSHIP_FAILED", retry: false });
 }
-
 export async function leaveChannel(accessToken: string, channelId: string): Promise<void> {
-  await requestJson<OkResponse>(
-    `/chat/channels/${channelId}/members/me`,
-    { method: "DELETE", headers: authHeaders(accessToken) },
-    { fallbackError: "LEAVE_CHANNEL_FAILED", retry: false }
-  );
+  await requestJson<OkResponse>(`/chat/channels/${channelId}/members/me`, { method: "DELETE", headers: authHeaders(accessToken) }, { fallbackError: "LEAVE_CHANNEL_FAILED", retry: false });
 }
 
-// ─── Messages (cursor pagination) ───────────────────────────────────────────
-
-export async function listMessages(
-  accessToken: string,
-  channelId: string,
-  options: { limit?: number; cursor?: string } = {}
-): Promise<{ items: MessageItem[]; nextCursor?: string }> {
+// ── Messages
+export async function listMessages(accessToken: string, channelId: string, options: { limit?: number; cursor?: string } = {}): Promise<{ items: MessageItem[]; nextCursor?: string }> {
   const params = new URLSearchParams({ limit: String(options.limit ?? 50) });
   if (options.cursor) params.set("cursor", options.cursor);
-  return requestJson<MessageListResponse>(
-    `/chat/channels/${channelId}/messages?${params.toString()}`,
-    { method: "GET", headers: authHeaders(accessToken) },
-    { fallbackError: "MESSAGES_FAILED" }
-  );
+  return requestJson<MessageListResponse>(`/chat/channels/${channelId}/messages?${params.toString()}`, { method: "GET", headers: authHeaders(accessToken) }, { fallbackError: "MESSAGES_FAILED" });
 }
-
-export async function sendMessage(
-  accessToken: string,
-  channelId: string,
-  content: string,
-  replyToMessageId?: string
-): Promise<MessageItem> {
-  return requestJson<MessageItem>(
-    `/chat/channels/${channelId}/messages`,
-    {
-      method: "POST",
-      headers: authHeaders(accessToken),
-      body: JSON.stringify({ content, ...(replyToMessageId ? { replyToMessageId } : {}) }),
-    },
-    { fallbackError: "SEND_MESSAGE_FAILED", retry: false }
-  );
+export async function sendMessage(accessToken: string, channelId: string, content: string, replyToMessageId?: string): Promise<MessageItem> {
+  return requestJson<MessageItem>(`/chat/channels/${channelId}/messages`, { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify({ content, ...(replyToMessageId ? { replyToMessageId } : {}) }) }, { fallbackError: "SEND_MESSAGE_FAILED", retry: false });
 }
-
-export async function updateMessage(
-  accessToken: string,
-  channelId: string,
-  messageId: string,
-  content: string
-): Promise<MessageItem> {
-  return requestJson<MessageItem>(
-    `/chat/channels/${channelId}/messages/${messageId}`,
-    { method: "PATCH", headers: authHeaders(accessToken), body: JSON.stringify({ content }) },
-    { fallbackError: "UPDATE_MESSAGE_FAILED", retry: false }
-  );
+export async function updateMessage(accessToken: string, channelId: string, messageId: string, content: string): Promise<MessageItem> {
+  return requestJson<MessageItem>(`/chat/channels/${channelId}/messages/${messageId}`, { method: "PATCH", headers: authHeaders(accessToken), body: JSON.stringify({ content }) }, { fallbackError: "UPDATE_MESSAGE_FAILED", retry: false });
 }
-
 export async function deleteMessage(accessToken: string, channelId: string, messageId: string): Promise<void> {
-  await requestJson<unknown>(
-    `/chat/channels/${channelId}/messages/${messageId}`,
-    { method: "DELETE", headers: authHeaders(accessToken) },
-    { fallbackError: "DELETE_MESSAGE_FAILED", retry: false }
-  );
+  await requestJson<unknown>(`/chat/channels/${channelId}/messages/${messageId}`, { method: "DELETE", headers: authHeaders(accessToken) }, { fallbackError: "DELETE_MESSAGE_FAILED", retry: false });
 }
-
 export async function markRead(accessToken: string, channelId: string, messageId: string): Promise<void> {
-  await requestJson<OkResponse>(
-    `/chat/channels/${channelId}/read-receipts`,
-    { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify({ messageId }) },
-    { fallbackError: "READ_RECEIPT_FAILED", retry: false }
-  );
+  await requestJson<OkResponse>(`/chat/channels/${channelId}/read-receipts`, { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify({ messageId }) }, { fallbackError: "READ_RECEIPT_FAILED", retry: false });
 }
-
 export async function searchMessages(accessToken: string, query: string, channelId?: string): Promise<MessageItem[]> {
   const search = new URLSearchParams({ query, limit: "20", ...(channelId ? { channelId } : {}) });
-  return requestJson<MessageItem[]>(
-    `/chat/search?${search.toString()}`,
-    { method: "GET", headers: authHeaders(accessToken) },
-    { fallbackError: "SEARCH_FAILED" }
-  );
+  return requestJson<MessageItem[]>(`/chat/search?${search.toString()}`, { method: "GET", headers: authHeaders(accessToken) }, { fallbackError: "SEARCH_FAILED" });
+}
+export async function summarizeChannel(accessToken: string, channelId: string, options: ChannelSummaryRequest = {}): Promise<ChannelSummaryResponse> {
+  return requestJson<ChannelSummaryResponse>(`/chat/channels/${channelId}/summary`, { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify(options) }, { fallbackError: "SUMMARY_FAILED", retry: false });
 }
 
-export async function summarizeChannel(
-  accessToken: string,
-  channelId: string,
-  options: ChannelSummaryRequest = {}
-): Promise<ChannelSummaryResponse> {
-  return requestJson<ChannelSummaryResponse>(
-    `/chat/channels/${channelId}/summary`,
-    { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify(options) },
-    { fallbackError: "SUMMARY_FAILED", retry: false }
-  );
-}
-
-// ─── Polls ───────────────────────────────────────────────────────────────────
-
+// ── Polls
 export async function listPolls(accessToken: string, channelId: string): Promise<PollItem[]> {
-  return requestJson<PollItem[]>(
-    `/chat/channels/${channelId}/polls`,
-    { method: "GET", headers: authHeaders(accessToken) },
-    { fallbackError: "POLLS_FAILED" }
-  );
+  return requestJson<PollItem[]>(`/chat/channels/${channelId}/polls`, { method: "GET", headers: authHeaders(accessToken) }, { fallbackError: "POLLS_FAILED" });
+}
+export async function createPoll(accessToken: string, channelId: string, payload: { question: string; options: string[] }): Promise<PollItem> {
+  return requestJson<PollItem>(`/chat/channels/${channelId}/polls`, { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify(payload) }, { fallbackError: "CREATE_POLL_FAILED", retry: false });
+}
+export async function votePoll(accessToken: string, channelId: string, pollId: string, optionId: string): Promise<PollItem> {
+  return requestJson<PollItem>(`/chat/channels/${channelId}/polls/${pollId}/vote`, { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify({ optionId }) }, { fallbackError: "VOTE_POLL_FAILED", retry: false });
 }
 
-export async function createPoll(
-  accessToken: string,
-  channelId: string,
-  payload: { question: string; options: string[] }
-): Promise<PollItem> {
-  return requestJson<PollItem>(
-    `/chat/channels/${channelId}/polls`,
-    { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify(payload) },
-    { fallbackError: "CREATE_POLL_FAILED", retry: false }
-  );
-}
-
-export async function votePoll(
-  accessToken: string,
-  channelId: string,
-  pollId: string,
-  optionId: string
-): Promise<PollItem> {
-  return requestJson<PollItem>(
-    `/chat/channels/${channelId}/polls/${pollId}/vote`,
-    { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify({ optionId }) },
-    { fallbackError: "VOTE_POLL_FAILED", retry: false }
-  );
-}
-
-// ─── Uploads ─────────────────────────────────────────────────────────────────
-
+// ── Uploads
 export async function uploadFile(accessToken: string, file: File): Promise<UploadedFileResponse> {
   const formData = new FormData();
   formData.append("file", file);
-  return requestJson<UploadedFileResponse>(
-    "/chat/upload",
-    { method: "POST", headers: { Authorization: `Bearer ${accessToken}` }, body: formData },
-    { fallbackError: "UPLOAD_FAILED", retry: false }
-  );
+  return requestJson<UploadedFileResponse>("/chat/upload", { method: "POST", headers: { Authorization: `Bearer ${accessToken}` }, body: formData }, { fallbackError: "UPLOAD_FAILED", retry: false });
 }
 
-// ─── Presence ────────────────────────────────────────────────────────────────
-
+// ── Presence
 export async function getPresence(accessToken: string, userIds: string[]): Promise<PresenceItem[]> {
-  return requestJson<PresenceItem[]>(
-    `/chat/presence?userIds=${encodeURIComponent(userIds.join(","))}`,
-    { method: "GET", headers: authHeaders(accessToken) },
-    { fallbackError: "PRESENCE_FAILED" }
-  );
+  return requestJson<PresenceItem[]>(`/chat/presence?userIds=${encodeURIComponent(userIds.join(","))}`, { method: "GET", headers: authHeaders(accessToken) }, { fallbackError: "PRESENCE_FAILED" });
 }
 
-// ─── Blocking ────────────────────────────────────────────────────────────────
-
+// ── Blocking
 export async function blockUser(accessToken: string, targetUserId: string): Promise<void> {
-  await requestJson<OkResponse>(
-    `/chat/block/${targetUserId}`,
-    { method: "POST", headers: authHeaders(accessToken) },
-    { fallbackError: "BLOCK_FAILED", retry: false }
-  );
+  await requestJson<OkResponse>(`/chat/block/${targetUserId}`, { method: "POST", headers: authHeaders(accessToken) }, { fallbackError: "BLOCK_FAILED", retry: false });
 }
-
 export async function unblockUser(accessToken: string, targetUserId: string): Promise<void> {
-  await requestJson<OkResponse>(
-    `/chat/block/${targetUserId}`,
-    { method: "DELETE", headers: authHeaders(accessToken) },
-    { fallbackError: "UNBLOCK_FAILED", retry: false }
-  );
+  await requestJson<OkResponse>(`/chat/block/${targetUserId}`, { method: "DELETE", headers: authHeaders(accessToken) }, { fallbackError: "UNBLOCK_FAILED", retry: false });
 }
 
-// ─── Platform settings ───────────────────────────────────────────────────────
-
+// ── Platform settings
 export async function getPlatformSettings(accessToken: string): Promise<PlatformSettingsItem> {
-  return requestJson<PlatformSettingsItem>(
-    "/chat/platform-settings",
-    { method: "GET", headers: authHeaders(accessToken) },
-    { fallbackError: "PLATFORM_SETTINGS_FAILED" }
-  );
+  return requestJson<PlatformSettingsItem>("/chat/platform-settings", { method: "GET", headers: authHeaders(accessToken) }, { fallbackError: "PLATFORM_SETTINGS_FAILED" });
+}
+export async function setPlatformUploadsEnabled(accessToken: string, uploadsEnabled: boolean): Promise<void> {
+  await requestJson<OkResponse>("/chat/platform-settings/uploads", { method: "PATCH", headers: authHeaders(accessToken), body: JSON.stringify({ uploadsEnabled }) }, { fallbackError: "UPDATE_PLATFORM_UPLOADS_FAILED", retry: false });
 }
 
-export async function setPlatformUploadsEnabled(accessToken: string, uploadsEnabled: boolean): Promise<void> {
-  await requestJson<OkResponse>(
-    "/chat/platform-settings/uploads",
-    { method: "PATCH", headers: authHeaders(accessToken), body: JSON.stringify({ uploadsEnabled }) },
-    { fallbackError: "UPDATE_PLATFORM_UPLOADS_FAILED", retry: false }
-  );
+// ── Link preview
+export async function getLinkPreview(accessToken: string, url: string): Promise<{ title?: string; description?: string; image?: string; domain: string } | null> {
+  try {
+    return await requestJson(`/chat/link-preview?url=${encodeURIComponent(url)}`, { method: "GET", headers: authHeaders(accessToken) }, { fallbackError: "LINK_PREVIEW_FAILED", timeoutMs: 5000 });
+  } catch {
+    return null;
+  }
 }

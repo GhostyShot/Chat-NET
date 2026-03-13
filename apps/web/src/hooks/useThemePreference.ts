@@ -1,21 +1,42 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from 'react';
 
-export function useThemePreference() {
-  const [theme, setTheme] = useState<"dark" | "light">(() => {
-    if (typeof window === "undefined") {
-      return "dark";
+type Theme = 'dark' | 'light';
+
+export function useThemePreference(): [Theme, React.Dispatch<React.SetStateAction<Theme>>] {
+  const [theme, setTheme] = useState<Theme>(() => {
+    // 1. Explicit user preference
+    const stored = localStorage.getItem('chatnet-theme') as Theme | null;
+    if (stored === 'dark' || stored === 'light') return stored;
+    // 2. System preference
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches) {
+      return 'light';
     }
-    const stored = window.localStorage.getItem("chat-net-theme");
-    if (stored === "dark" || stored === "light") {
-      return stored;
-    }
-    return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    return 'dark';
   });
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    window.localStorage.setItem("chat-net-theme", theme);
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('chatnet-theme', theme);
   }, [theme]);
 
-  return [theme, setTheme] as const;
+  // Listen for system changes (only if user hasn't set explicit preference)
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: light)');
+    const handler = (e: MediaQueryListEvent) => {
+      const stored = localStorage.getItem('chatnet-theme');
+      if (!stored) setTheme(e.matches ? 'light' : 'dark');
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const setThemeWithPersist: React.Dispatch<React.SetStateAction<Theme>> = (value) => {
+    setTheme(prev => {
+      const next = typeof value === 'function' ? value(prev) : value;
+      localStorage.setItem('chatnet-theme', next); // explicit override
+      return next;
+    });
+  };
+
+  return [theme, setThemeWithPersist];
 }
