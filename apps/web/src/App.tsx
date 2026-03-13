@@ -44,7 +44,7 @@ const PLATFORM_OWNER_FALLBACK_USERNAME = "paul_fmp";
 const BADGE_STORAGE_PREFIX = "chat-net-custom-badges";
 const DEFAULT_BADGE_DEFINITIONS: BadgeDefinition[] = [
   { id: "owner_chatnet", label: "Owner (Logo + OWNER)", shortLabel: "OWNER", style: "owner_chatnet" },
-  { id: "verified_blue", label: "Blauer Haken (X Style)", shortLabel: "✓", style: "verified_blue" },
+  { id: "verified_blue", label: "Blauer Haken (X Style)", shortLabel: "\u2713", style: "verified_blue" },
   { id: "vip", label: "VIP", shortLabel: "VIP" },
   { id: "legend", label: "Legend", shortLabel: "LEGEND" },
   { id: "core_team", label: "Core Team", shortLabel: "TEAM" }
@@ -127,13 +127,7 @@ export function App() {
   });
 
   const { voiceSupported, voiceCallState, voiceParticipants, isVoiceMuted, onStartVoiceCall, onLeaveVoiceCall, onToggleVoiceMute } =
-    useVoiceChat({
-      auth,
-      activeChannelId,
-      socketRef,
-      realtimeState,
-      setMessage
-    });
+    useVoiceChat({ auth, activeChannelId, socketRef, realtimeState, setMessage });
 
   const isPlatformOwner = (userId?: string, username?: string) => {
     const normalizedUsername = username?.toLowerCase();
@@ -142,850 +136,423 @@ export function App() {
 
   const currentUserIsPlatformOwner = isPlatformOwner(auth?.user.id, auth?.user.username);
 
+  // Session refresh on mount
   useEffect(() => {
-    if (!auth || sessionRefreshDone) {
-      return;
-    }
-
+    if (!auth || sessionRefreshDone) return;
     let cancelled = false;
-
-    const refreshPersistedSession = async () => {
+    const run = async () => {
       try {
         const refreshed = await refreshSession(auth.tokens.refreshToken);
-        if (!cancelled) {
-          setAuth(refreshed);
-        }
+        if (!cancelled) setAuth(refreshed);
       } catch {
-        if (!cancelled) {
-          setAuth(null);
-          setMessage("Sitzung abgelaufen. Bitte neu anmelden.");
-        }
+        if (!cancelled) { setAuth(null); setMessage("Sitzung abgelaufen. Bitte neu anmelden."); }
       } finally {
-        if (!cancelled) {
-          setSessionRefreshDone(true);
-        }
+        if (!cancelled) setSessionRefreshDone(true);
       }
     };
-
-    void refreshPersistedSession();
-
-    return () => {
-      cancelled = true;
-    };
+    void run();
+    return () => { cancelled = true; };
   }, [auth, sessionRefreshDone, setAuth]);
+
+  // useChatDataSync now reads from stores directly — no props
+  useChatDataSync();
 
   const badgeDefinitionById = useMemo(() => {
     const map = new Map<BadgeId, BadgeDefinition>();
-    for (const definition of badgeDefinitions) {
-      map.set(definition.id, definition);
-    }
+    for (const def of badgeDefinitions) map.set(def.id, def);
     return map;
   }, [badgeDefinitions]);
 
   const renderPlatformOwnerBadge = (userId?: string, username?: string) => {
-    if (!isPlatformOwner(userId, username)) {
-      return null;
-    }
+    if (!isPlatformOwner(userId, username)) return null;
     return (
       <span className="owner-pill-badge" title="Chat-Net Owner">
-        <img src="/chat-net-logo.svg" alt="Chat-Net Owner" className="owner-logo-badge" />
+        <img src="/chat-net-logo.svg" alt="" className="owner-logo-badge" />
         <span>OWNER</span>
       </span>
     );
   };
 
   const renderCustomBadges = (userId?: string) => {
-    if (!userId) {
-      return null;
-    }
+    if (!userId) return null;
     const badges = customBadgesByUserId[userId] ?? [];
-    if (badges.length === 0) {
-      return null;
-    }
+    if (!badges.length) return null;
     return (
       <span className="custom-badge-row">
         {badges.map((badge) => {
-          const badgeMeta = badgeDefinitionById.get(badge);
-          if (!badgeMeta) {
-            return null;
-          }
-          if (badgeMeta.style === "verified_blue") {
+          const meta = badgeDefinitionById.get(badge);
+          if (!meta) return null;
+          if (meta.style === "verified_blue")
+            return <span key={`${userId}-${badge}`} className="custom-badge verified-blue" title={meta.label}>✓</span>;
+          if (meta.style === "owner_chatnet")
             return (
-              <span key={`${userId}-${badge}`} className="custom-badge verified-blue" title={badgeMeta.label}>
-                ✓
-              </span>
-            );
-          }
-          if (badgeMeta.style === "owner_chatnet") {
-            return (
-              <span key={`${userId}-${badge}`} className="custom-badge owner-custom" title={badgeMeta.label}>
+              <span key={`${userId}-${badge}`} className="custom-badge owner-custom" title={meta.label}>
                 <img src="/chat-net-logo.svg" alt="" className="owner-custom-logo" />
-                <span>{badgeMeta.shortLabel}</span>
+                <span>{meta.shortLabel}</span>
               </span>
             );
-          }
-          return (
-            <span key={`${userId}-${badge}`} className="custom-badge" title={badgeMeta.label}>
-              {badgeMeta.shortLabel}
-            </span>
-          );
+          return <span key={`${userId}-${badge}`} className="custom-badge" title={meta.label}>{meta.shortLabel}</span>;
         })}
       </span>
     );
   };
 
   const activeChannel = useMemo(
-    () => channels.find((channel) => channel.id === activeChannelId) ?? null,
+    () => channels.find((c) => c.id === activeChannelId) ?? null,
     [channels, activeChannelId]
   );
 
   const activeDirectPartner = useMemo(() => {
-    if (!activeChannel || activeChannel.type !== "DIRECT") {
-      return null;
-    }
-    return activeChannel.memberships?.find((membership) => membership.user.id !== auth?.user.id)?.user ?? null;
+    if (!activeChannel || activeChannel.type !== "DIRECT") return null;
+    return activeChannel.memberships?.find((m) => m.user.id !== auth?.user.id)?.user ?? null;
   }, [activeChannel, auth?.user.id]);
 
-  useChatDataSync({
-    auth,
-    activeChannelId,
-    activeChannelType: activeChannel?.type,
-    messages,
-    setAuth,
-    setMessage,
-    setChannels,
-    setMessages,
-    setChannelMembers,
-    setPresenceMap,
-    setUnreadByChannelId,
-    setUploadsEnabledForAll,
-    setCanManagePlatformSettings,
-    setRealtimeState
-  });
-
   const activeConversationStatus = useMemo(() => {
-    if (typingHint) {
-      return typingHint;
-    }
-    if (!activeChannel) {
-      return "Bereit";
-    }
+    if (typingHint) return typingHint;
+    if (!activeChannel) return "Bereit";
     if (activeChannel.type === "DIRECT") {
-      if (!activeDirectPartner?.id) {
-        return "Offline";
-      }
+      if (!activeDirectPartner?.id) return "Offline";
       return presenceMap[activeDirectPartner.id] ? "Online" : "Offline";
     }
-    const onlineCount = (activeChannel.memberships ?? []).filter((member) => presenceMap[member.user.id]).length;
-    return `${onlineCount} online`;
+    const online = (activeChannel.memberships ?? []).filter((m) => presenceMap[m.user.id]).length;
+    return `${online} online`;
   }, [typingHint, activeChannel, activeDirectPartner?.id, presenceMap]);
 
   const sortedChannels = useMemo(() => {
-    const parseTimestamp = (value?: string) => {
-      if (!value) {
-        return 0;
-      }
-      const parsed = Date.parse(value);
-      return Number.isNaN(parsed) ? 0 : parsed;
-    };
-
-    return [...channels].sort((left, right) => parseTimestamp(right.updatedAt) - parseTimestamp(left.updatedAt));
+    const ts = (v?: string) => { if (!v) return 0; const p = Date.parse(v); return isNaN(p) ? 0 : p; };
+    return [...channels].sort((a, b) => ts(b.updatedAt) - ts(a.updatedAt));
   }, [channels]);
 
   const getChannelDisplayName = (channel: ChannelItem | null) => {
-    if (!channel) {
-      return "Nachrichten";
-    }
-    if (channel.type === "GROUP") {
-      return channel.name ?? "Unbenannt";
-    }
-    const directPartner = channel.memberships?.find((membership) => membership.user.id !== auth?.user.id)?.user;
-    if (directPartner?.displayName) {
-      return directPartner.displayName;
-    }
-    if (directPartner?.username) {
-      return directPartner.username;
-    }
-    return channel.name ?? "Direktchat";
+    if (!channel) return "Nachrichten";
+    if (channel.type === "GROUP") return channel.name ?? "Unbenannt";
+    const partner = channel.memberships?.find((m) => m.user.id !== auth?.user.id)?.user;
+    return partner?.displayName ?? partner?.username ?? channel.name ?? "Direktchat";
   };
 
-  const getChannelTypeLabel = (channel: ChannelItem) => {
-    return channel.type === "GROUP" ? "Gruppe" : "Direkt";
-  };
+  const getChannelTypeLabel = (channel: ChannelItem) => channel.type === "GROUP" ? "Gruppe" : "Direkt";
 
   const openChannel = (channelId: string) => {
     setActiveChannelId(channelId);
-    if (isMobileLayout) {
-      setMobilePane("chat");
-    }
+    if (isMobileLayout) setMobilePane("chat");
   };
 
   useEffect(() => {
     setActiveChannelId((current) => {
-      if (channels.length === 0) {
-        return null;
-      }
-      if (current && channels.some((channel) => channel.id === current)) {
-        return current;
-      }
+      if (!channels.length) return null;
+      if (current && channels.some((c) => c.id === current)) return current;
       return channels[0]?.id ?? null;
     });
   }, [channels]);
 
   const formatTimeLabel = (value?: string) => {
-    if (!value) {
-      return "";
-    }
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) {
-      return "";
-    }
-    return parsed.toLocaleTimeString("de-DE", {
-      hour: "2-digit",
-      minute: "2-digit"
-    });
+    if (!value) return "";
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
   };
 
   const ownMembershipRole = useMemo(() => {
-    if (!activeChannel || !auth) {
-      return null;
-    }
-    return activeChannel.memberships?.find((membership) => membership.user.id === auth.user.id)?.role ?? null;
+    if (!activeChannel || !auth) return null;
+    return activeChannel.memberships?.find((m) => m.user.id === auth.user.id)?.role ?? null;
   }, [activeChannel, auth]);
 
   const canModerateMembers = ownMembershipRole === "OWNER" || ownMembershipRole === "ADMIN";
   const canManageRoles = ownMembershipRole === "OWNER";
+
   const knownUsers = useMemo(() => {
-    const userMap = new Map<string, { id: string; username?: string; displayName: string }>();
-    const addUser = (user?: { id: string; username?: string; displayName: string }) => {
-      if (!user?.id) {
-        return;
-      }
-      if (!userMap.has(user.id)) {
-        userMap.set(user.id, user);
-      }
-    };
-
-    if (auth?.user) {
-      addUser({ id: auth.user.id, username: auth.user.username, displayName: auth.user.displayName });
-    }
-
-    for (const channel of channels) {
-      for (const membership of channel.memberships ?? []) {
-        addUser({
-          id: membership.user.id,
-          username: membership.user.username,
-          displayName: membership.user.displayName
-        });
-      }
-    }
-
-    for (const member of channelMembers) {
-      addUser({ id: member.userId, username: member.user.username, displayName: member.user.displayName });
-    }
-
-    for (const entry of messages) {
-      addUser({ id: entry.sender.id, username: entry.sender.username, displayName: entry.sender.displayName });
-    }
-
-    return Array.from(userMap.values()).sort((a, b) => a.displayName.localeCompare(b.displayName));
+    const map = new Map<string, { id: string; username?: string; displayName: string }>();
+    const add = (u?: { id: string; username?: string; displayName: string }) => { if (u?.id && !map.has(u.id)) map.set(u.id, u); };
+    if (auth?.user) add({ id: auth.user.id, username: auth.user.username, displayName: auth.user.displayName });
+    for (const c of channels) for (const m of c.memberships ?? []) add({ id: m.user.id, username: m.user.username, displayName: m.user.displayName });
+    for (const m of channelMembers) add({ id: m.userId, username: m.user.username, displayName: m.user.displayName });
+    for (const msg of messages) add({ id: msg.sender.id, username: msg.sender.username, displayName: msg.sender.displayName });
+    return Array.from(map.values()).sort((a, b) => a.displayName.localeCompare(b.displayName));
   }, [auth?.user, channels, channelMembers, messages]);
 
-  const badgeTargetUser = useMemo(
-    () => knownUsers.find((user) => user.id === badgeTargetUserId) ?? null,
-    [knownUsers, badgeTargetUserId]
-  );
+  const badgeTargetUser = useMemo(() => knownUsers.find((u) => u.id === badgeTargetUserId) ?? null, [knownUsers, badgeTargetUserId]);
+
   const memberRoleByUserId = useMemo(() => {
-    const roleMap = new Map<string, "OWNER" | "ADMIN" | "MEMBER">();
-    for (const membership of activeChannel?.memberships ?? []) {
-      roleMap.set(membership.user.id, membership.role);
-    }
-    return roleMap;
+    const map = new Map<string, "OWNER" | "ADMIN" | "MEMBER">();
+    for (const m of activeChannel?.memberships ?? []) map.set(m.user.id, m.role);
+    return map;
   }, [activeChannel?.memberships]);
 
   const mentionCandidates = useMemo(() => {
-    const candidates = new Map<string, string>();
-    const addCandidate = (username?: string, displayName?: string) => {
-      if (!username) {
-        return;
-      }
-      const normalized = username.toLowerCase();
-      if (!/^[a-z0-9_]{3,24}$/u.test(normalized)) {
-        return;
-      }
-      if (!candidates.has(normalized)) {
-        candidates.set(normalized, displayName ?? normalized);
-      }
+    const cands = new Map<string, string>();
+    const add = (username?: string, displayName?: string) => {
+      if (!username) return;
+      const n = username.toLowerCase();
+      if (!/^[a-z0-9_]{3,24}$/u.test(n)) return;
+      if (!cands.has(n)) cands.set(n, displayName ?? n);
     };
-
-    addCandidate(auth?.user.username, auth?.user.displayName);
-
-    for (const message of messages) {
-      addCandidate(message.sender.username, message.sender.displayName);
-    }
-
-    for (const membership of activeChannel?.memberships ?? []) {
-      addCandidate(membership.user.username, membership.user.displayName);
-    }
-
-    return Array.from(candidates.entries()).map(([username, displayName]) => ({ username, displayName }));
-  }, [auth?.user.displayName, auth?.user.username, messages, activeChannel?.memberships]);
+    add(auth?.user.username, auth?.user.displayName);
+    for (const msg of messages) add(msg.sender.username, msg.sender.displayName);
+    for (const m of activeChannel?.memberships ?? []) add(m.user.username, m.user.displayName);
+    return Array.from(cands.entries()).map(([username, displayName]) => ({ username, displayName }));
+  }, [auth?.user, messages, activeChannel?.memberships]);
 
   const filteredMentionCandidates = useMemo(() => {
-    if (mentionQuery === null) {
-      return [];
-    }
-    const normalized = mentionQuery.toLowerCase();
-    return mentionCandidates
-      .filter((item) => item.username.startsWith(normalized) && item.username !== auth?.user.username)
-      .slice(0, 6);
+    if (mentionQuery === null) return [];
+    const n = mentionQuery.toLowerCase();
+    return mentionCandidates.filter((i) => i.username.startsWith(n) && i.username !== auth?.user.username).slice(0, 6);
   }, [mentionCandidates, mentionQuery, auth?.user.username]);
 
   useEffect(() => {
-    if (!auth) {
-      setProfileNickname("");
-      setProfileUsername("");
-      return;
-    }
+    if (!auth) { setProfileNickname(""); setProfileUsername(""); return; }
     setProfileNickname(auth.user.displayName);
     setProfileUsername(auth.user.username);
   }, [auth]);
 
   useEffect(() => {
-    if (!auth || !currentUserIsPlatformOwner) {
-      setBadgeDefinitions(DEFAULT_BADGE_DEFINITIONS);
-      setCustomBadgesByUserId({});
-      return;
-    }
+    if (!auth || !currentUserIsPlatformOwner) { setBadgeDefinitions(DEFAULT_BADGE_DEFINITIONS); setCustomBadgesByUserId({}); return; }
     try {
       const raw = window.localStorage.getItem(`${BADGE_STORAGE_PREFIX}:${auth.user.id}`);
-      if (!raw) {
-        setBadgeDefinitions(DEFAULT_BADGE_DEFINITIONS);
-        setCustomBadgesByUserId({});
-        return;
-      }
-      const parsed: unknown = JSON.parse(raw);
-
-      const isBadgeDefinition = (value: unknown): value is BadgeDefinition => {
-        if (!value || typeof value !== "object") {
-          return false;
-        }
-        const candidate = value as Record<string, unknown>;
-        return typeof candidate.id === "string" && typeof candidate.label === "string" && typeof candidate.shortLabel === "string";
+      if (!raw) { setBadgeDefinitions(DEFAULT_BADGE_DEFINITIONS); setCustomBadgesByUserId({}); return; }
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      const isBadgeDef = (v: unknown): v is BadgeDefinition =>
+        !!v && typeof v === "object" && typeof (v as Record<string,unknown>).id === "string" && typeof (v as Record<string,unknown>).label === "string" && typeof (v as Record<string,unknown>).shortLabel === "string";
+      const sanitize = (v: unknown): Record<string, BadgeId[]> => {
+        if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+        const r: Record<string, BadgeId[]> = {};
+        for (const [uid, bs] of Object.entries(v)) if (Array.isArray(bs)) r[uid] = bs.filter((b): b is string => typeof b === "string");
+        return r;
       };
-
-      const sanitizeAssignments = (value: unknown): Record<string, BadgeId[]> => {
-        if (!value || typeof value !== "object" || Array.isArray(value)) {
-          return {};
-        }
-        const result: Record<string, BadgeId[]> = {};
-        for (const [userId, badges] of Object.entries(value)) {
-          if (Array.isArray(badges)) {
-            result[userId] = badges.filter((badge): badge is BadgeId => typeof badge === "string");
-          }
-        }
-        return result;
-      };
-
-      const parsedAsObject = parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
-
-      if (parsedAsObject && ("assignments" in parsedAsObject || "definitions" in parsedAsObject)) {
-        const definitionsRaw = Array.isArray(parsedAsObject.definitions)
-          ? parsedAsObject.definitions.filter((entry): entry is BadgeDefinition => isBadgeDefinition(entry))
-          : DEFAULT_BADGE_DEFINITIONS;
-        const mergedDefinitions = [
-          ...DEFAULT_BADGE_DEFINITIONS,
-          ...definitionsRaw.filter((entry) => !DEFAULT_BADGE_DEFINITIONS.some((base) => base.id === entry.id))
-        ];
-        setBadgeDefinitions(mergedDefinitions);
-        setCustomBadgesByUserId(sanitizeAssignments(parsedAsObject.assignments));
+      if ("assignments" in parsed || "definitions" in parsed) {
+        const defs = Array.isArray(parsed.definitions) ? (parsed.definitions as unknown[]).filter(isBadgeDef) : DEFAULT_BADGE_DEFINITIONS;
+        setBadgeDefinitions([...DEFAULT_BADGE_DEFINITIONS, ...defs.filter((d) => !DEFAULT_BADGE_DEFINITIONS.some((b) => b.id === d.id))]);
+        setCustomBadgesByUserId(sanitize(parsed.assignments));
       } else {
         setBadgeDefinitions(DEFAULT_BADGE_DEFINITIONS);
-        setCustomBadgesByUserId(sanitizeAssignments(parsed));
+        setCustomBadgesByUserId(sanitize(parsed));
       }
-    } catch {
-      setBadgeDefinitions(DEFAULT_BADGE_DEFINITIONS);
-      setCustomBadgesByUserId({});
-    }
+    } catch { setBadgeDefinitions(DEFAULT_BADGE_DEFINITIONS); setCustomBadgesByUserId({}); }
   }, [auth, currentUserIsPlatformOwner]);
 
   useEffect(() => {
-    if (!auth || !currentUserIsPlatformOwner) {
-      return;
-    }
-    window.localStorage.setItem(
-      `${BADGE_STORAGE_PREFIX}:${auth.user.id}`,
-      JSON.stringify({ assignments: customBadgesByUserId, definitions: badgeDefinitions })
-    );
+    if (!auth || !currentUserIsPlatformOwner) return;
+    window.localStorage.setItem(`${BADGE_STORAGE_PREFIX}:${auth.user.id}`, JSON.stringify({ assignments: customBadgesByUserId, definitions: badgeDefinitions }));
   }, [auth, customBadgesByUserId, currentUserIsPlatformOwner, badgeDefinitions]);
 
   useEffect(() => {
-    if (!knownUsers.length) {
-      setBadgeTargetUserId("");
-      return;
-    }
-    setBadgeTargetUserId((current) => {
-      if (current && knownUsers.some((user) => user.id === current)) {
-        return current;
-      }
-      return knownUsers[0]?.id ?? "";
-    });
+    if (!knownUsers.length) { setBadgeTargetUserId(""); return; }
+    setBadgeTargetUserId((c) => (c && knownUsers.some((u) => u.id === c)) ? c : (knownUsers[0]?.id ?? ""));
   }, [knownUsers]);
 
   const toggleBadgeForUser = (userId: string, badge: BadgeId) => {
-    setCustomBadgesByUserId((previous) => {
-      const current = previous[userId] ?? [];
-      const hasBadge = current.includes(badge);
-      const next = hasBadge ? current.filter((entry) => entry !== badge) : [...current, badge];
-      if (next.length === 0) {
-        const { [userId]: _removed, ...rest } = previous;
-        return rest;
-      }
-      return { ...previous, [userId]: next };
+    setCustomBadgesByUserId((prev) => {
+      const cur = prev[userId] ?? [];
+      const next = cur.includes(badge) ? cur.filter((b) => b !== badge) : [...cur, badge];
+      if (!next.length) { const { [userId]: _, ...rest } = prev; return rest; }
+      return { ...prev, [userId]: next };
     });
   };
 
   const createCustomBadge = () => {
     const label = newBadgeLabel.trim();
     const shortLabel = newBadgeShortLabel.trim().toUpperCase();
-    if (!label || !shortLabel || shortLabel.length > 10) {
-      setMessage("Badge braucht Namen und ein kurzes Label (max. 10 Zeichen).");
-      return;
-    }
+    if (!label || !shortLabel || shortLabel.length > 10) { setMessage("Badge braucht Namen und ein kurzes Label (max. 10 Zeichen)."); return; }
     const id = `custom_${label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")}`;
-    if (!id || badgeDefinitions.some((entry) => entry.id === id)) {
-      setMessage("Badge existiert bereits. Nutze einen anderen Namen.");
-      return;
-    }
-
-    const newDefinition: BadgeDefinition = { id, label, shortLabel };
-    setBadgeDefinitions((previous) => [...previous, newDefinition]);
-    if (auth?.user.id) {
-      toggleBadgeForUser(auth.user.id, id);
-      setBadgeTargetUserId(auth.user.id);
-    }
-    setNewBadgeLabel("");
-    setNewBadgeShortLabel("");
-    setMessage("Neues Badge erstellt und dir zugewiesen.");
+    if (!id || badgeDefinitions.some((b) => b.id === id)) { setMessage("Badge existiert bereits."); return; }
+    setBadgeDefinitions((prev) => [...prev, { id, label, shortLabel }]);
+    if (auth?.user.id) { toggleBadgeForUser(auth.user.id, id); setBadgeTargetUserId(auth.user.id); }
+    setNewBadgeLabel(""); setNewBadgeShortLabel("");
+    setMessage("Neues Badge erstellt.");
   };
 
   useEffect(() => {
-    const listElement = messageListRef.current;
-    if (!listElement) {
-      return;
-    }
-    listElement.scrollTo({ top: listElement.scrollHeight, behavior: "smooth" });
+    const el = messageListRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages, activeChannelId]);
 
   const { submit } = useAuthFlow({
-    auth,
-    theme,
-    mode,
-    email,
-    password,
-    displayName,
-    token,
-    resetTokenFromLink,
-    showAuthPage,
-    googleRenderAttempt,
-    googleButtonRef,
-    setAuth,
-    setLoading,
-    setMessage,
-    setMode,
-    setToken,
-    setPassword,
-    setResetTokenFromLink,
-    setShowAuthPage,
-    setGoogleReady,
-    setGoogleLoadError
+    auth, theme, mode, email, password, displayName, token, resetTokenFromLink,
+    showAuthPage, googleRenderAttempt, googleButtonRef,
+    setAuth, setLoading, setMessage, setMode, setToken, setPassword,
+    setResetTokenFromLink, setShowAuthPage, setGoogleReady, setGoogleLoadError
   });
 
   const {
-    onToggleGlobalUploads,
-    onCreateChannel,
-    onCreateChannelFromModal,
-    onSendMessage,
-    onSearch,
-    onBlockSender,
-    onEditMessage,
-    onSaveEdit,
-    onDeleteMessage,
-    onUploadSelected,
-    onStartDirectByUsername,
-    onAddMemberByUsername,
-    onToggleMemberRole,
-    onRemoveMember,
-    onTransferOwnership,
-    onLeaveGroup,
-    onDeleteGroup,
-    onSaveProfile
+    onToggleGlobalUploads, onCreateChannel, onCreateChannelFromModal,
+    onSendMessage, onSearch, onBlockSender, onEditMessage, onSaveEdit,
+    onDeleteMessage, onUploadSelected, onStartDirectByUsername,
+    onAddMemberByUsername, onToggleMemberRole, onRemoveMember,
+    onTransferOwnership, onLeaveGroup, onDeleteGroup, onSaveProfile
   } = useChatActions({
-    auth,
-    activeChannelId,
-    activeChannel,
-    ownMembershipRole,
-    canModerateMembers,
-    canManageRoles,
-    canManagePlatformSettings,
-    openChannel,
-    setMessage,
-    setChannels,
-    setMessages,
-    setEditingMessageId,
-    setEditingContent,
-    setComposerText,
-    setReplyingToMessageId,
-    setSearchResults,
-    setDirectUsername,
-    setDirectModalOpen,
-    setAddMemberUsername,
-    setAddMemberModalOpen,
-    setChannelMembers,
-    setActiveChannelId,
-    setNewChannelName,
-    setCreateChannelModalOpen,
-    setSettingsOpen,
-    setUploadsEnabledForAll,
-    setPlatformToggleLoading,
-    setAuth,
-    searchQuery,
-    composerText,
-    replyingToMessageId,
-    editingContent,
-    newChannelName,
-    directUsername,
-    addMemberUsername,
-    profileNickname,
-    profileUsername,
-    uploadsEnabledForAll
+    auth, activeChannelId, activeChannel, ownMembershipRole,
+    canModerateMembers, canManageRoles, canManagePlatformSettings,
+    openChannel, setMessage, setChannels, setMessages,
+    setEditingMessageId, setEditingContent, setComposerText,
+    setReplyingToMessageId, setSearchResults, setDirectUsername,
+    setDirectModalOpen, setAddMemberUsername, setAddMemberModalOpen,
+    setChannelMembers, setActiveChannelId, setNewChannelName,
+    setCreateChannelModalOpen, setSettingsOpen, setUploadsEnabledForAll,
+    setPlatformToggleLoading, setAuth,
+    searchQuery, composerText, replyingToMessageId, editingContent,
+    newChannelName, directUsername, addMemberUsername,
+    profileNickname, profileUsername, uploadsEnabledForAll
   });
 
   useEffect(() => {
-    const loadPolls = async () => {
-      if (!auth || !activeChannelId) {
-        setPolls([]);
-        return;
-      }
-      try {
-        const list = await listPolls(auth.tokens.accessToken, activeChannelId);
-        setPolls(list);
-      } catch {
-        setPolls([]);
-      }
+    const load = async () => {
+      if (!auth || !activeChannelId) { setPolls([]); return; }
+      try { setPolls(await listPolls(auth.tokens.accessToken, activeChannelId)); }
+      catch { setPolls([]); }
     };
-    void loadPolls();
+    void load();
   }, [auth, activeChannelId]);
 
-  const updateMentionState = (value: string, caretPosition: number) => {
-    const uptoCaret = value.slice(0, caretPosition);
-    const match = uptoCaret.match(/(?:^|\s)@([a-z0-9_]*)$/iu);
-    if (!match) {
-      setMentionQuery(null);
-      setMentionIndex(0);
-      return;
-    }
-    setMentionQuery((match[1] ?? "").toLowerCase());
-    setMentionIndex(0);
+  const updateMentionState = (value: string, caret: number) => {
+    const m = value.slice(0, caret).match(/(?:^|\s)@([a-z0-9_]*)$/iu);
+    if (!m) { setMentionQuery(null); setMentionIndex(0); return; }
+    setMentionQuery((m[1] ?? "").toLowerCase()); setMentionIndex(0);
   };
 
   const insertMention = (username: string) => {
-    const textarea = composerRef.current;
-    if (!textarea) {
-      return;
-    }
-
-    const caret = textarea.selectionStart ?? composerText.length;
-    const before = composerText.slice(0, caret);
-    const after = composerText.slice(caret);
-    const replacedBefore = before.replace(/(?:^|\s)@([a-z0-9_]*)$/iu, (full) => {
-      const prefix = full.startsWith(" ") ? " " : "";
-      return `${prefix}@${username} `;
-    });
-    const nextValue = `${replacedBefore}${after}`;
-    setComposerText(nextValue);
-    setMentionQuery(null);
-
-    window.requestAnimationFrame(() => {
-      const nextCaret = replacedBefore.length;
-      textarea.focus();
-      textarea.setSelectionRange(nextCaret, nextCaret);
-    });
+    const ta = composerRef.current;
+    if (!ta) return;
+    const caret = ta.selectionStart ?? composerText.length;
+    const before = composerText.slice(0, caret).replace(/(?:^|\s)@([a-z0-9_]*)$/iu, (full) => `${full.startsWith(" ") ? " " : ""}@${username} `);
+    const next = `${before}${composerText.slice(caret)}`;
+    setComposerText(next); setMentionQuery(null);
+    window.requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(before.length, before.length); });
   };
 
-  const openCreateChannelModal = () => {
-    setCreateChannelModalOpen(true);
-  };
-
-  const onComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+  const onComposerKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (mentionQuery !== null && filteredMentionCandidates.length > 0) {
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        setMentionIndex((current) => (current + 1) % filteredMentionCandidates.length);
-        return;
-      }
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        setMentionIndex((current) => (current - 1 + filteredMentionCandidates.length) % filteredMentionCandidates.length);
-        return;
-      }
-      if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        insertMention(filteredMentionCandidates[mentionIndex]?.username ?? filteredMentionCandidates[0].username);
-        return;
-      }
-      if (event.key === "Escape") {
-        setMentionQuery(null);
-        return;
-      }
+      if (e.key === "ArrowDown") { e.preventDefault(); setMentionIndex((c) => (c + 1) % filteredMentionCandidates.length); return; }
+      if (e.key === "ArrowUp") { e.preventDefault(); setMentionIndex((c) => (c - 1 + filteredMentionCandidates.length) % filteredMentionCandidates.length); return; }
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); insertMention(filteredMentionCandidates[mentionIndex]?.username ?? filteredMentionCandidates[0].username); return; }
+      if (e.key === "Escape") { setMentionQuery(null); return; }
     }
-
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      void onSendMessage();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void onSendMessage(); }
   };
 
-  const onComposerChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
-    const next = event.target.value;
+  const onComposerChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+    const next = e.target.value;
     setComposerText(next);
-    updateMentionState(next, event.target.selectionStart ?? next.length);
-    if (auth && activeChannelId && next.trim() && socketRef.current) {
+    updateMentionState(next, e.target.selectionStart ?? next.length);
+    if (auth && activeChannelId && next.trim() && socketRef.current)
       socketRef.current.emit(REALTIME_EVENTS.TYPING, { roomId: activeChannelId, userId: auth.user.id });
-    }
   };
 
   const stopVoiceStream = () => {
-    const stream = voiceStreamRef.current;
-    if (!stream) {
-      return;
-    }
-    for (const track of stream.getTracks()) {
-      track.stop();
-    }
+    const s = voiceStreamRef.current;
+    if (!s) return;
+    s.getTracks().forEach((t) => t.stop());
     voiceStreamRef.current = null;
   };
 
   const onStartVoiceNote = async () => {
-    if (!auth || !activeChannelId) {
-      setMessage("Öffne zuerst einen Kanal für Sprachnachrichten.");
-      return;
+    if (!auth || !activeChannelId || voiceNoteState !== "idle") return;
+    if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setMessage("Sprachnachrichten werden von diesem Browser nicht unterst\u00fctzt."); return;
     }
-    if (voiceNoteState !== "idle") {
-      return;
-    }
-    if (typeof window === "undefined" || typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-      setMessage("Sprachnachrichten werden von diesem Browser nicht unterstützt.");
-      return;
-    }
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       voiceStreamRef.current = stream;
-
-      const mimeCandidates = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/mp4"];
-      const selectedMimeType = mimeCandidates.find((mime) => MediaRecorder.isTypeSupported(mime));
-      const recorder = selectedMimeType ? new MediaRecorder(stream, { mimeType: selectedMimeType }) : new MediaRecorder(stream);
-
+      const mime = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/mp4"].find((m) => MediaRecorder.isTypeSupported(m));
+      const recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
       voiceChunksRef.current = [];
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          voiceChunksRef.current.push(event.data);
-        }
-      };
-
+      recorder.ondataavailable = (ev) => { if (ev.data.size > 0) voiceChunksRef.current.push(ev.data); };
       recorder.onstop = async () => {
-        if (!auth || !activeChannelId) {
-          stopVoiceStream();
-          setVoiceNoteState("idle");
-          return;
-        }
-
+        if (!auth || !activeChannelId) { stopVoiceStream(); setVoiceNoteState("idle"); return; }
         setVoiceNoteState("uploading");
         try {
-          const mimeType = recorder.mimeType || selectedMimeType || "audio/webm";
-          const blob = new Blob(voiceChunksRef.current, { type: mimeType });
-          const extension = mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") ? "m4a" : "webm";
-          const file = new File([blob], `voice-note-${Date.now()}.${extension}`, { type: mimeType });
-
+          const mimeType = recorder.mimeType || mime || "audio/webm";
+          const ext = mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") ? "m4a" : "webm";
+          const file = new File([new Blob(voiceChunksRef.current, { type: mimeType })], `voice-${Date.now()}.${ext}`, { type: mimeType });
           const uploaded = await uploadFile(auth.tokens.accessToken, file);
           await sendMessage(auth.tokens.accessToken, activeChannelId, `[voice] ${uploaded.url}`);
           setMessage("Sprachnachricht gesendet.");
-        } catch (error) {
-          setMessage(error instanceof Error ? error.message : "Sprachnachricht konnte nicht gesendet werden");
-        } finally {
-          voiceChunksRef.current = [];
-          stopVoiceStream();
-          voiceRecorderRef.current = null;
-          setVoiceNoteState("idle");
-        }
+        } catch (err) {
+          setMessage(err instanceof Error ? err.message : "Sprachnachricht fehlgeschlagen");
+        } finally { voiceChunksRef.current = []; stopVoiceStream(); voiceRecorderRef.current = null; setVoiceNoteState("idle"); }
       };
-
-      recorder.start();
-      voiceRecorderRef.current = recorder;
-      setVoiceNoteState("recording");
-      setMessage("Sprachnachricht läuft …");
-    } catch (error) {
-      stopVoiceStream();
-      setVoiceNoteState("idle");
-      setMessage(error instanceof Error ? error.message : "Mikrofon konnte nicht gestartet werden");
-    }
+      recorder.start(); voiceRecorderRef.current = recorder; setVoiceNoteState("recording"); setMessage("Aufnahme l\u00e4uft \u2026");
+    } catch (err) { stopVoiceStream(); setVoiceNoteState("idle"); setMessage(err instanceof Error ? err.message : "Mikrofon konnte nicht gestartet werden"); }
   };
 
   const onStopVoiceNote = () => {
-    const recorder = voiceRecorderRef.current;
-    if (!recorder || voiceNoteState !== "recording") {
-      return;
-    }
-    recorder.stop();
-    setMessage("Sprachnachricht wird verarbeitet …");
+    const r = voiceRecorderRef.current;
+    if (!r || voiceNoteState !== "recording") return;
+    r.stop(); setMessage("Verarbeite Sprachnachricht \u2026");
   };
 
   const onSummarizeChannel = async () => {
-    if (!auth || !activeChannelId) {
-      setMessage("Öffne zuerst einen Kanal für die Zusammenfassung.");
-      return;
-    }
-    if (summaryLoading) {
-      return;
-    }
-
-    setSummaryLoading(true);
-    setMessage("Erstelle AI-Zusammenfassung …");
+    if (!auth || !activeChannelId || summaryLoading) return;
+    setSummaryLoading(true); setMessage("Erstelle Zusammenfassung \u2026");
     try {
-      const result = await summarizeChannel(auth.tokens.accessToken, activeChannelId, { days: 7, limit: 150 });
-      const source = result.source === "ai" ? "Free-AI" : "Fallback";
-      setMessage(`Zusammenfassung (${source}, ${result.messageCount} Nachrichten):\n${result.summary}`);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Zusammenfassung fehlgeschlagen");
-    } finally {
-      setSummaryLoading(false);
-    }
+      const r = await summarizeChannel(auth.tokens.accessToken, activeChannelId, { days: 7, limit: 150 });
+      setMessage(`Zusammenfassung (${r.source === "ai" ? "AI" : "Fallback"}, ${r.messageCount} Nachrichten):\n${r.summary}`);
+    } catch (err) { setMessage(err instanceof Error ? err.message : "Zusammenfassung fehlgeschlagen"); }
+    finally { setSummaryLoading(false); }
   };
 
-  const onReplyToMessage = (messageId: string) => {
-    setReplyingToMessageId(messageId);
-    composerRef.current?.focus();
-  };
-
-  const onCancelReply = () => {
-    setReplyingToMessageId(null);
-  };
+  const onReplyToMessage = (id: string) => { setReplyingToMessageId(id); composerRef.current?.focus(); };
+  const onCancelReply = () => setReplyingToMessageId(null);
 
   const onCreatePoll = async () => {
-    if (!auth || !activeChannelId || pollLoading) {
-      return;
-    }
-
-    const question = window.prompt("Frage der Umfrage:", "");
-    if (!question?.trim()) {
-      return;
-    }
-    const optionsRaw = window.prompt("Antwortoptionen (mit Komma trennen):", "Ja,Nein");
-    if (!optionsRaw?.trim()) {
-      return;
-    }
-
-    const options = optionsRaw
-      .split(",")
-      .map((entry) => entry.trim())
-      .filter(Boolean);
-
-    if (options.length < 2) {
-      setMessage("Mindestens 2 Optionen für die Umfrage erforderlich.");
-      return;
-    }
-
+    if (!auth || !activeChannelId || pollLoading) return;
+    const question = window.prompt("Frage:", "");
+    if (!question?.trim()) return;
+    const raw = window.prompt("Optionen (Komma getrennt):", "Ja,Nein");
+    if (!raw?.trim()) return;
+    const options = raw.split(",").map((s) => s.trim()).filter(Boolean);
+    if (options.length < 2) { setMessage("Mindestens 2 Optionen erforderlich."); return; }
     setPollLoading(true);
     try {
-      const created = await createPoll(auth.tokens.accessToken, activeChannelId, {
-        question: question.trim(),
-        options
-      });
-      setPolls((previous) => [created, ...previous]);
-      setMessage("Umfrage erstellt.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Umfrage konnte nicht erstellt werden");
-    } finally {
-      setPollLoading(false);
-    }
+      const created = await createPoll(auth.tokens.accessToken, activeChannelId, { question: question.trim(), options });
+      setPolls((prev) => [created, ...prev]); setMessage("Umfrage erstellt.");
+    } catch (err) { setMessage(err instanceof Error ? err.message : "Umfrage fehlgeschlagen"); }
+    finally { setPollLoading(false); }
   };
 
   const onVotePoll = async (pollId: string, optionId: string) => {
-    if (!auth || !activeChannelId) {
-      return;
-    }
-
+    if (!auth || !activeChannelId) return;
     try {
       const updated = await votePoll(auth.tokens.accessToken, activeChannelId, pollId, optionId);
-      setPolls((previous) => previous.map((entry) => (entry.id === updated.id ? updated : entry)));
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Abstimmung fehlgeschlagen");
-    }
+      setPolls((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    } catch (err) { setMessage(err instanceof Error ? err.message : "Abstimmung fehlgeschlagen"); }
   };
 
-  useEffect(() => {
-    return () => {
-      if (voiceRecorderRef.current && voiceRecorderRef.current.state !== "inactive") {
-        voiceRecorderRef.current.stop();
-      }
-      stopVoiceStream();
-    };
+  useEffect(() => () => {
+    if (voiceRecorderRef.current?.state !== "inactive") voiceRecorderRef.current?.stop();
+    stopVoiceStream();
   }, []);
 
   const renderContentWithMentions = (content: string) => {
-    const ownUsername = auth?.user.username?.toLowerCase();
-    return content.split(/(@[a-z0-9_]{3,24})/gi).map((part, index) => {
-      if (!part.startsWith("@")) {
-        return <span key={`txt-${index}`}>{part}</span>;
-      }
-      const token = part.slice(1).toLowerCase();
-      const className = ownUsername && token === ownUsername ? "mention-hit" : "mention";
-      return (
-        <span key={`mention-${index}`} className={className}>
-          {part}
-        </span>
-      );
+    const own = auth?.user.username?.toLowerCase();
+    return content.split(/(@[a-z0-9_]{3,24})/gi).map((part, i) => {
+      if (!part.startsWith("@")) return <span key={`t-${i}`}>{part}</span>;
+      const cls = own && part.slice(1).toLowerCase() === own ? "mention-hit" : "mention";
+      return <span key={`m-${i}`} className={cls}>{part}</span>;
     });
   };
 
   const logout = () => {
-    setAuth(null);
-    setMessages([]);
-    setPolls([]);
-    setChannels([]);
-    setActiveChannelId(null);
-    setReplyingToMessageId(null);
-    setSearchResults([]);
-    setSearchQuery("");
-    setComposerText("");
-    setMessage("");
-    setMentionNotice("");
+    setAuth(null); setMessages([]); setPolls([]); setChannels([]);
+    setActiveChannelId(null); setReplyingToMessageId(null);
+    setSearchResults([]); setSearchQuery(""); setComposerText("");
+    setMessage(""); setMentionNotice("");
   };
 
   if (auth) {
     return (
       <ChatLayout
-        auth={auth}
-        theme={theme}
-        onToggleTheme={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
-        onLogout={logout}
-        realtimeState={realtimeState}
+        auth={auth} theme={theme}
+        onToggleTheme={() => setTheme((c) => c === "dark" ? "light" : "dark")}
+        onLogout={logout} realtimeState={realtimeState}
         currentUserIsPlatformOwner={currentUserIsPlatformOwner}
         renderPlatformOwnerBadge={renderPlatformOwnerBadge}
         renderCustomBadges={renderCustomBadges}
-        isMobileLayout={isMobileLayout}
-        mobilePane={mobilePane}
-        setMobilePane={setMobilePane}
-        channels={channels}
-        sortedChannels={sortedChannels}
-        activeChannel={activeChannel}
-        activeChannelId={activeChannelId}
-        ownMembershipRole={ownMembershipRole}
-        channelMembers={channelMembers}
-        canManageRoles={canManageRoles}
-        canModerateMembers={canModerateMembers}
-        onOpenCreateChannelModal={openCreateChannelModal}
+        isMobileLayout={isMobileLayout} mobilePane={mobilePane} setMobilePane={setMobilePane}
+        channels={channels} sortedChannels={sortedChannels}
+        activeChannel={activeChannel} activeChannelId={activeChannelId}
+        ownMembershipRole={ownMembershipRole} channelMembers={channelMembers}
+        canManageRoles={canManageRoles} canModerateMembers={canModerateMembers}
+        onOpenCreateChannelModal={() => setCreateChannelModalOpen(true)}
         onOpenDirectModal={() => setDirectModalOpen(true)}
         onOpenAddMemberModal={() => setAddMemberModalOpen(true)}
         openChannel={openChannel}
@@ -996,80 +563,52 @@ export function App() {
         onTransferOwnership={onTransferOwnership}
         onToggleMemberRole={onToggleMemberRole}
         onRemoveMember={onRemoveMember}
-        onLeaveGroup={onLeaveGroup}
-        onDeleteGroup={onDeleteGroup}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        onSearch={onSearch}
-        onSummarizeChannel={onSummarizeChannel}
+        onLeaveGroup={onLeaveGroup} onDeleteGroup={onDeleteGroup}
+        searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+        onSearch={onSearch} onSummarizeChannel={onSummarizeChannel}
         summaryLoading={summaryLoading}
-        polls={polls}
-        pollLoading={pollLoading}
-        onCreatePoll={onCreatePoll}
-        onVotePoll={onVotePoll}
+        polls={polls} pollLoading={pollLoading}
+        onCreatePoll={onCreatePoll} onVotePoll={onVotePoll}
         searchResults={searchResults}
         activeConversationStatus={activeConversationStatus}
-        voiceSupported={voiceSupported}
-        voiceCallState={voiceCallState}
-        voiceParticipants={voiceParticipants}
-        isVoiceMuted={isVoiceMuted}
-        onStartVoiceCall={onStartVoiceCall}
-        onLeaveVoiceCall={onLeaveVoiceCall}
+        voiceSupported={voiceSupported} voiceCallState={voiceCallState}
+        voiceParticipants={voiceParticipants} isVoiceMuted={isVoiceMuted}
+        onStartVoiceCall={onStartVoiceCall} onLeaveVoiceCall={onLeaveVoiceCall}
         onToggleVoiceMute={onToggleVoiceMute}
-        messages={messages}
-        replyingToMessageId={replyingToMessageId}
-        onReplyToMessage={onReplyToMessage}
-        onCancelReply={onCancelReply}
+        messages={messages} replyingToMessageId={replyingToMessageId}
+        onReplyToMessage={onReplyToMessage} onCancelReply={onCancelReply}
         messageListRef={messageListRef}
-        activeMessageId={activeMessageId}
-        setActiveMessageId={setActiveMessageId}
-        presenceMap={presenceMap}
-        memberRoleByUserId={memberRoleByUserId}
-        editingMessageId={editingMessageId}
-        editingContent={editingContent}
+        activeMessageId={activeMessageId} setActiveMessageId={setActiveMessageId}
+        presenceMap={presenceMap} memberRoleByUserId={memberRoleByUserId}
+        editingMessageId={editingMessageId} editingContent={editingContent}
         setEditingContent={setEditingContent}
-        onSaveEdit={onSaveEdit}
-        onEditMessage={onEditMessage}
-        onDeleteMessage={onDeleteMessage}
-        onBlockSender={onBlockSender}
+        onSaveEdit={onSaveEdit} onEditMessage={onEditMessage}
+        onDeleteMessage={onDeleteMessage} onBlockSender={onBlockSender}
         renderContentWithMentions={renderContentWithMentions}
-        composerText={composerText}
-        composerRef={composerRef}
-        onComposerChange={onComposerChange}
-        onComposerKeyDown={onComposerKeyDown}
+        composerText={composerText} composerRef={composerRef}
+        onComposerChange={onComposerChange} onComposerKeyDown={onComposerKeyDown}
         mentionQuery={mentionQuery}
         filteredMentionCandidates={filteredMentionCandidates}
-        mentionIndex={mentionIndex}
-        insertMention={insertMention}
+        mentionIndex={mentionIndex} insertMention={insertMention}
         onSendMessage={onSendMessage}
         uploadsEnabledForAll={uploadsEnabledForAll}
         onUploadSelected={onUploadSelected}
         voiceNoteSupported={typeof window !== "undefined" && typeof MediaRecorder !== "undefined"}
         voiceNoteState={voiceNoteState}
-        onStartVoiceNote={onStartVoiceNote}
-        onStopVoiceNote={onStopVoiceNote}
-        message={message}
-        mentionNotice={mentionNotice}
-        settingsOpen={settingsOpen}
-        setSettingsOpen={setSettingsOpen}
-        settingsTab={settingsTab}
-        setSettingsTab={setSettingsTab}
-        profileNickname={profileNickname}
-        setProfileNickname={setProfileNickname}
-        profileUsername={profileUsername}
-        setProfileUsername={setProfileUsername}
+        onStartVoiceNote={onStartVoiceNote} onStopVoiceNote={onStopVoiceNote}
+        message={message} mentionNotice={mentionNotice}
+        settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen}
+        settingsTab={settingsTab} setSettingsTab={setSettingsTab}
+        profileNickname={profileNickname} setProfileNickname={setProfileNickname}
+        profileUsername={profileUsername} setProfileUsername={setProfileUsername}
         onSaveProfile={onSaveProfile}
         knownUsers={knownUsers}
-        badgeTargetUserId={badgeTargetUserId}
-        setBadgeTargetUserId={setBadgeTargetUserId}
-        badgeTargetUser={badgeTargetUser}
-        badgeDefinitions={badgeDefinitions}
+        badgeTargetUserId={badgeTargetUserId} setBadgeTargetUserId={setBadgeTargetUserId}
+        badgeTargetUser={badgeTargetUser} badgeDefinitions={badgeDefinitions}
         customBadgesByUserId={customBadgesByUserId}
         toggleBadgeForUser={toggleBadgeForUser}
-        newBadgeLabel={newBadgeLabel}
-        setNewBadgeLabel={setNewBadgeLabel}
-        newBadgeShortLabel={newBadgeShortLabel}
-        setNewBadgeShortLabel={setNewBadgeShortLabel}
+        newBadgeLabel={newBadgeLabel} setNewBadgeLabel={setNewBadgeLabel}
+        newBadgeShortLabel={newBadgeShortLabel} setNewBadgeShortLabel={setNewBadgeShortLabel}
         createCustomBadge={createCustomBadge}
         canManagePlatformSettings={canManagePlatformSettings}
         uploadsEnabled={uploadsEnabledForAll}
@@ -1077,18 +616,13 @@ export function App() {
         onToggleGlobalUploads={onToggleGlobalUploads}
         createChannelModalOpen={createChannelModalOpen}
         setCreateChannelModalOpen={setCreateChannelModalOpen}
-        newChannelName={newChannelName}
-        setNewChannelName={setNewChannelName}
+        newChannelName={newChannelName} setNewChannelName={setNewChannelName}
         onCreateChannelFromModal={onCreateChannelFromModal}
-        directModalOpen={directModalOpen}
-        setDirectModalOpen={setDirectModalOpen}
-        directUsername={directUsername}
-        setDirectUsername={setDirectUsername}
+        directModalOpen={directModalOpen} setDirectModalOpen={setDirectModalOpen}
+        directUsername={directUsername} setDirectUsername={setDirectUsername}
         onStartDirectByUsername={onStartDirectByUsername}
-        addMemberModalOpen={addMemberModalOpen}
-        setAddMemberModalOpen={setAddMemberModalOpen}
-        addMemberUsername={addMemberUsername}
-        setAddMemberUsername={setAddMemberUsername}
+        addMemberModalOpen={addMemberModalOpen} setAddMemberModalOpen={setAddMemberModalOpen}
+        addMemberUsername={addMemberUsername} setAddMemberUsername={setAddMemberUsername}
         onAddMemberByUsername={onAddMemberByUsername}
       />
     );
@@ -1097,49 +631,23 @@ export function App() {
   if (!resetTokenFromLink && !showAuthPage) {
     return (
       <LandingPage
-        onOpenLogin={() => {
-          setMode("login");
-          setShowAuthPage(true);
-        }}
-        onOpenRegister={() => {
-          setMode("register");
-          setShowAuthPage(true);
-        }}
+        onOpenLogin={() => { setMode("login"); setShowAuthPage(true); }}
+        onOpenRegister={() => { setMode("register"); setShowAuthPage(true); }}
       />
     );
   }
 
   return (
     <AuthCard
-      resetTokenFromLink={resetTokenFromLink}
-      mode={mode}
-      setMode={setMode}
-      email={email}
-      setEmail={setEmail}
-      password={password}
-      setPassword={setPassword}
-      displayName={displayName}
-      setDisplayName={setDisplayName}
-      token={token}
-      setToken={setToken}
-      submit={submit}
-      loading={loading}
-      message={message}
-      googleClientId={googleClientId}
-      googleButtonRef={googleButtonRef}
-      googleReady={googleReady}
-      googleLoadError={googleLoadError}
-      onRetryGoogleRender={() => setGoogleRenderAttempt((current) => current + 1)}
-      onBackToLoginFromReset={() => {
-        setResetTokenFromLink(null);
-        window.history.replaceState({}, "", "/");
-        setMode("login");
-        setToken("");
-      }}
-      onBackToLanding={() => {
-        setShowAuthPage(false);
-        setMessage("");
-      }}
+      resetTokenFromLink={resetTokenFromLink} mode={mode} setMode={setMode}
+      email={email} setEmail={setEmail} password={password} setPassword={setPassword}
+      displayName={displayName} setDisplayName={setDisplayName}
+      token={token} setToken={setToken} submit={submit} loading={loading} message={message}
+      googleClientId={googleClientId} googleButtonRef={googleButtonRef}
+      googleReady={googleReady} googleLoadError={googleLoadError}
+      onRetryGoogleRender={() => setGoogleRenderAttempt((c) => c + 1)}
+      onBackToLoginFromReset={() => { setResetTokenFromLink(null); window.history.replaceState({}, "", "/"); setMode("login"); setToken(""); }}
+      onBackToLanding={() => { setShowAuthPage(false); setMessage(""); }}
     />
   );
 }
