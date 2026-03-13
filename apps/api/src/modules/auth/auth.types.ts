@@ -1,7 +1,23 @@
-import type { AuthProvider, UserProfile } from "@chatnet/shared";
-
-export interface StoredUser extends UserProfile {
+export interface StoredUser {
+  id: string;
+  email: string;
+  username: string;
+  userCode: string;
+  displayName: string;
+  avatarUrl?: string;
+  provider: "google" | "password";
+  verifiedEmail: boolean;
   passwordHash?: string;
+  // Custom status
+  statusEmoji?: string;
+  statusText?: string;
+  statusExpiresAt?: Date;
+}
+
+export interface StoredEmailToken {
+  token: string;
+  userId: string;
+  type: "VERIFY" | "RESET";
 }
 
 export interface RegisterInput {
@@ -34,28 +50,10 @@ export interface PasswordResetInput {
   newPassword: string;
 }
 
-export interface EmailTokenRecord {
-  userId: string;
-  type: "reset";
-  expiresAt: number;
-}
-
-export interface CreateEmailTokenInput {
-  userId: string;
-  type: "reset";
-  expiresAt: Date;
-}
-
-export interface CreateUserInput {
-  email: string;
-  displayName: string;
-  username?: string;
-  provider: AuthProvider;
-  verifiedEmail: boolean;
-  passwordHash?: string;
-}
-
 export interface UpdateProfileInput {
   displayName?: string;
   username?: string;
+  statusEmoji?: string;
+  statusText?: string;
+  statusExpiresAt?: string | null;
 }
