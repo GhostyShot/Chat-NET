@@ -2,29 +2,27 @@
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
-  /* True black/grey system — no blue tint */
   --color-bg-base:     #0a0a0a;
   --color-bg-surface:  #111111;
   --color-bg-sidebar:  #0d0d0d;
   --color-bg-elevated: #1a1a1a;
   --color-bg-input:    #141414;
-  --color-bg-hover:    rgba(255,255,255,0.04);
-  --color-bg-active:   rgba(255,255,255,0.08);
+  --color-bg-hover:    rgba(255,255,255,0.05);
+  --color-bg-active:   rgba(255,255,255,0.09);
 
-  --color-border:        rgba(255,255,255,0.07);
-  --color-border-strong: rgba(255,255,255,0.11);
+  --color-border:        rgba(255,255,255,0.08);
+  --color-border-strong: rgba(255,255,255,0.13);
 
-  --color-text-primary:   #f0f0f0;
-  --color-text-secondary: #888888;
-  --color-text-muted:     #444444;
+  /* Brighter text — was too dark before */
+  --color-text-primary:   #f2f2f2;
+  --color-text-secondary: #a0a0a0;
+  --color-text-muted:     #5a5a5a;
   --color-text-accent:    #ffffff;
 
-  /* Single accent — white for active states, subtle for backgrounds */
   --color-accent:        #ffffff;
   --color-accent-hover:  #e0e0e0;
-  --color-accent-subtle: rgba(255,255,255,0.06);
+  --color-accent-subtle: rgba(255,255,255,0.07);
 
-  /* CTA only — very subtle indigo, used nowhere except primary buttons */
   --color-cta:       #5865f2;
   --color-cta-hover: #4752c4;
 
@@ -32,11 +30,10 @@
   --color-warning: #e3b341;
   --color-danger:  #f85149;
 
-  /* No shadows — use borders instead */
   --shadow-sm: none;
   --shadow-md: none;
   --shadow-lg: none;
-  --shadow-modal: 0 0 0 1px rgba(255,255,255,0.08);
+  --shadow-modal: 0 0 0 1px rgba(255,255,255,0.09);
 }
 
 [data-theme="light"] {
@@ -52,8 +49,8 @@
   --color-border-strong: rgba(0,0,0,0.13);
 
   --color-text-primary:   #0a0a0a;
-  --color-text-secondary: #555555;
-  --color-text-muted:     #aaaaaa;
+  --color-text-secondary: #444444;
+  --color-text-muted:     #999999;
   --color-text-accent:    #000000;
 
   --color-accent:        #000000;
