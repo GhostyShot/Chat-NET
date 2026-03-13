@@ -1,56 +1,67 @@
 :root {
-  /* Fonts */
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
-  /* Colors — dark mode default */
-  --color-bg-base:     #0d1117;
-  --color-bg-surface:  #161b22;
-  --color-bg-sidebar:  #13181f;
-  --color-bg-elevated: #1c2128;
-  --color-bg-input:    #0d1117;
-  --color-bg-hover:    rgba(255,255,255,0.05);
-  --color-bg-active:   rgba(88,101,242,0.15);
+  /* True black/grey system — no blue tint */
+  --color-bg-base:     #0a0a0a;
+  --color-bg-surface:  #111111;
+  --color-bg-sidebar:  #0d0d0d;
+  --color-bg-elevated: #1a1a1a;
+  --color-bg-input:    #141414;
+  --color-bg-hover:    rgba(255,255,255,0.04);
+  --color-bg-active:   rgba(255,255,255,0.08);
 
-  --color-border:        rgba(255,255,255,0.08);
-  --color-border-strong: rgba(255,255,255,0.12);
+  --color-border:        rgba(255,255,255,0.07);
+  --color-border-strong: rgba(255,255,255,0.11);
 
-  --color-text-primary:   #e6edf3;
-  --color-text-secondary: #8b949e;
-  --color-text-muted:     #484f58;
-  --color-text-accent:    #79c0ff;
+  --color-text-primary:   #f0f0f0;
+  --color-text-secondary: #888888;
+  --color-text-muted:     #444444;
+  --color-text-accent:    #ffffff;
 
-  --color-accent:        #5865f2;
-  --color-accent-hover:  #4752c4;
-  --color-accent-subtle: rgba(88,101,242,0.1);
+  /* Single accent — white for active states, subtle for backgrounds */
+  --color-accent:        #ffffff;
+  --color-accent-hover:  #e0e0e0;
+  --color-accent-subtle: rgba(255,255,255,0.06);
+
+  /* CTA only — very subtle indigo, used nowhere except primary buttons */
+  --color-cta:       #5865f2;
+  --color-cta-hover: #4752c4;
 
   --color-success: #3fb950;
-  --color-warning: #d29922;
+  --color-warning: #e3b341;
   --color-danger:  #f85149;
 
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+  /* No shadows — use borders instead */
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-modal: 0 0 0 1px rgba(255,255,255,0.08);
 }
 
 [data-theme="light"] {
-  --color-bg-base:     #ffffff;
-  --color-bg-surface:  #f6f8fa;
-  --color-bg-sidebar:  #f0f2f5;
+  --color-bg-base:     #fafafa;
+  --color-bg-surface:  #f4f4f4;
+  --color-bg-sidebar:  #f0f0f0;
   --color-bg-elevated: #ffffff;
-  --color-bg-input:    #f6f8fa;
+  --color-bg-input:    #f4f4f4;
   --color-bg-hover:    rgba(0,0,0,0.04);
-  --color-bg-active:   rgba(88,101,242,0.08);
+  --color-bg-active:   rgba(0,0,0,0.07);
 
   --color-border:        rgba(0,0,0,0.08);
-  --color-border-strong: rgba(0,0,0,0.14);
+  --color-border-strong: rgba(0,0,0,0.13);
 
-  --color-text-primary:   #1c2128;
-  --color-text-secondary: #57606a;
-  --color-text-muted:     #8c959f;
-  --color-text-accent:    #0969da;
+  --color-text-primary:   #0a0a0a;
+  --color-text-secondary: #555555;
+  --color-text-muted:     #aaaaaa;
+  --color-text-accent:    #000000;
 
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.16);
+  --color-accent:        #000000;
+  --color-accent-hover:  #222222;
+  --color-accent-subtle: rgba(0,0,0,0.05);
+
+  --color-cta:       #5865f2;
+  --color-cta-hover: #4752c4;
+
+  --shadow-modal: 0 0 0 1px rgba(0,0,0,0.1);
 }

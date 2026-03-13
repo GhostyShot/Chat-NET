@@ -46,6 +46,8 @@ export interface ChannelItem {
   systemKey?: string | null;
   postingPolicy?: ChannelPostingPolicy;
   updatedAt: string;
+  pinnedMessageId?: string | null;
+  pinnedMessageContent?: string | null;
   memberships?: ChannelMembershipSummary[];
 }
 
@@ -60,6 +62,14 @@ export interface MessageItem {
     sender: ChannelUserSummary;
   } | null;
   sender: ChannelUserSummary;
+  reactions?: MessageReaction[];
+  status?: 'sending' | 'sent' | 'failed';
+}
+
+export interface MessageReaction {
+  emoji: string;
+  count: number;
+  userIds: string[];
 }
 
 export interface PollOptionItem {
@@ -123,6 +133,7 @@ export interface OkResponse {
 
 export interface MessageListResponse {
   items: MessageItem[];
+  nextCursor?: string;
 }
 
 export interface ChannelSummaryRequest {
@@ -201,95 +212,22 @@ export const API_ERROR_CODES = {
 } as const;
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[keyof typeof API_ERROR_CODES];
-
 export type RealtimeJoinRoomPayload = string;
 
-export interface RealtimeTypingPayload {
-  roomId: string;
-  userId: string;
-}
-
-export interface RealtimeReadReceiptEvent {
-  roomId: string;
-  messageId: string;
-  userId: string;
-}
-
-export interface RealtimeVoiceJoinPayload {
-  roomId: string;
-}
-
-export interface RealtimeVoiceLeavePayload {
-  roomId: string;
-}
-
-export interface RealtimeVoiceEndPayload {
-  roomId: string;
-}
-
-export interface RealtimeVoiceOfferPayload {
-  roomId: string;
-  targetUserId: string;
-  sdp: string;
-}
-
-export interface RealtimeVoiceAnswerPayload {
-  roomId: string;
-  targetUserId: string;
-  sdp: string;
-}
-
-export interface RealtimeVoiceIceCandidatePayload {
-  roomId: string;
-  targetUserId: string;
-  candidate: {
-    candidate: string;
-    sdpMid?: string | null;
-    sdpMLineIndex?: number | null;
-    usernameFragment?: string | null;
-  };
-}
-
-export interface RealtimeVoiceParticipantsPayload {
-  roomId: string;
-  userIds: string[];
-}
-
-export interface RealtimeVoiceParticipantPayload {
-  roomId: string;
-  userId: string;
-}
-
-export interface RealtimeVoiceOfferEvent {
-  roomId: string;
-  fromUserId: string;
-  targetUserId: string;
-  sdp: string;
-}
-
-export interface RealtimeVoiceAnswerEvent {
-  roomId: string;
-  fromUserId: string;
-  targetUserId: string;
-  sdp: string;
-}
-
-export interface RealtimeVoiceIceCandidateEvent {
-  roomId: string;
-  fromUserId: string;
-  targetUserId: string;
-  candidate: {
-    candidate: string;
-    sdpMid?: string | null;
-    sdpMLineIndex?: number | null;
-    usernameFragment?: string | null;
-  };
-}
-
-export interface RealtimeVoiceEndedEvent {
-  roomId: string;
-  endedByUserId: string;
-}
+export interface RealtimeTypingPayload { roomId: string; userId: string; }
+export interface RealtimeReadReceiptEvent { roomId: string; messageId: string; userId: string; }
+export interface RealtimeVoiceJoinPayload { roomId: string; }
+export interface RealtimeVoiceLeavePayload { roomId: string; }
+export interface RealtimeVoiceEndPayload { roomId: string; }
+export interface RealtimeVoiceOfferPayload { roomId: string; targetUserId: string; sdp: string; }
+export interface RealtimeVoiceAnswerPayload { roomId: string; targetUserId: string; sdp: string; }
+export interface RealtimeVoiceIceCandidatePayload { roomId: string; targetUserId: string; candidate: { candidate: string; sdpMid?: string | null; sdpMLineIndex?: number | null; usernameFragment?: string | null; }; }
+export interface RealtimeVoiceParticipantsPayload { roomId: string; userIds: string[]; }
+export interface RealtimeVoiceParticipantPayload { roomId: string; userId: string; }
+export interface RealtimeVoiceOfferEvent { roomId: string; fromUserId: string; targetUserId: string; sdp: string; }
+export interface RealtimeVoiceAnswerEvent { roomId: string; fromUserId: string; targetUserId: string; sdp: string; }
+export interface RealtimeVoiceIceCandidateEvent { roomId: string; fromUserId: string; targetUserId: string; candidate: { candidate: string; sdpMid?: string | null; sdpMLineIndex?: number | null; usernameFragment?: string | null; }; }
+export interface RealtimeVoiceEndedEvent { roomId: string; endedByUserId: string; }
 
 export interface RealtimeServerToClientEvents {
   new_message: (message: MessageItem) => void;
@@ -305,6 +243,7 @@ export interface RealtimeServerToClientEvents {
   vc_answer: (payload: RealtimeVoiceAnswerEvent) => void;
   vc_ice_candidate: (payload: RealtimeVoiceIceCandidateEvent) => void;
   vc_ended: (payload: RealtimeVoiceEndedEvent) => void;
+  reaction_updated: (payload: { messageId: string; reactions: MessageReaction[] }) => void;
 }
 
 export interface RealtimeClientToServerEvents {
@@ -336,7 +275,8 @@ export const REALTIME_EVENTS = {
   VC_OFFER: "vc_offer",
   VC_ANSWER: "vc_answer",
   VC_ICE_CANDIDATE: "vc_ice_candidate",
-  VC_ENDED: "vc_ended"
+  VC_ENDED: "vc_ended",
+  REACTION_UPDATED: "reaction_updated",
 } as const;
 
 export { ApiRequestError, requestJson, type ApiRequestErrorOptions, type RequestJsonOptions } from "./http.js";
