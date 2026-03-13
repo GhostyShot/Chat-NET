@@ -1,140 +1,146 @@
 import { Router } from "express";
-import rateLimit from "express-rate-limit";
-import {
-  forgotPasswordSchema,
-  googleSchema,
-  loginSchema,
-  refreshSchema,
-  registerSchema,
-  resetPasswordSchema,
-  updateProfileSchema
-} from "./auth.validators.js";
 import { authService } from "./auth.service.js";
-import { requireAuth, type AuthenticatedRequest } from "../chat/chat.auth.js";
-import { API_ERROR_CODES } from "@chatnet/shared";
-import { withErrorBoundary } from "../../lib/http-errors.js";
-
-const loginLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 10,
-  standardHeaders: true,
-  legacyHeaders: false
-});
-
-const resetLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 5,
-  standardHeaders: true,
-  legacyHeaders: false
-});
+import { googleVerify } from "./auth.google.js";
+import { sendVerificationEmail, sendPasswordResetEmail } from "./auth.mail.js";
+import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from "./auth.validators.js";
+import { requireAuth } from "./auth.security.js";
+import { authLimiter, passwordResetLimiter } from "../../lib/rateLimiter.js";
 
 export const authRouter = Router();
 
-const AUTH_BAD_REQUEST_ERRORS = [
-  API_ERROR_CODES.EMAIL_EXISTS,
-  API_ERROR_CODES.INVALID_CREDENTIALS,
-  API_ERROR_CODES.USERNAME_TAKEN,
-  API_ERROR_CODES.USERNAME_INVALID_FORMAT,
-  API_ERROR_CODES.INVALID_TOKEN
-] as const;
+// Apply strict rate limits to all auth routes
+authRouter.use(authLimiter);
 
 authRouter.post("/register", async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: API_ERROR_CODES.INVALID_BODY, details: parsed.error.issues });
+    res.status(400).json({ code: "VALIDATION_ERROR", errors: parsed.error.errors });
+    return;
   }
 
-  return withErrorBoundary(() => authService.register(parsed.data), res, {
-    badRequest: AUTH_BAD_REQUEST_ERRORS,
-    customStatus: (code) => (code.startsWith(API_ERROR_CODES.INVALID_GOOGLE_TOKEN) ? 400 : undefined)
-  });
+  try {
+    const { user, tokens } = await authService.register(parsed.data);
+    const { passwordHash: _, ...safeUser } = user as typeof user & { passwordHash?: string };
+
+    if (user.email && !user.verifiedEmail) {
+      void sendVerificationEmail(
+        user.email,
+        user.displayName,
+        await authService.createEmailToken(user.id, "VERIFY")
+      );
+    }
+
+    res.status(201).json({ user: safeUser, tokens });
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "REGISTER_FAILED";
+    res.status(400).json({ code });
+  }
 });
 
-authRouter.post("/login", loginLimiter, async (req, res) => {
+authRouter.post("/login", async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: API_ERROR_CODES.INVALID_BODY, details: parsed.error.issues });
+    res.status(400).json({ code: "VALIDATION_ERROR", errors: parsed.error.errors });
+    return;
   }
 
-  return withErrorBoundary(() => authService.login(parsed.data), res, {
-    badRequest: AUTH_BAD_REQUEST_ERRORS,
-    customStatus: (code) => (code.startsWith(API_ERROR_CODES.INVALID_GOOGLE_TOKEN) ? 400 : undefined)
-  });
+  try {
+    const result = await authService.login(parsed.data);
+    res.json(result);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "LOGIN_FAILED";
+    res.status(401).json({ code });
+  }
 });
 
-authRouter.post("/google", loginLimiter, async (req, res) => {
-  const parsed = googleSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: API_ERROR_CODES.INVALID_BODY, details: parsed.error.issues });
+authRouter.post("/google", async (req, res) => {
+  const { credential } = req.body as { credential?: string };
+  if (!credential || typeof credential !== "string") {
+    res.status(400).json({ code: "GOOGLE_CREDENTIAL_MISSING" });
+    return;
   }
 
-  return withErrorBoundary(() => authService.loginWithGoogle(parsed.data), res, {
-    badRequest: AUTH_BAD_REQUEST_ERRORS,
-    customStatus: (code) => (code.startsWith(API_ERROR_CODES.INVALID_GOOGLE_TOKEN) ? 400 : undefined)
-  });
+  try {
+    const googleUser = await googleVerify(credential);
+    const result = await authService.loginWithGoogle(googleUser);
+    res.json(result);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "GOOGLE_LOGIN_FAILED";
+    res.status(401).json({ code });
+  }
 });
 
 authRouter.post("/refresh", async (req, res) => {
-  const parsed = refreshSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: API_ERROR_CODES.INVALID_BODY, details: parsed.error.issues });
+  const { refreshToken } = req.body as { refreshToken?: string };
+  if (!refreshToken || typeof refreshToken !== "string") {
+    res.status(400).json({ code: "REFRESH_TOKEN_MISSING" });
+    return;
   }
 
-  return withErrorBoundary(() => authService.refresh(parsed.data), res, {
-    badRequest: AUTH_BAD_REQUEST_ERRORS,
-    customStatus: (code) => (code.startsWith(API_ERROR_CODES.INVALID_GOOGLE_TOKEN) ? 400 : undefined)
-  });
+  try {
+    const result = await authService.refresh(refreshToken);
+    res.json(result);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "REFRESH_FAILED";
+    res.status(401).json({ code });
+  }
 });
 
-authRouter.post("/forgot-password", resetLimiter, async (req, res) => {
+authRouter.post("/forgot-password", passwordResetLimiter, async (req, res) => {
   const parsed = forgotPasswordSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: API_ERROR_CODES.INVALID_BODY, details: parsed.error.issues });
+    res.status(400).json({ code: "VALIDATION_ERROR", errors: parsed.error.errors });
+    return;
   }
 
-  return withErrorBoundary(() => authService.requestPasswordReset(parsed.data), res, {
-    badRequest: AUTH_BAD_REQUEST_ERRORS,
-    customStatus: (code) => (code.startsWith(API_ERROR_CODES.INVALID_GOOGLE_TOKEN) ? 400 : undefined)
-  });
+  try {
+    const user = await authService.findUserByEmail(parsed.data.email);
+    if (user) {
+      const token = await authService.createEmailToken(user.id, "RESET");
+      void sendPasswordResetEmail(user.email, user.displayName, token);
+    }
+    // Always return 200 to prevent email enumeration
+    res.json({ ok: true });
+  } catch {
+    res.json({ ok: true });
+  }
 });
 
-authRouter.post("/reset-password", resetLimiter, async (req, res) => {
+authRouter.post("/reset-password", passwordResetLimiter, async (req, res) => {
   const parsed = resetPasswordSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: API_ERROR_CODES.INVALID_BODY, details: parsed.error.issues });
+    res.status(400).json({ code: "VALIDATION_ERROR", errors: parsed.error.errors });
+    return;
   }
 
-  return withErrorBoundary(() => authService.resetPassword(parsed.data), res, {
-    badRequest: AUTH_BAD_REQUEST_ERRORS,
-    customStatus: (code) => (code.startsWith(API_ERROR_CODES.INVALID_GOOGLE_TOKEN) ? 400 : undefined)
-  });
+  try {
+    const result = await authService.resetPassword(parsed.data);
+    res.json(result);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "RESET_FAILED";
+    res.status(400).json({ code });
+  }
 });
 
-authRouter.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
-  const userId = req.user?.userId;
-  if (!userId) {
-    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
+authRouter.get("/profile", requireAuth, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const profile = await authService.getProfile(userId);
+    res.json(profile);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "PROFILE_FETCH_FAILED";
+    res.status(400).json({ code });
   }
-
-  return withErrorBoundary(() => authService.getProfile(userId), res, {
-    badRequest: AUTH_BAD_REQUEST_ERRORS,
-    customStatus: (code) => (code.startsWith(API_ERROR_CODES.INVALID_GOOGLE_TOKEN) ? 400 : undefined)
-  });
 });
 
-authRouter.patch("/profile", requireAuth, async (req: AuthenticatedRequest, res) => {
-  const userId = req.user?.userId;
-  if (!userId) {
-    return res.status(401).json({ error: API_ERROR_CODES.AUTH_REQUIRED });
+authRouter.patch("/profile", requireAuth, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { displayName, username } = req.body as { displayName?: string; username?: string };
+    const updated = await authService.updateProfile(userId, { displayName, username });
+    res.json(updated);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "PROFILE_UPDATE_FAILED";
+    res.status(400).json({ code });
   }
-
-  const parsed = updateProfileSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: API_ERROR_CODES.INVALID_BODY, details: parsed.error.issues });
-  }
-
-  return withErrorBoundary(() => authService.updateProfile(userId, parsed.data), res, {
-    badRequest: AUTH_BAD_REQUEST_ERRORS,
-    customStatus: (code) => (code.startsWith(API_ERROR_CODES.INVALID_GOOGLE_TOKEN) ? 400 : undefined)
-  });
 });

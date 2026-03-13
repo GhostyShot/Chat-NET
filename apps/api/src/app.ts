@@ -5,21 +5,30 @@ import { authRouter } from "./modules/auth/auth.routes.js";
 import { chatRouter } from "./modules/chat/chat.routes.js";
 import { appConfig } from "./config.js";
 import { prisma } from "./lib/prisma.js";
+import { apiLimiter } from "./lib/rateLimiter.js";
 
 export function createApp() {
   const app = express();
   app.set("trust proxy", 1);
 
+  // Security headers
   app.use(helmet());
+
+  // CORS
   app.use(
     cors({
       origin: appConfig.webOrigins,
-      credentials: true
+      credentials: true,
     })
   );
+
+  // Body parsing
   app.use(express.json({ limit: "2mb" }));
+
+  // Static uploads
   app.use("/uploads", express.static(appConfig.uploadDir));
 
+  // Health checks (no rate limit — used by uptime monitors)
   app.get("/health", (_req, res) => {
     res.json({ ok: true, service: "chat-net-api" });
   });
@@ -33,8 +42,9 @@ export function createApp() {
     }
   });
 
-  app.use("/auth", authRouter);
-  app.use("/chat", chatRouter);
+  // Rate-limited routes
+  app.use("/auth", authRouter); // auth routes apply their own stricter limits internally
+  app.use("/chat", apiLimiter, chatRouter);
 
   return app;
 }
