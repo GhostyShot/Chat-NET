@@ -6,11 +6,11 @@ type LandingPageProps = {
 };
 
 const FEATURES = [
-  { icon: '⚡', title: 'Echtzeit-Messaging', desc: 'WebSocket-basiert. Null Latenz, kein Refresh.' },
-  { icon: '🏠', title: 'Spaces & Gruppen', desc: 'Channels für Teams und Communities mit Rollen.' },
-  { icon: '🎙️', title: 'Voice & Media', desc: 'Sprachnachrichten, Bilder und Dateien.' },
-  { icon: '📊', title: 'Polls', desc: 'Umfragen erstellen, live Ergebnisse sehen.' },
-  { icon: '🔔', title: '@-Mentions', desc: 'Auto-Complete. Nie mehr was verpassen.' },
+  { icon: '⚡', title: 'Echtzeit', desc: 'WebSocket-basiert. Null Latenz.' },
+  { icon: '🏠', title: 'Spaces', desc: 'Channels mit Rollen & Moderation.' },
+  { icon: '🎙️', title: 'Voice & Media', desc: 'Sprache, Bilder, Dateien.' },
+  { icon: '📊', title: 'Polls', desc: 'Umfragen mit Live-Ergebnissen.' },
+  { icon: '🔔', title: '@-Mentions', desc: 'Auto-Complete. Nie was verpassen.' },
   { icon: '🔒', title: 'Sicher', desc: 'Rate-Limiting, Auth, keine Werbung.' },
 ];
 
@@ -28,142 +28,399 @@ export function LandingPage({ onOpenLogin, onOpenRegister }: LandingPageProps) {
           }
         });
       },
-      { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
+      { threshold: 0.1, rootMargin: '0px 0px -32px 0px' }
     );
-
-    document.querySelectorAll('.reveal').forEach((el) => {
-      observerRef.current?.observe(el);
-    });
-
+    document.querySelectorAll('.cn-reveal').forEach((el) =>
+      observerRef.current?.observe(el)
+    );
     return () => observerRef.current?.disconnect();
   }, []);
 
   return (
-    <div style={s.root}>
+    <div className="cn-root">
       <style>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(32px); }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        .cn-root {
+          min-height: 100dvh;
+          background: #0a0a0a;
+          color: #f2f2f2;
+          font-family: 'Inter', system-ui, sans-serif;
+          display: flex;
+          flex-direction: column;
+          overflow-x: hidden;
+        }
+
+        /* ── Nav ── */
+        .cn-nav {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 20px;
+          height: 52px;
+          border-bottom: 1px solid rgba(255,255,255,0.07);
+          background: rgba(10,10,10,0.92);
+          backdrop-filter: blur(12px);
+          position: sticky;
+          top: 0;
+          z-index: 100;
+        }
+        .cn-nav-brand { display: flex; align-items: center; gap: 8px; }
+        .cn-nav-brand span { font-size: 14px; font-weight: 700; }
+        .cn-nav-actions { display: flex; gap: 8px; }
+        .cn-btn-ghost {
+          padding: 7px 14px; border-radius: 7px;
+          border: 1px solid rgba(255,255,255,0.1);
+          background: transparent; color: #888;
+          font-weight: 600; font-size: 13px; cursor: pointer;
+          transition: color 0.15s, border-color 0.15s;
+          font-family: inherit;
+        }
+        .cn-btn-ghost:hover { color: #e0e0e0; border-color: rgba(255,255,255,0.22); }
+        .cn-btn-primary {
+          padding: 7px 14px; border-radius: 7px;
+          border: none; background: #fff; color: #0a0a0a;
+          font-weight: 700; font-size: 13px; cursor: pointer;
+          transition: background 0.15s, transform 0.1s;
+          font-family: inherit;
+        }
+        .cn-btn-primary:hover { background: #e8e8e8; }
+        .cn-btn-primary:active { transform: scale(0.97); }
+
+        /* ── Hero ── */
+        .cn-hero {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          padding: 72px 20px 56px;
+          max-width: 720px;
+          margin: 0 auto;
+          width: 100%;
+        }
+        .cn-eyebrow {
+          font-size: 10px; font-weight: 700;
+          letter-spacing: 0.14em; text-transform: uppercase;
+          color: #444; margin-bottom: 18px;
+          animation: cn-fadeIn 0.7s ease both;
+        }
+        .cn-hero-title {
+          font-size: clamp(2.2rem, 8vw, 4.8rem);
+          font-weight: 800; line-height: 1.06;
+          letter-spacing: -0.04em; color: #f2f2f2;
+          margin-bottom: 22px;
+          animation: cn-fadeUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.1s both;
+        }
+        .cn-hero-sub {
+          font-size: clamp(14px, 3vw, 17px);
+          color: #666; line-height: 1.7;
+          max-width: 460px; margin-bottom: 36px;
+          animation: cn-fadeUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.25s both;
+        }
+        .cn-hero-btns {
+          display: flex; gap: 10px;
+          justify-content: center; flex-wrap: wrap;
+          margin-bottom: 28px;
+          animation: cn-fadeUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.4s both;
+        }
+        .cn-btn-hero {
+          padding: 13px 30px; border-radius: 9px;
+          border: none; background: #fff; color: #0a0a0a;
+          font-weight: 700; font-size: 15px; cursor: pointer;
+          transition: background 0.15s, transform 0.1s;
+          font-family: inherit;
+        }
+        .cn-btn-hero:hover { background: #e8e8e8; }
+        .cn-btn-hero:active { transform: scale(0.97); }
+        .cn-btn-hero-ghost {
+          padding: 12px 28px; border-radius: 9px;
+          border: 1px solid rgba(255,255,255,0.14);
+          background: transparent; color: #888;
+          font-weight: 600; font-size: 15px; cursor: pointer;
+          transition: border-color 0.15s, color 0.15s;
+          font-family: inherit;
+        }
+        .cn-btn-hero-ghost:hover { border-color: rgba(255,255,255,0.28); color: #d0d0d0; }
+        .cn-pills {
+          display: flex; gap: 8px; flex-wrap: wrap;
+          justify-content: center; margin-bottom: 56px;
+          animation: cn-fadeUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.55s both;
+        }
+        .cn-pill {
+          padding: 4px 12px; border-radius: 99px;
+          border: 1px solid rgba(255,255,255,0.07);
+          font-size: 11px; color: #4a4a4a;
+        }
+
+        /* ── App preview ── */
+        .cn-preview {
+          width: 100%; max-width: 660px;
+          border: 1px solid rgba(255,255,255,0.09);
+          border-radius: 14px; overflow: hidden;
+          background: #111;
+          animation: cn-scaleIn 1.1s cubic-bezier(0.16,1,0.3,1) 0.65s both;
+        }
+        .cn-preview-inner {
+          display: flex;
+          height: clamp(180px, 40vw, 280px);
+        }
+        .cn-mock-sidebar {
+          width: clamp(90px, 22vw, 130px);
+          background: #0d0d0d;
+          border-right: 1px solid rgba(255,255,255,0.06);
+          padding: 10px 6px;
+          display: flex; flex-direction: column; gap: 2px;
+          flex-shrink: 0;
+        }
+        .cn-mock-ch {
+          display: flex; align-items: center; gap: 5px;
+          padding: 4px 6px; border-radius: 5px;
+        }
+        .cn-mock-ch-active { background: rgba(255,255,255,0.06); }
+        .cn-mock-av {
+          width: 18px; height: 18px;
+          border-radius: 4px; flex-shrink: 0;
+        }
+        .cn-mock-ch-name { font-size: 10px; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cn-mock-ch-active .cn-mock-ch-name { color: #e0e0e0; }
+        .cn-mock-msgs {
+          flex: 1; padding: 10px 12px 8px;
+          display: flex; flex-direction: column; gap: 7px;
+          overflow: hidden;
+        }
+        .cn-mock-msg { display: flex; align-items: flex-end; gap: 5px; }
+        .cn-mock-msg-av { width: 18px; height: 18px; border-radius: 4px; background: #222; flex-shrink: 0; }
+        .cn-mock-bubble {
+          max-width: 75%; border-radius: 6px;
+          padding: 4px 8px; background: #161616;
+        }
+        .cn-mock-bubble-own { background: #1c1c1c; margin-left: auto; }
+        .cn-mock-sender { font-size: 8px; font-weight: 700; color: #555; margin-bottom: 2px; }
+        .cn-mock-text { font-size: 10px; color: #909090; line-height: 1.4; }
+        .cn-mock-composer {
+          margin-top: auto;
+          background: #161616;
+          border: 1px solid rgba(255,255,255,0.07);
+          border-radius: 6px; padding: 6px 9px;
+          display: flex; align-items: center;
+          justify-content: space-between;
+        }
+        .cn-mock-composer-hint { font-size: 9px; color: #3a3a3a; }
+        .cn-mock-send {
+          width: 20px; height: 20px; border-radius: 4px;
+          background: #1e1e1e; display: flex;
+          align-items: center; justify-content: center;
+          font-size: 8px; color: #555;
+        }
+
+        /* ── Sections ── */
+        .cn-section-label {
+          font-size: 10px; font-weight: 700;
+          letter-spacing: 0.14em; text-transform: uppercase;
+          color: #383838; text-align: center; margin-bottom: 32px;
+        }
+
+        /* Features */
+        .cn-features {
+          padding: 72px 20px;
+          max-width: 960px; margin: 0 auto; width: 100%;
+        }
+        .cn-feature-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          border: 1px solid rgba(255,255,255,0.07);
+          border-radius: 12px; overflow: hidden;
+        }
+        .cn-feature-card {
+          padding: 26px 22px;
+          background: #0f0f0f;
+          border-right: 1px solid rgba(255,255,255,0.06);
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+          transition: background 0.2s;
+        }
+        .cn-feature-card:hover { background: #161616; }
+        .cn-feature-icon { font-size: 20px; margin-bottom: 10px; }
+        .cn-feature-title { font-size: 13px; font-weight: 700; color: #d0d0d0; margin-bottom: 5px; }
+        .cn-feature-desc { font-size: 12px; color: #505050; line-height: 1.6; }
+
+        /* Stats */
+        .cn-stats {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          max-width: 960px; margin: 0 auto 72px;
+          width: 100%; padding: 0 20px;
+          border-top: 1px solid rgba(255,255,255,0.06);
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .cn-stat {
+          text-align: center; padding: 32px 12px;
+          border-right: 1px solid rgba(255,255,255,0.06);
+        }
+        .cn-stat:last-child { border-right: none; }
+        .cn-stat-num {
+          font-size: clamp(1.4rem, 3vw, 2.2rem);
+          font-weight: 800; color: #f2f2f2;
+          letter-spacing: -0.03em; margin-bottom: 5px;
+        }
+        .cn-stat-label { font-size: 11px; color: #444; }
+
+        /* CTA */
+        .cn-cta {
+          display: flex; flex-direction: column;
+          align-items: center; text-align: center;
+          padding: 72px 20px;
+          border-top: 1px solid rgba(255,255,255,0.06);
+          gap: 14px;
+        }
+        .cn-cta-title {
+          font-size: clamp(1.6rem, 5vw, 2.8rem);
+          font-weight: 800; color: #f2f2f2;
+          letter-spacing: -0.03em;
+        }
+        .cn-cta-sub { font-size: 14px; color: #505050; }
+
+        /* Footer */
+        .cn-footer {
+          border-top: 1px solid rgba(255,255,255,0.06);
+          padding: 18px 20px;
+        }
+        .cn-footer-inner {
+          display: flex; align-items: center;
+          gap: 16px; max-width: 960px; margin: 0 auto;
+          flex-wrap: wrap;
+        }
+        .cn-footer-brand {
+          display: flex; align-items: center;
+          gap: 6px; font-size: 12px; color: #2e2e2e; flex: 1;
+        }
+        .cn-footer-links { display: flex; align-items: center; gap: 10px; }
+        .cn-footer-link {
+          background: transparent; border: none;
+          color: #2e2e2e; font-size: 12px; cursor: pointer;
+          padding: 0; font-family: inherit;
+        }
+        .cn-footer-link:hover { color: #666; }
+        .cn-footer-copy { color: #2a2a2a; font-size: 11px; }
+
+        /* Scroll reveal */
+        .cn-reveal {
+          opacity: 0;
+          transform: translateY(24px) scale(0.99);
+          transition:
+            opacity 0.65s cubic-bezier(0.16,1,0.3,1),
+            transform 0.65s cubic-bezier(0.16,1,0.3,1);
+        }
+        .cn-reveal-1 { transition-delay: 0.05s; }
+        .cn-reveal-2 { transition-delay: 0.11s; }
+        .cn-reveal-3 { transition-delay: 0.17s; }
+        .cn-reveal-4 { transition-delay: 0.23s; }
+        .cn-reveal-5 { transition-delay: 0.29s; }
+        .cn-reveal-6 { transition-delay: 0.35s; }
+
+        /* Keyframes */
+        @keyframes cn-fadeIn {
+          from { opacity: 0; } to { opacity: 1; }
+        }
+        @keyframes cn-fadeUp {
+          from { opacity: 0; transform: translateY(28px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-        @keyframes scaleIn {
+        @keyframes cn-scaleIn {
           from { opacity: 0; transform: scale(0.94) translateY(16px); }
           to   { opacity: 1; transform: scale(1) translateY(0); }
         }
-        .hero-title {
-          animation: fadeUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.1s both;
-        }
-        .hero-eyebrow {
-          animation: fadeIn 0.7s ease 0s both;
-        }
-        .hero-sub {
-          animation: fadeUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.25s both;
-        }
-        .hero-actions {
-          animation: fadeUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.4s both;
-        }
-        .hero-pills {
-          animation: fadeUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.55s both;
-        }
-        .hero-preview {
-          animation: scaleIn 1.1s cubic-bezier(0.16,1,0.3,1) 0.65s both;
-        }
-        .reveal {
-          opacity: 0;
-          transform: translateY(28px) scale(0.98);
-          transition: opacity 0.7s cubic-bezier(0.16,1,0.3,1),
-                      transform 0.7s cubic-bezier(0.16,1,0.3,1);
-        }
-        .reveal-delay-1 { transition-delay: 0.05s; }
-        .reveal-delay-2 { transition-delay: 0.12s; }
-        .reveal-delay-3 { transition-delay: 0.19s; }
-        .reveal-delay-4 { transition-delay: 0.26s; }
-        .reveal-delay-5 { transition-delay: 0.33s; }
-        .reveal-delay-6 { transition-delay: 0.40s; }
-        .btn-hero-primary:hover  { background: #e0e0e0 !important; }
-        .btn-hero-primary:active { transform: scale(0.97); }
-        .btn-hero-ghost:hover  { border-color: rgba(255,255,255,0.3) !important; color: #e0e0e0 !important; }
-        .feature-card:hover { border-color: rgba(255,255,255,0.12) !important; background: #161616 !important; }
-        .nav-login:hover   { color: #e0e0e0 !important; }
-        .nav-register:hover { background: #e0e0e0 !important; }
+
+        /* ── Mobile overrides ── */
         @media (max-width: 640px) {
-          .hero-title-el { font-size: 2.4rem !important; }
-          .feature-grid-el { grid-template-columns: 1fr !important; }
-          .hero-preview-inner { height: 200px !important; }
+          .cn-hero { padding: 48px 16px 40px; }
+          .cn-btn-hero, .cn-btn-hero-ghost { font-size: 14px; padding: 11px 22px; }
+
+          .cn-preview-inner { height: 200px; }
+          .cn-mock-sidebar { width: 80px; padding: 8px 4px; }
+          .cn-mock-ch-name { font-size: 9px; }
+
+          .cn-features { padding: 48px 16px; }
+          .cn-feature-grid { grid-template-columns: 1fr !important; }
+          .cn-feature-card { border-right: none; }
+
+          .cn-stats {
+            grid-template-columns: repeat(2, 1fr) !important;
+            padding: 0 16px;
+            margin-bottom: 48px;
+          }
+          .cn-stat { padding: 24px 8px; }
+          .cn-stat:nth-child(2) { border-right: none; }
+
+          .cn-cta { padding: 48px 16px; }
+          .cn-footer { padding: 16px; }
+          .cn-footer-brand { display: none; }
+          .cn-nav-brand span { font-size: 13px; }
+        }
+
+        @media (max-width: 480px) {
+          .cn-hero-btns { flex-direction: column; align-items: center; }
+          .cn-btn-hero, .cn-btn-hero-ghost { width: 100%; max-width: 280px; text-align: center; }
         }
       `}</style>
 
       {/* Nav */}
-      <header style={s.nav}>
-        <div style={s.navBrand}>
+      <header className="cn-nav">
+        <div className="cn-nav-brand">
           <img src="/chat-net-logo.svg" alt="" style={{ width: 20, height: 20 }} />
-          <span style={s.navTitle}>Chat-Net</span>
+          <span>Chat-Net</span>
         </div>
-        <div style={s.navRight}>
-          <button className="nav-login" style={s.navLogin} onClick={onOpenLogin}>Login</button>
-          <button className="nav-register" style={s.navRegister} onClick={onOpenRegister}>Registrieren</button>
+        <div className="cn-nav-actions">
+          <button className="cn-btn-ghost" onClick={onOpenLogin}>Login</button>
+          <button className="cn-btn-primary" onClick={onOpenRegister}>Registrieren</button>
         </div>
       </header>
 
       {/* Hero */}
-      <section style={s.hero}>
-        <div className="hero-eyebrow" style={s.eyebrow}>Echtzeit-Kommunikation</div>
-        <h1 className="hero-title hero-title-el" style={s.heroTitle}>
-          Dein Space.<br />Dein Vibe.
-        </h1>
-        <p className="hero-sub" style={s.heroSub}>
+      <section className="cn-hero">
+        <div className="cn-eyebrow">Echtzeit-Kommunikation</div>
+        <h1 className="cn-hero-title">Dein Space.<br />Dein Vibe.</h1>
+        <p className="cn-hero-sub">
           Chat-Net verbindet dich mit Teams, Communities und Freunden —
           in Echtzeit, auf jedem Gerät.
         </p>
-        <div className="hero-actions" style={s.heroActions}>
-          <button className="btn-hero-primary" style={s.btnHeroPrimary} onClick={onOpenRegister}>
-            Kostenlos starten
-          </button>
-          <button className="btn-hero-ghost" style={s.btnHeroGhost} onClick={onOpenLogin}>
-            Einloggen
-          </button>
+        <div className="cn-hero-btns">
+          <button className="cn-btn-hero" onClick={onOpenRegister}>Kostenlos starten</button>
+          <button className="cn-btn-hero-ghost" onClick={onOpenLogin}>Einloggen</button>
         </div>
-        <div className="hero-pills" style={s.heroPills}>
+        <div className="cn-pills">
           {['⚡ Echtzeit', '🎙️ Voice', '📊 Polls', '🔒 Sicher', '👥 Gruppen'].map(t => (
-            <span key={t} style={s.pill}>{t}</span>
+            <span key={t} className="cn-pill">{t}</span>
           ))}
         </div>
 
-        {/* App preview mockup */}
-        <div className="hero-preview" style={s.heroPreview}>
-          <div style={s.heroPreviewInner} className="hero-preview-inner">
-            {/* Fake sidebar */}
-            <div style={s.mockSidebar}>
-              {['Chat-Net', 'Allgemein', 'Design', 'Dev', 'Direkt'].map((n, i) => (
-                <div key={n} style={{ ...s.mockChannel, ...(i === 1 ? s.mockChannelActive : {}) }}>
-                  <div style={{ ...s.mockAvatar, background: ['#333','#2a2a2a','#222','#1e1e1e','#282828'][i] }} />
-                  <span style={{ fontSize: 11, color: i === 1 ? '#f2f2f2' : '#666' }}>{n}</span>
+        {/* App preview */}
+        <div className="cn-preview">
+          <div className="cn-preview-inner">
+            <div className="cn-mock-sidebar">
+              {['Chat-Net', 'Allgemein', 'Design', 'Dev', 'DM'].map((n, i) => (
+                <div key={n} className={`cn-mock-ch${i === 1 ? ' cn-mock-ch-active' : ''}`}>
+                  <div className="cn-mock-av" style={{ background: ['#2a2a2a','#333','#222','#1e1e1e','#262626'][i] }} />
+                  <span className="cn-mock-ch-name">{n}</span>
                 </div>
               ))}
             </div>
-            {/* Fake messages */}
-            <div style={s.mockMessages}>
+            <div className="cn-mock-msgs">
               {[
-                { name: 'Paul', text: 'Hey, Chat-Net ist live! 🎉', own: false },
-                { name: 'Sarah', text: 'Wow, das Design ist clean 🔥', own: false },
-                { name: 'Du', text: 'Danke! Läuft auf Vercel + Render', own: true },
-                { name: 'Paul', text: 'Realtime via Socket.io ist so smooth', own: false },
+                { name: 'Paul', text: 'Chat-Net ist live 🎉', own: false },
+                { name: 'Sarah', text: 'Das Design ist clean 🔥', own: false },
+                { name: 'Du', text: 'Danke! Läuft auf Vercel', own: true },
               ].map((m, i) => (
-                <div key={i} style={{ ...s.mockMsg, justifyContent: m.own ? 'flex-end' : 'flex-start' }}>
-                  {!m.own && <div style={s.mockMsgAvatar} />}
-                  <div style={{ ...s.mockBubble, background: m.own ? '#1e1e1e' : '#161616', textAlign: m.own ? 'right' : 'left' }}>
-                    {!m.own && <div style={s.mockMsgName}>{m.name}</div>}
-                    <div style={s.mockMsgText}>{m.text}</div>
+                <div key={i} className="cn-mock-msg" style={{ justifyContent: m.own ? 'flex-end' : 'flex-start' }}>
+                  {!m.own && <div className="cn-mock-msg-av" />}
+                  <div className={`cn-mock-bubble${m.own ? ' cn-mock-bubble-own' : ''}`}>
+                    {!m.own && <div className="cn-mock-sender">{m.name}</div>}
+                    <div className="cn-mock-text">{m.text}</div>
                   </div>
                 </div>
               ))}
-              {/* Composer */}
-              <div style={s.mockComposer}>
-                <span style={{ fontSize: 10, color: '#444' }}>Nachricht schreiben…</span>
-                <div style={s.mockSendBtn}>➤</div>
+              <div className="cn-mock-composer">
+                <span className="cn-mock-composer-hint">Nachricht schreiben…</span>
+                <div className="cn-mock-send">➤</div>
               </div>
             </div>
           </div>
@@ -171,236 +428,62 @@ export function LandingPage({ onOpenLogin, onOpenRegister }: LandingPageProps) {
       </section>
 
       {/* Features */}
-      <section style={s.featuresSection}>
-        <div className="reveal" style={s.sectionLabel}>Features</div>
-        <div className="feature-grid-el" style={s.featureGrid}>
+      <section className="cn-features">
+        <div className="cn-section-label cn-reveal">Features</div>
+        <div className="cn-feature-grid">
           {FEATURES.map((f, i) => (
-            <div
-              key={f.title}
-              className={`feature-card reveal reveal-delay-${i + 1}`}
-              style={s.featureCard}
-            >
-              <div style={s.featureIcon}>{f.icon}</div>
-              <div style={s.featureTitle}>{f.title}</div>
-              <div style={s.featureDesc}>{f.desc}</div>
+            <div key={f.title} className={`cn-feature-card cn-reveal cn-reveal-${i + 1}`}>
+              <div className="cn-feature-icon">{f.icon}</div>
+              <div className="cn-feature-title">{f.title}</div>
+              <div className="cn-feature-desc">{f.desc}</div>
             </div>
           ))}
         </div>
       </section>
 
       {/* Stats */}
-      <section style={s.statsSection}>
+      <div className="cn-stats">
         {[
           { num: '< 50ms', label: 'Nachrichtenlatenz' },
           { num: '100%', label: 'Kostenlos' },
           { num: '∞', label: 'Nachrichten' },
           { num: '0', label: 'Werbung' },
-        ].map((stat, i) => (
-          <div key={stat.label} className={`reveal reveal-delay-${i + 1}`} style={s.stat}>
-            <div style={s.statNum}>{stat.num}</div>
-            <div style={s.statLabel}>{stat.label}</div>
+        ].map((s, i) => (
+          <div key={s.label} className={`cn-stat cn-reveal cn-reveal-${i + 1}`}>
+            <div className="cn-stat-num">{s.num}</div>
+            <div className="cn-stat-label">{s.label}</div>
           </div>
         ))}
-      </section>
+      </div>
 
       {/* CTA */}
-      <section style={s.ctaSection}>
-        <div className="reveal" style={s.ctaTitle}>Bereit loszulegen?</div>
-        <div className="reveal reveal-delay-1" style={s.ctaSub}>Kein Account-Stress. Keine Kreditkarte. Einfach starten.</div>
-        <div className="reveal reveal-delay-2">
-          <button className="btn-hero-primary" style={{ ...s.btnHeroPrimary, fontSize: 15, padding: '13px 36px' }} onClick={onOpenRegister}>
+      <section className="cn-cta">
+        <div className="cn-cta-title cn-reveal">Bereit loszulegen?</div>
+        <div className="cn-cta-sub cn-reveal cn-reveal-1">Kein Account-Stress. Keine Kreditkarte. Einfach starten.</div>
+        <div className="cn-reveal cn-reveal-2">
+          <button className="cn-btn-hero" style={{ fontSize: 15, padding: '13px 36px' }} onClick={onOpenRegister}>
             Jetzt starten
           </button>
         </div>
       </section>
 
-      <footer style={s.footer}>
-        <div style={s.footerInner}>
-          <span style={s.footerBrand}>
-            <img src="/chat-net-logo.svg" alt="" style={{ width: 14, height: 14, opacity: 0.3 }} />
+      {/* Footer */}
+      <footer className="cn-footer">
+        <div className="cn-footer-inner">
+          <span className="cn-footer-brand">
+            <img src="/chat-net-logo.svg" alt="" style={{ width: 13, height: 13, opacity: 0.3 }} />
             Chat-Net
           </span>
-          <span style={s.footerLinks}>
-            <button style={s.footerLink} onClick={onOpenLogin}>Login</button>
-            <span style={{ color: '#2a2a2a' }}>·</span>
-            <button style={s.footerLink} onClick={onOpenRegister}>Registrieren</button>
-            <span style={{ color: '#2a2a2a' }}>·</span>
-            <a href="https://chat-net.tech" style={{ ...s.footerLink, textDecoration: 'none' }}>chat-net.tech</a>
+          <span className="cn-footer-links">
+            <button className="cn-footer-link" onClick={onOpenLogin}>Login</button>
+            <span className="cn-footer-copy">·</span>
+            <button className="cn-footer-link" onClick={onOpenRegister}>Registrieren</button>
+            <span className="cn-footer-copy">·</span>
+            <a href="https://chat-net.tech" className="cn-footer-link" style={{ textDecoration: 'none' }}>chat-net.tech</a>
           </span>
-          <span style={{ color: '#2a2a2a', fontSize: 11 }}>© {new Date().getFullYear()}</span>
+          <span className="cn-footer-copy">© {new Date().getFullYear()}</span>
         </div>
       </footer>
     </div>
   );
 }
-
-const s: Record<string, React.CSSProperties> = {
-  root: {
-    minHeight: '100dvh',
-    background: '#0a0a0a',
-    color: '#f2f2f2',
-    fontFamily: "'Inter', system-ui, sans-serif",
-    display: 'flex',
-    flexDirection: 'column',
-    overflowX: 'hidden',
-  },
-  nav: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '0 28px',
-    height: 52,
-    borderBottom: '1px solid rgba(255,255,255,0.06)',
-    background: 'rgba(10,10,10,0.92)',
-    backdropFilter: 'blur(12px)',
-    position: 'sticky',
-    top: 0,
-    zIndex: 10,
-  },
-  navBrand: { display: 'flex', alignItems: 'center', gap: 8 },
-  navTitle: { fontSize: 14, fontWeight: 700, color: '#f2f2f2' },
-  navRight: { display: 'flex', gap: 8 },
-  navLogin: { padding: '6px 14px', borderRadius: 7, border: 'none', background: 'transparent', color: '#666', fontWeight: 600, fontSize: 13, cursor: 'pointer', transition: 'color 0.15s' },
-  navRegister: { padding: '6px 14px', borderRadius: 7, border: 'none', background: '#fff', color: '#0a0a0a', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'background 0.15s' },
-  hero: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    padding: '96px 24px 80px',
-    textAlign: 'center',
-    maxWidth: 740,
-    margin: '0 auto',
-    width: '100%',
-  },
-  eyebrow: {
-    fontSize: 11,
-    fontWeight: 700,
-    letterSpacing: '0.14em',
-    textTransform: 'uppercase' as const,
-    color: '#444',
-    marginBottom: 20,
-  },
-  heroTitle: {
-    fontSize: 'clamp(2.8rem, 7vw, 5rem)',
-    fontWeight: 800,
-    lineHeight: 1.05,
-    margin: '0 0 24px',
-    letterSpacing: '-0.04em',
-    color: '#f2f2f2',
-  },
-  heroSub: {
-    fontSize: 17,
-    color: '#707070',
-    lineHeight: 1.7,
-    margin: '0 0 40px',
-    maxWidth: 500,
-  },
-  heroActions: { display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' as const, marginBottom: 32 },
-  btnHeroPrimary: {
-    padding: '12px 28px',
-    borderRadius: 9,
-    border: 'none',
-    background: '#fff',
-    color: '#0a0a0a',
-    fontWeight: 700,
-    fontSize: 14,
-    cursor: 'pointer',
-    transition: 'background 0.15s, transform 0.1s',
-    fontFamily: "'Inter', sans-serif",
-  },
-  btnHeroGhost: {
-    padding: '12px 28px',
-    borderRadius: 9,
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: 'transparent',
-    color: '#888',
-    fontWeight: 600,
-    fontSize: 14,
-    cursor: 'pointer',
-    transition: 'border-color 0.15s, color 0.15s',
-    fontFamily: "'Inter', sans-serif",
-  },
-  heroPills: { display: 'flex', gap: 8, flexWrap: 'wrap' as const, justifyContent: 'center', marginBottom: 60 },
-  pill: { padding: '4px 12px', borderRadius: 99, border: '1px solid rgba(255,255,255,0.07)', fontSize: 12, color: '#4a4a4a' },
-  heroPreview: { width: '100%', maxWidth: 680 },
-  heroPreviewInner: {
-    height: 280,
-    background: '#111',
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: 14,
-    overflow: 'hidden',
-    display: 'flex',
-  },
-  mockSidebar: {
-    width: 130,
-    background: '#0d0d0d',
-    borderRight: '1px solid rgba(255,255,255,0.06)',
-    padding: '10px 6px',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 2,
-    flexShrink: 0,
-  },
-  mockChannel: { display: 'flex', alignItems: 'center', gap: 6, padding: '5px 6px', borderRadius: 5 },
-  mockChannelActive: { background: 'rgba(255,255,255,0.06)' },
-  mockAvatar: { width: 20, height: 20, borderRadius: 5, flexShrink: 0 },
-  mockMessages: { flex: 1, padding: '12px 14px 8px', display: 'flex', flexDirection: 'column' as const, gap: 8, overflow: 'hidden' },
-  mockMsg: { display: 'flex', alignItems: 'flex-end', gap: 6 },
-  mockMsgAvatar: { width: 20, height: 20, borderRadius: 5, background: '#222', flexShrink: 0 },
-  mockBubble: { maxWidth: '75%', borderRadius: 7, padding: '5px 9px' },
-  mockMsgName: { fontSize: 9, fontWeight: 700, color: '#555', marginBottom: 2 },
-  mockMsgText: { fontSize: 11, color: '#a0a0a0', lineHeight: 1.4 },
-  mockComposer: {
-    marginTop: 'auto',
-    background: '#161616',
-    border: '1px solid rgba(255,255,255,0.07)',
-    borderRadius: 7,
-    padding: '7px 10px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  mockSendBtn: { width: 22, height: 22, borderRadius: 5, background: '#1e1e1e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: '#555' },
-  featuresSection: { padding: '80px 24px', maxWidth: 960, margin: '0 auto', width: '100%' },
-  sectionLabel: { fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' as const, color: '#383838', textAlign: 'center' as const, marginBottom: 36 },
-  featureGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, overflow: 'hidden' },
-  featureCard: {
-    padding: '28px 24px',
-    background: '#0f0f0f',
-    borderRight: '1px solid rgba(255,255,255,0.06)',
-    borderBottom: '1px solid rgba(255,255,255,0.06)',
-    transition: 'background 0.2s, border-color 0.2s',
-    cursor: 'default',
-  },
-  featureIcon: { fontSize: 22, marginBottom: 12 },
-  featureTitle: { fontSize: 14, fontWeight: 700, color: '#d0d0d0', marginBottom: 6 },
-  featureDesc: { fontSize: 13, color: '#5a5a5a', lineHeight: 1.6 },
-  statsSection: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4,1fr)',
-    gap: 1,
-    maxWidth: 960,
-    margin: '0 auto 80px',
-    width: '100%',
-    padding: '0 24px',
-  },
-  stat: { textAlign: 'center' as const, padding: '36px 16px', borderRight: '1px solid rgba(255,255,255,0.06)' },
-  statNum: { fontSize: 'clamp(1.6rem,3vw,2.4rem)', fontWeight: 800, color: '#f2f2f2', letterSpacing: '-0.03em', marginBottom: 6 },
-  statLabel: { fontSize: 12, color: '#484848' },
-  ctaSection: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-    textAlign: 'center' as const,
-    padding: '80px 24px',
-    borderTop: '1px solid rgba(255,255,255,0.06)',
-    gap: 16,
-  },
-  ctaTitle: { fontSize: 'clamp(1.8rem,4vw,3rem)', fontWeight: 800, color: '#f2f2f2', letterSpacing: '-0.03em' },
-  ctaSub: { fontSize: 15, color: '#5a5a5a', marginBottom: 8 },
-  footer: { borderTop: '1px solid rgba(255,255,255,0.06)', padding: '20px 28px' },
-  footerInner: { display: 'flex', alignItems: 'center', gap: 20, maxWidth: 960, margin: '0 auto' },
-  footerBrand: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#333', flex: 1 },
-  footerLinks: { display: 'flex', alignItems: 'center', gap: 10 },
-  footerLink: { background: 'transparent', border: 'none', color: '#333', fontSize: 12, cursor: 'pointer', padding: 0 },
-};
