@@ -84,6 +84,7 @@ export function useChatDataSync() {
       } catch { /* keep existing */ }
     };
     void load();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth?.tokens.accessToken]);
 
   useEffect(() => {
@@ -93,14 +94,14 @@ export function useChatDataSync() {
         return;
       }
       try {
-        const next = await listMessages(auth.tokens.accessToken, activeChannelId);
-        setMessages(next.slice().reverse());
+        const result = await listMessages(auth.tokens.accessToken, activeChannelId);
+        setMessages(result.items.slice().reverse());
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Nachrichten konnten nicht geladen werden");
       }
     };
     void load();
-  }, [auth, activeChannelId]);
+  }, [auth, activeChannelId, setMessage, setMessages]);
 
   useEffect(() => {
     if (!activeChannelId) return;
@@ -109,7 +110,7 @@ export function useChatDataSync() {
       const { [activeChannelId]: _removed, ...rest } = prev;
       return rest;
     });
-  }, [activeChannelId]);
+  }, [activeChannelId, setUnreadByChannelId]);
 
   useEffect(() => {
     const load = async () => {
@@ -125,7 +126,7 @@ export function useChatDataSync() {
       }
     };
     void load();
-  }, [auth, activeChannelId, activeChannel?.type]);
+  }, [auth, activeChannelId, activeChannel?.type, setChannelMembers]);
 
   useEffect(() => {
     const load = async () => {
@@ -136,7 +137,7 @@ export function useChatDataSync() {
       setPresenceMap(next);
     };
     void load();
-  }, [auth, messages]);
+  }, [auth, messages, setPresenceMap]);
 
   useEffect(() => {
     const mark = async () => {

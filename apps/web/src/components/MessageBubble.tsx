@@ -63,7 +63,7 @@ export function MessageBubble({
 
   return (
     <div
-      className={`message-row${ isOwnMessage ? " own" : ""}${isActive ? " active" : ""}`}
+      className={`message-row${isOwnMessage ? " own" : ""}${isActive ? " active" : ""}`}
       onClick={() => onSetActive(isActive ? null : message.id)}
     >
       {/* Avatar */}
@@ -89,9 +89,6 @@ export function MessageBubble({
             <span className={`role-chip role-${role.toLowerCase()}`}>{role}</span>
           )}
           <span className="msg-time">{formatTimeLabel(message.createdAt)}</span>
-          {message.updatedAt !== message.createdAt && (
-            <span className="msg-edited">(bearbeitet)</span>
-          )}
         </div>
 
         {/* Reply preview */}
@@ -134,7 +131,7 @@ export function MessageBubble({
           <div className="msg-text">{renderContentWithMentions(message.content)}</div>
         )}
 
-        {/* Actions (show when active) */}
+        {/* Actions */}
         {isActive && !isEditing && (
           <div className="msg-actions">
             <button className="msg-action-btn" onClick={() => onReply(message.id)} title="Antworten">↩</button>
