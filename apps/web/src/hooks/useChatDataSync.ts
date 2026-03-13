@@ -1,5 +1,4 @@
-import { useEffect, type Dispatch, type SetStateAction } from "react";
-import type { AuthResponse } from "@chatnet/shared";
+import { useEffect } from "react";
 import {
   getPlatformSettings,
   getPresence,
@@ -8,46 +7,33 @@ import {
   listChannels,
   listMessages,
   markRead,
-  type ChannelItem,
-  type ChannelMemberItem,
-  type MessageItem
 } from "../lib/api";
+import { useAuthStore } from "../store/authStore";
+import { useChatStore } from "../store/chatStore";
 
-type UseChatDataSyncParams = {
-  auth: AuthResponse | null;
-  activeChannelId: string | null;
-  activeChannelType?: ChannelItem["type"];
-  messages: MessageItem[];
-  setAuth: Dispatch<SetStateAction<AuthResponse | null>>;
-  setMessage: Dispatch<SetStateAction<string>>;
-  setChannels: Dispatch<SetStateAction<ChannelItem[]>>;
-  setMessages: Dispatch<SetStateAction<MessageItem[]>>;
-  setChannelMembers: Dispatch<SetStateAction<ChannelMemberItem[]>>;
-  setPresenceMap: Dispatch<SetStateAction<Record<string, boolean>>>;
-  setUnreadByChannelId: Dispatch<SetStateAction<Record<string, number>>>;
-  setUploadsEnabledForAll: Dispatch<SetStateAction<boolean>>;
-  setCanManagePlatformSettings: Dispatch<SetStateAction<boolean>>;
-  setRealtimeState: Dispatch<SetStateAction<"connecting" | "online" | "offline">>;
-};
+export function useChatDataSync() {
+  const auth = useAuthStore((s) => s.auth);
+  const setAuth = useAuthStore((s) => s.setAuth);
 
-export function useChatDataSync({
-  auth,
-  activeChannelId,
-  activeChannelType,
-  messages,
-  setAuth,
-  setMessage,
-  setChannels,
-  setMessages,
-  setChannelMembers,
-  setPresenceMap,
-  setUnreadByChannelId,
-  setUploadsEnabledForAll,
-  setCanManagePlatformSettings,
-  setRealtimeState
-}: UseChatDataSyncParams) {
+  const {
+    activeChannelId,
+    messages,
+    setMessage,
+    setChannels,
+    setMessages,
+    setChannelMembers,
+    setPresenceMap,
+    setUnreadByChannelId,
+    setUploadsEnabledForAll,
+    setCanManagePlatformSettings,
+    setRealtimeState,
+  } = useChatStore();
+
+  const channels = useChatStore((s) => s.channels);
+  const activeChannel = channels.find((c) => c.id === activeChannelId) ?? null;
+
   useEffect(() => {
-    const loadPlatformSettings = async () => {
+    const load = async () => {
       if (!auth) {
         setUploadsEnabledForAll(true);
         setCanManagePlatformSettings(false);
@@ -62,12 +48,11 @@ export function useChatDataSync({
         setCanManagePlatformSettings(false);
       }
     };
-
-    void loadPlatformSettings();
+    void load();
   }, [auth, setCanManagePlatformSettings, setUploadsEnabledForAll]);
 
   useEffect(() => {
-    const loadChannels = async () => {
+    const load = async () => {
       if (!auth) {
         setChannels([]);
         setMessages([]);
@@ -77,7 +62,6 @@ export function useChatDataSync({
         setRealtimeState("offline");
         return;
       }
-
       try {
         const list = await listChannels(auth.tokens.accessToken);
         setChannels(list);
@@ -85,53 +69,29 @@ export function useChatDataSync({
         setMessage(error instanceof Error ? error.message : "Channels konnten nicht geladen werden");
       }
     };
-
-    void loadChannels();
-  }, [
-    auth,
-    setChannelMembers,
-    setChannels,
-    setMessage,
-    setMessages,
-    setPresenceMap,
-    setRealtimeState,
-    setUnreadByChannelId
-  ]);
+    void load();
+  }, [auth, setChannelMembers, setChannels, setMessage, setMessages, setPresenceMap, setRealtimeState, setUnreadByChannelId]);
 
   useEffect(() => {
-    const loadProfile = async () => {
-      if (!auth) {
-        return;
-      }
+    const load = async () => {
+      if (!auth) return;
       try {
         const profile = await getProfile(auth.tokens.accessToken);
-        setAuth((current) =>
-          current
-            ? {
-                ...current,
-                user: {
-                  ...current.user,
-                  ...profile,
-                  avatarUrl: profile.avatarUrl ?? undefined
-                }
-              }
-            : current
-        );
-      } catch {
-        // keep existing auth payload if profile fetch fails
-      }
+        setAuth({
+          ...auth,
+          user: { ...auth.user, ...profile, avatarUrl: profile.avatarUrl ?? undefined },
+        });
+      } catch { /* keep existing */ }
     };
-
-    void loadProfile();
-  }, [auth?.tokens.accessToken, setAuth]);
+    void load();
+  }, [auth?.tokens.accessToken]);
 
   useEffect(() => {
-    const loadMessages = async () => {
+    const load = async () => {
       if (!auth || !activeChannelId) {
         setMessages([]);
         return;
       }
-
       try {
         const next = await listMessages(auth.tokens.accessToken, activeChannelId);
         setMessages(next.slice().reverse());
@@ -139,30 +99,24 @@ export function useChatDataSync({
         setMessage(error instanceof Error ? error.message : "Nachrichten konnten nicht geladen werden");
       }
     };
-
-    void loadMessages();
-  }, [auth, activeChannelId, setMessage, setMessages]);
+    void load();
+  }, [auth, activeChannelId]);
 
   useEffect(() => {
-    if (!activeChannelId) {
-      return;
-    }
-    setUnreadByChannelId((previous) => {
-      if (!previous[activeChannelId]) {
-        return previous;
-      }
-      const { [activeChannelId]: _removed, ...rest } = previous;
+    if (!activeChannelId) return;
+    setUnreadByChannelId((prev) => {
+      if (!prev[activeChannelId]) return prev;
+      const { [activeChannelId]: _removed, ...rest } = prev;
       return rest;
     });
-  }, [activeChannelId, setUnreadByChannelId]);
+  }, [activeChannelId]);
 
   useEffect(() => {
-    const loadMembers = async () => {
-      if (!auth || !activeChannelId || activeChannelType !== "GROUP") {
+    const load = async () => {
+      if (!auth || !activeChannelId || activeChannel?.type !== "GROUP") {
         setChannelMembers([]);
         return;
       }
-
       try {
         const members = await listChannelMembers(auth.tokens.accessToken, activeChannelId);
         setChannelMembers(members);
@@ -170,31 +124,26 @@ export function useChatDataSync({
         setChannelMembers([]);
       }
     };
-
-    void loadMembers();
-  }, [auth, activeChannelId, activeChannelType, setChannelMembers]);
+    void load();
+  }, [auth, activeChannelId, activeChannel?.type]);
 
   useEffect(() => {
-    const loadPresence = async () => {
-      if (!auth || messages.length === 0) {
-        return;
-      }
-      const ids = Array.from(new Set(messages.map((item) => item.sender.id)));
+    const load = async () => {
+      if (!auth || messages.length === 0) return;
+      const ids = Array.from(new Set(messages.map((m) => m.sender.id)));
       const presence = await getPresence(auth.tokens.accessToken, ids);
-      const next = Object.fromEntries(presence.map((item) => [item.userId, item.online]));
+      const next = Object.fromEntries(presence.map((p) => [p.userId, p.online]));
       setPresenceMap(next);
     };
-    void loadPresence();
-  }, [auth, messages, setPresenceMap]);
+    void load();
+  }, [auth, messages]);
 
   useEffect(() => {
-    const markLatestAsRead = async () => {
-      if (!auth || !activeChannelId || messages.length === 0) {
-        return;
-      }
+    const mark = async () => {
+      if (!auth || !activeChannelId || messages.length === 0) return;
       const latest = messages[messages.length - 1];
       await markRead(auth.tokens.accessToken, activeChannelId, latest.id);
     };
-    void markLatestAsRead();
+    void mark();
   }, [auth, activeChannelId, messages]);
 }
