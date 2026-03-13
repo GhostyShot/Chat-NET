@@ -29,16 +29,14 @@ export type {
 
 export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 
-// Keep-alive ping: hits the API every 10 s from the browser so Render's
-// free-tier instance never enters the 50-second inactivity sleep window.
-// Runs automatically as soon as this module is imported.
+// Keep-alive ping so Render free-tier never hits 50 s inactivity sleep.
 (function startKeepAlive() {
-  const PING_MS = 10_000;
   const ping = () =>
     fetch(`${API_URL}/health`, { method: "GET", cache: "no-store" }).catch(() => {});
-  ping(); // immediate first hit on page load
-  setInterval(ping, PING_MS);
+  ping();
+  setInterval(ping, 10_000);
 })();
+
 export class ApiError extends ApiRequestError {}
 
 function jsonHeaders() {
@@ -48,7 +46,7 @@ function jsonHeaders() {
 function authHeaders(accessToken: string) {
   return {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${accessToken}`
+    Authorization: `Bearer ${accessToken}`,
   };
 }
 
@@ -62,7 +60,7 @@ async function requestJson<T>(
       ...options,
       requestCode: options.fallbackError,
       timeoutMessage: "Anfrage hat zu lange gedauert. Bitte erneut versuchen.",
-      networkMessage: "Netzwerkfehler. Bitte Verbindung prüfen."
+      networkMessage: "Netzwerkfehler. Bitte Verbindung prüfen.",
     });
   } catch (error) {
     if (error instanceof ApiRequestError) {
@@ -70,21 +68,19 @@ async function requestJson<T>(
         status: error.status,
         code: error.code,
         isNetwork: error.isNetwork,
-        isTimeout: error.isTimeout
+        isTimeout: error.isTimeout,
       });
     }
     throw error;
   }
 }
 
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
 export async function register(email: string, password: string, displayName: string): Promise<AuthResponse> {
   const payload = await requestJson<AuthEnvelope>(
     "/auth/register",
-    {
-      method: "POST",
-      headers: jsonHeaders(),
-      body: JSON.stringify({ email, password, displayName })
-    },
+    { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ email, password, displayName }) },
     { fallbackError: "REGISTER_FAILED", retry: false }
   );
   return payload.auth;
@@ -93,11 +89,7 @@ export async function register(email: string, password: string, displayName: str
 export async function login(email: string, password: string): Promise<AuthResponse> {
   return requestJson<AuthResponse>(
     "/auth/login",
-    {
-      method: "POST",
-      headers: jsonHeaders(),
-      body: JSON.stringify({ email, password })
-    },
+    { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ email, password }) },
     { fallbackError: "LOGIN_FAILED", retry: false }
   );
 }
@@ -105,11 +97,7 @@ export async function login(email: string, password: string): Promise<AuthRespon
 export async function loginWithGoogle(idToken: string): Promise<AuthResponse> {
   return requestJson<AuthResponse>(
     "/auth/google",
-    {
-      method: "POST",
-      headers: jsonHeaders(),
-      body: JSON.stringify({ idToken })
-    },
+    { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ idToken }) },
     { fallbackError: "GOOGLE_LOGIN_FAILED", retry: false }
   );
 }
@@ -117,11 +105,7 @@ export async function loginWithGoogle(idToken: string): Promise<AuthResponse> {
 export async function refreshSession(refreshToken: string): Promise<AuthResponse> {
   return requestJson<AuthResponse>(
     "/auth/refresh",
-    {
-      method: "POST",
-      headers: jsonHeaders(),
-      body: JSON.stringify({ refreshToken })
-    },
+    { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ refreshToken }) },
     { fallbackError: "REFRESH_FAILED", retry: false }
   );
 }
@@ -129,11 +113,7 @@ export async function refreshSession(refreshToken: string): Promise<AuthResponse
 export async function forgotPassword(email: string): Promise<void> {
   await requestJson<unknown>(
     "/auth/forgot-password",
-    {
-      method: "POST",
-      headers: jsonHeaders(),
-      body: JSON.stringify({ email })
-    },
+    { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ email }) },
     { fallbackError: "FORGOT_PASSWORD_FAILED", retry: false }
   );
 }
@@ -141,11 +121,7 @@ export async function forgotPassword(email: string): Promise<void> {
 export async function resetPassword(token: string, newPassword: string): Promise<void> {
   await requestJson<unknown>(
     "/auth/reset-password",
-    {
-      method: "POST",
-      headers: jsonHeaders(),
-      body: JSON.stringify({ token, newPassword })
-    },
+    { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ token, newPassword }) },
     { fallbackError: "RESET_PASSWORD_FAILED", retry: false }
   );
 }
@@ -153,10 +129,7 @@ export async function resetPassword(token: string, newPassword: string): Promise
 export async function getProfile(accessToken: string): Promise<ProfileItem> {
   return requestJson<ProfileItem>(
     "/auth/me",
-    {
-      method: "GET",
-      headers: authHeaders(accessToken)
-    },
+    { method: "GET", headers: authHeaders(accessToken) },
     { fallbackError: "PROFILE_FAILED" }
   );
 }
@@ -167,22 +140,17 @@ export async function updateProfile(
 ): Promise<ProfileItem> {
   return requestJson<ProfileItem>(
     "/auth/profile",
-    {
-      method: "PATCH",
-      headers: authHeaders(accessToken),
-      body: JSON.stringify(data)
-    },
+    { method: "PATCH", headers: authHeaders(accessToken), body: JSON.stringify(data) },
     { fallbackError: "PROFILE_UPDATE_FAILED", retry: false }
   );
 }
 
+// ─── Channels ────────────────────────────────────────────────────────────────
+
 export async function listChannels(accessToken: string): Promise<ChannelItem[]> {
   return requestJson<ChannelItem[]>(
     "/chat/channels",
-    {
-      method: "GET",
-      headers: authHeaders(accessToken)
-    },
+    { method: "GET", headers: authHeaders(accessToken) },
     { fallbackError: "CHANNELS_FAILED" }
   );
 }
@@ -194,11 +162,7 @@ export async function createGroupChannel(
 ): Promise<ChannelItem> {
   return requestJson<ChannelItem>(
     "/chat/channels",
-    {
-      method: "POST",
-      headers: authHeaders(accessToken),
-      body: JSON.stringify({ type: "group", name, memberIds })
-    },
+    { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify({ type: "group", name, memberIds }) },
     { fallbackError: "CREATE_CHANNEL_FAILED", retry: false }
   );
 }
@@ -206,10 +170,7 @@ export async function createGroupChannel(
 export async function deleteGroupChannel(accessToken: string, channelId: string): Promise<void> {
   await requestJson<OkResponse>(
     `/chat/channels/${channelId}`,
-    {
-      method: "DELETE",
-      headers: authHeaders(accessToken)
-    },
+    { method: "DELETE", headers: authHeaders(accessToken) },
     { fallbackError: "DELETE_CHANNEL_FAILED", retry: false }
   );
 }
@@ -217,11 +178,7 @@ export async function deleteGroupChannel(accessToken: string, channelId: string)
 export async function createDirectByUsername(accessToken: string, username: string): Promise<ChannelItem> {
   return requestJson<ChannelItem>(
     "/chat/direct/by-username",
-    {
-      method: "POST",
-      headers: authHeaders(accessToken),
-      body: JSON.stringify({ username })
-    },
+    { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify({ username }) },
     { fallbackError: "CREATE_DIRECT_FAILED", retry: false }
   );
 }
@@ -229,11 +186,7 @@ export async function createDirectByUsername(accessToken: string, username: stri
 export async function addGroupMemberByUsername(accessToken: string, channelId: string, username: string): Promise<void> {
   await requestJson<OkResponse>(
     `/chat/channels/${channelId}/members/by-username`,
-    {
-      method: "POST",
-      headers: authHeaders(accessToken),
-      body: JSON.stringify({ username })
-    },
+    { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify({ username }) },
     { fallbackError: "ADD_MEMBER_FAILED", retry: false }
   );
 }
@@ -241,10 +194,7 @@ export async function addGroupMemberByUsername(accessToken: string, channelId: s
 export async function listChannelMembers(accessToken: string, channelId: string): Promise<ChannelMemberItem[]> {
   return requestJson<ChannelMemberItem[]>(
     `/chat/channels/${channelId}/members`,
-    {
-      method: "GET",
-      headers: authHeaders(accessToken)
-    },
+    { method: "GET", headers: authHeaders(accessToken) },
     { fallbackError: "MEMBERS_FAILED" }
   );
 }
@@ -257,11 +207,7 @@ export async function updateChannelMemberRole(
 ): Promise<ChannelMemberItem> {
   return requestJson<ChannelMemberItem>(
     `/chat/channels/${channelId}/members/${targetUserId}/role`,
-    {
-      method: "PATCH",
-      headers: authHeaders(accessToken),
-      body: JSON.stringify({ role })
-    },
+    { method: "PATCH", headers: authHeaders(accessToken), body: JSON.stringify({ role }) },
     { fallbackError: "UPDATE_MEMBER_ROLE_FAILED", retry: false }
   );
 }
@@ -269,26 +215,15 @@ export async function updateChannelMemberRole(
 export async function removeChannelMember(accessToken: string, channelId: string, targetUserId: string): Promise<void> {
   await requestJson<OkResponse>(
     `/chat/channels/${channelId}/members/${targetUserId}`,
-    {
-      method: "DELETE",
-      headers: authHeaders(accessToken)
-    },
+    { method: "DELETE", headers: authHeaders(accessToken) },
     { fallbackError: "REMOVE_MEMBER_FAILED", retry: false }
   );
 }
 
-export async function transferChannelOwnership(
-  accessToken: string,
-  channelId: string,
-  targetUserId: string
-): Promise<void> {
+export async function transferChannelOwnership(accessToken: string, channelId: string, targetUserId: string): Promise<void> {
   await requestJson<OkResponse>(
     `/chat/channels/${channelId}/ownership/transfer`,
-    {
-      method: "POST",
-      headers: authHeaders(accessToken),
-      body: JSON.stringify({ targetUserId })
-    },
+    { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify({ targetUserId }) },
     { fallbackError: "TRANSFER_OWNERSHIP_FAILED", retry: false }
   );
 }
@@ -296,39 +231,24 @@ export async function transferChannelOwnership(
 export async function leaveChannel(accessToken: string, channelId: string): Promise<void> {
   await requestJson<OkResponse>(
     `/chat/channels/${channelId}/members/me`,
-    {
-      method: "DELETE",
-      headers: authHeaders(accessToken)
-    },
+    { method: "DELETE", headers: authHeaders(accessToken) },
     { fallbackError: "LEAVE_CHANNEL_FAILED", retry: false }
   );
 }
 
-export async function listMessages(accessToken: string, channelId: string): Promise<MessageItem[]> {
-  const payload = await requestJson<MessageListResponse>(
-    `/chat/channels/${channelId}/messages?limit=50`,
-    {
-      method: "GET",
-      headers: authHeaders(accessToken)
-    },
-    { fallbackError: "MESSAGES_FAILED" }
-  );
-  return payload.items;
-}
+// ─── Messages (cursor pagination) ───────────────────────────────────────────
 
-export async function summarizeChannel(
+export async function listMessages(
   accessToken: string,
   channelId: string,
-  options: ChannelSummaryRequest = {}
-): Promise<ChannelSummaryResponse> {
-  return requestJson<ChannelSummaryResponse>(
-    `/chat/channels/${channelId}/summary`,
-    {
-      method: "POST",
-      headers: authHeaders(accessToken),
-      body: JSON.stringify(options)
-    },
-    { fallbackError: "SUMMARY_FAILED", retry: false }
+  options: { limit?: number; cursor?: string } = {}
+): Promise<{ items: MessageItem[]; nextCursor?: string }> {
+  const params = new URLSearchParams({ limit: String(options.limit ?? 50) });
+  if (options.cursor) params.set("cursor", options.cursor);
+  return requestJson<MessageListResponse>(
+    `/chat/channels/${channelId}/messages?${params.toString()}`,
+    { method: "GET", headers: authHeaders(accessToken) },
+    { fallbackError: "MESSAGES_FAILED" }
   );
 }
 
@@ -343,19 +263,68 @@ export async function sendMessage(
     {
       method: "POST",
       headers: authHeaders(accessToken),
-      body: JSON.stringify({ content, ...(replyToMessageId ? { replyToMessageId } : {}) })
+      body: JSON.stringify({ content, ...(replyToMessageId ? { replyToMessageId } : {}) }),
     },
     { fallbackError: "SEND_MESSAGE_FAILED", retry: false }
   );
 }
 
+export async function updateMessage(
+  accessToken: string,
+  channelId: string,
+  messageId: string,
+  content: string
+): Promise<MessageItem> {
+  return requestJson<MessageItem>(
+    `/chat/channels/${channelId}/messages/${messageId}`,
+    { method: "PATCH", headers: authHeaders(accessToken), body: JSON.stringify({ content }) },
+    { fallbackError: "UPDATE_MESSAGE_FAILED", retry: false }
+  );
+}
+
+export async function deleteMessage(accessToken: string, channelId: string, messageId: string): Promise<void> {
+  await requestJson<unknown>(
+    `/chat/channels/${channelId}/messages/${messageId}`,
+    { method: "DELETE", headers: authHeaders(accessToken) },
+    { fallbackError: "DELETE_MESSAGE_FAILED", retry: false }
+  );
+}
+
+export async function markRead(accessToken: string, channelId: string, messageId: string): Promise<void> {
+  await requestJson<OkResponse>(
+    `/chat/channels/${channelId}/read-receipts`,
+    { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify({ messageId }) },
+    { fallbackError: "READ_RECEIPT_FAILED", retry: false }
+  );
+}
+
+export async function searchMessages(accessToken: string, query: string, channelId?: string): Promise<MessageItem[]> {
+  const search = new URLSearchParams({ query, limit: "20", ...(channelId ? { channelId } : {}) });
+  return requestJson<MessageItem[]>(
+    `/chat/search?${search.toString()}`,
+    { method: "GET", headers: authHeaders(accessToken) },
+    { fallbackError: "SEARCH_FAILED" }
+  );
+}
+
+export async function summarizeChannel(
+  accessToken: string,
+  channelId: string,
+  options: ChannelSummaryRequest = {}
+): Promise<ChannelSummaryResponse> {
+  return requestJson<ChannelSummaryResponse>(
+    `/chat/channels/${channelId}/summary`,
+    { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify(options) },
+    { fallbackError: "SUMMARY_FAILED", retry: false }
+  );
+}
+
+// ─── Polls ───────────────────────────────────────────────────────────────────
+
 export async function listPolls(accessToken: string, channelId: string): Promise<PollItem[]> {
   return requestJson<PollItem[]>(
     `/chat/channels/${channelId}/polls`,
-    {
-      method: "GET",
-      headers: authHeaders(accessToken)
-    },
+    { method: "GET", headers: authHeaders(accessToken) },
     { fallbackError: "POLLS_FAILED" }
   );
 }
@@ -367,11 +336,7 @@ export async function createPoll(
 ): Promise<PollItem> {
   return requestJson<PollItem>(
     `/chat/channels/${channelId}/polls`,
-    {
-      method: "POST",
-      headers: authHeaders(accessToken),
-      body: JSON.stringify(payload)
-    },
+    { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify(payload) },
     { fallbackError: "CREATE_POLL_FAILED", retry: false }
   );
 }
@@ -384,106 +349,39 @@ export async function votePoll(
 ): Promise<PollItem> {
   return requestJson<PollItem>(
     `/chat/channels/${channelId}/polls/${pollId}/vote`,
-    {
-      method: "POST",
-      headers: authHeaders(accessToken),
-      body: JSON.stringify({ optionId })
-    },
+    { method: "POST", headers: authHeaders(accessToken), body: JSON.stringify({ optionId }) },
     { fallbackError: "VOTE_POLL_FAILED", retry: false }
   );
 }
 
-export async function updateMessage(
-  accessToken: string,
-  channelId: string,
-  messageId: string,
-  content: string
-): Promise<MessageItem> {
-  return requestJson<MessageItem>(
-    `/chat/channels/${channelId}/messages/${messageId}`,
-    {
-      method: "PATCH",
-      headers: authHeaders(accessToken),
-      body: JSON.stringify({ content })
-    },
-    { fallbackError: "UPDATE_MESSAGE_FAILED", retry: false }
-  );
-}
-
-export async function deleteMessage(accessToken: string, channelId: string, messageId: string): Promise<void> {
-  await requestJson<unknown>(
-    `/chat/channels/${channelId}/messages/${messageId}`,
-    {
-      method: "DELETE",
-      headers: authHeaders(accessToken)
-    },
-    { fallbackError: "DELETE_MESSAGE_FAILED", retry: false }
-  );
-}
+// ─── Uploads ─────────────────────────────────────────────────────────────────
 
 export async function uploadFile(accessToken: string, file: File): Promise<UploadedFileResponse> {
   const formData = new FormData();
   formData.append("file", file);
-
   return requestJson<UploadedFileResponse>(
     "/chat/upload",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      },
-      body: formData
-    },
+    { method: "POST", headers: { Authorization: `Bearer ${accessToken}` }, body: formData },
     { fallbackError: "UPLOAD_FAILED", retry: false }
   );
 }
 
-export async function markRead(accessToken: string, channelId: string, messageId: string): Promise<void> {
-  await requestJson<OkResponse>(
-    `/chat/channels/${channelId}/read-receipts`,
-    {
-      method: "POST",
-      headers: authHeaders(accessToken),
-      body: JSON.stringify({ messageId })
-    },
-    { fallbackError: "READ_RECEIPT_FAILED", retry: false }
-  );
-}
-
-export async function searchMessages(
-  accessToken: string,
-  query: string,
-  channelId?: string
-): Promise<MessageItem[]> {
-  const search = new URLSearchParams({ query, limit: "20", ...(channelId ? { channelId } : {}) });
-  return requestJson<MessageItem[]>(
-    `/chat/search?${search.toString()}`,
-    {
-      method: "GET",
-      headers: authHeaders(accessToken)
-    },
-    { fallbackError: "SEARCH_FAILED" }
-  );
-}
+// ─── Presence ────────────────────────────────────────────────────────────────
 
 export async function getPresence(accessToken: string, userIds: string[]): Promise<PresenceItem[]> {
   return requestJson<PresenceItem[]>(
     `/chat/presence?userIds=${encodeURIComponent(userIds.join(","))}`,
-    {
-      method: "GET",
-      headers: authHeaders(accessToken)
-    },
+    { method: "GET", headers: authHeaders(accessToken) },
     { fallbackError: "PRESENCE_FAILED" }
   );
 }
 
+// ─── Blocking ────────────────────────────────────────────────────────────────
+
 export async function blockUser(accessToken: string, targetUserId: string): Promise<void> {
   await requestJson<OkResponse>(
     `/chat/block/${targetUserId}`,
-    {
-      method: "POST",
-      headers: authHeaders(accessToken)
-    },
+    { method: "POST", headers: authHeaders(accessToken) },
     { fallbackError: "BLOCK_FAILED", retry: false }
   );
 }
@@ -491,21 +389,17 @@ export async function blockUser(accessToken: string, targetUserId: string): Prom
 export async function unblockUser(accessToken: string, targetUserId: string): Promise<void> {
   await requestJson<OkResponse>(
     `/chat/block/${targetUserId}`,
-    {
-      method: "DELETE",
-      headers: authHeaders(accessToken)
-    },
+    { method: "DELETE", headers: authHeaders(accessToken) },
     { fallbackError: "UNBLOCK_FAILED", retry: false }
   );
 }
 
+// ─── Platform settings ───────────────────────────────────────────────────────
+
 export async function getPlatformSettings(accessToken: string): Promise<PlatformSettingsItem> {
   return requestJson<PlatformSettingsItem>(
     "/chat/platform-settings",
-    {
-      method: "GET",
-      headers: authHeaders(accessToken)
-    },
+    { method: "GET", headers: authHeaders(accessToken) },
     { fallbackError: "PLATFORM_SETTINGS_FAILED" }
   );
 }
@@ -513,11 +407,7 @@ export async function getPlatformSettings(accessToken: string): Promise<Platform
 export async function setPlatformUploadsEnabled(accessToken: string, uploadsEnabled: boolean): Promise<void> {
   await requestJson<OkResponse>(
     "/chat/platform-settings/uploads",
-    {
-      method: "PATCH",
-      headers: authHeaders(accessToken),
-      body: JSON.stringify({ uploadsEnabled })
-    },
+    { method: "PATCH", headers: authHeaders(accessToken), body: JSON.stringify({ uploadsEnabled }) },
     { fallbackError: "UPDATE_PLATFORM_UPLOADS_FAILED", retry: false }
   );
 }
