@@ -6,6 +6,7 @@ import { chatRouter } from "./modules/chat/chat.routes.js";
 import { appConfig } from "./config.js";
 import { prisma } from "./lib/prisma.js";
 import { apiLimiter } from "./lib/rateLimiter.js";
+import { errorHandler } from "./lib/errorHandler.js";
 
 export function createApp() {
   const app = express();
@@ -43,8 +44,11 @@ export function createApp() {
   });
 
   // Rate-limited routes
-  app.use("/auth", authRouter); // auth routes apply their own stricter limits internally
+  app.use("/auth", authRouter);
   app.use("/chat", apiLimiter, chatRouter);
+
+  // Central error handler (must be last)
+  app.use(errorHandler);
 
   return app;
 }
