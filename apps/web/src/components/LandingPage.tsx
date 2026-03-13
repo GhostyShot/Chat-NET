@@ -5,182 +5,119 @@ type LandingPageProps = {
 
 export function LandingPage({ onOpenLogin, onOpenRegister }: LandingPageProps) {
   return (
-    <main className="app-shell landing-shell">
-      <section className="landing-page">
-
-        {/* ── Nav ── */}
-        <header className="landing-topbar">
-          <div className="landing-brand">
-            <img src="/chat-net-logo.svg" alt="Chat-Net Logo" className="landing-logo" />
-            <h1>Chat-Net</h1>
-          </div>
-          <div className="landing-auth-actions">
-            <button className="secondary compact" onClick={onOpenLogin}>
-              Einloggen
-            </button>
-            <button className="primary compact" onClick={onOpenRegister}>
-              Registrieren
-            </button>
-          </div>
-        </header>
-
-        {/* ── Hero ── */}
-        <div className="landing-hero">
-          <p className="eyebrow">Echtzeit-Kommunikation neu gedacht</p>
-          <h2>Dein Space.{"\u00A0"}Dein Vibe.</h2>
-          <p className="subtitle">
-            Chat-Net verbindet dich mit Communities, Teams und Freunden &mdash; in Echtzeit,
-            auf jedem Ger&auml;t.
-          </p>
-          <div className="landing-stat-row" aria-hidden="true">
-            <span className="landing-stat">⚡ Echtzeit-Messaging</span>
-            <span className="landing-stat">🔒 Ende-zu-Ende verschl&uuml;sselt</span>
-            <span className="landing-stat">🎙️ Voice-Nachrichten</span>
-            <span className="landing-stat">📊 Polls & Abstimmungen</span>
-          </div>
-          <div className="landing-hero-cta">
-            <button className="primary landing-hero-btn" onClick={onOpenRegister}>
-              Kostenlos starten
-            </button>
-            <button className="secondary landing-hero-btn" onClick={onOpenLogin}>
-              Einloggen
-            </button>
-          </div>
-          <div className="landing-hero-bottom-line" aria-hidden="true" />
+    <div style={styles.root}>
+      {/* Nav */}
+      <header style={styles.nav}>
+        <div style={styles.navBrand}>
+          <img src="/chat-net-logo.svg" alt="Chat-Net" style={styles.navLogo} />
+          <span style={styles.navTitle}>Chat-Net</span>
         </div>
-
-        {/* ── Visual Strip ── */}
-        <div className="landing-visual-strip" role="presentation">
-          <article className="landing-visual-card">
-            <img
-              src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80"
-              alt="Community-Gruppen chatten gemeinsam in Echtzeit"
-              loading="lazy"
-              width="600"
-              height="400"
-            />
-            <p>Community</p>
-          </article>
-          <article className="landing-visual-card">
-            <img
-              src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80"
-              alt="Teams kommunizieren effizient mit Chat-Net"
-              loading="lazy"
-              width="600"
-              height="400"
-            />
-            <p>Teams</p>
-          </article>
-          <article className="landing-visual-card">
-            <img
-              src="https://images.unsplash.com/photo-1497215842964-222b430dc094?auto=format&fit=crop&w=1200&q=80"
-              alt="Gaming-Communities nutzen Chat-Net für Koordination"
-              loading="lazy"
-              width="600"
-              height="400"
-            />
-            <p>Gaming</p>
-          </article>
+        <div style={styles.navActions}>
+          <button style={styles.btnGhost} onClick={onOpenLogin}>Einloggen</button>
+          <button style={styles.btnPrimary} onClick={onOpenRegister}>Registrieren</button>
         </div>
+      </header>
 
-        {/* ── Features ── */}
-        <section aria-labelledby="features-heading">
-          <p id="features-heading" className="landing-feature-section-label">Alles was du brauchst</p>
-          <div className="landing-feature-grid">
-          <div className="landing-feature-card">
-            <span className="landing-feature-i">⚡</span>
-            <h3>Echtzeit-Messaging</h3>
-            <p>
-              Nachrichten werden sofort zugestellt &mdash; kein Refresh, kein Warten.
-              WebSocket-basiert f&uuml;r minimale Latenz.
-            </p>
-          </div>
-          <div className="landing-feature-card">
-            <span className="landing-feature-i">🏠</span>
-            <h3>Eigene Spaces</h3>
-            <p>
-              Erstelle Channels f&uuml;r dein Team, deine Community oder deine Freunde.
-              Mit Rollen, Moderation und Custom-Badges.
-            </p>
-          </div>
-          <div className="landing-feature-card">
-            <span className="landing-feature-i">🎙️</span>
-            <h3>Voice & Media</h3>
-            <p>
-              Verschicke Sprachnachrichten, Bilder und Dateien direkt im Chat.
-              Vollst&auml;ndige Medienunterst&uuml;tzung.
-            </p>
-          </div>
-          <div className="landing-feature-card">
-            <span className="landing-feature-i">📊</span>
-            <h3>Polls & Abstimmungen</h3>
-            <p>
-              Frag deine Community in Sekunden. Erstelle Umfragen direkt im Channel
-              und sieh Ergebnisse live.
-            </p>
-          </div>
-          <div className="landing-feature-card">
-            <span className="landing-feature-i">🔔</span>
-            <h3>Smart Mentions</h3>
-            <p>
-              @-Erw&auml;hnungen mit Auto-Complete. Nie wieder wichtige
-              Nachrichten verpassen.
-            </p>
-          </div>
-          <div className="landing-feature-card">
-            <span className="landing-feature-i">🌙</span>
-            <h3>Dark &amp; Light Mode</h3>
-            <p>
-              Vollst&auml;ndig anpassbares Theme. Perfektes Design f&uuml;r jeden
-              Einsatz &mdash; Tag und Nacht.
-            </p>
-          </div>
-          </div>
-        </section>
-
-        {/* ── Download ── */}
-        <div className="landing-store-row">
-          <a
-            href="#"
-            className="store-badge"
-            onClick={(e) => { e.preventDefault(); onOpenRegister(); }}
-          >
-            <span className="store-badge-label">Web-App</span>
-            <strong>Im Browser &ouml;ffnen</strong>
-          </a>
-          <div className="store-badge">
-            <span className="store-badge-label">iOS</span>
-            <strong>App Store</strong>
-            <span className="store-soon">Demnächst</span>
-          </div>
-          <div className="store-badge">
-            <span className="store-badge-label">Android</span>
-            <strong>Google Play</strong>
-            <span className="store-soon">Demnächst</span>
-          </div>
+      {/* Hero */}
+      <section style={styles.hero}>
+        <span style={styles.eyebrow}>Echtzeit-Kommunikation</span>
+        <h1 style={styles.heroTitle}>Dein Space.&nbsp;Dein Vibe.</h1>
+        <p style={styles.heroSub}>
+          Chat-Net verbindet dich mit Communities, Teams und Freunden — in Echtzeit, auf jedem Gerät.
+        </p>
+        <div style={styles.heroCta}>
+          <button style={styles.btnHeroPrimary} onClick={onOpenRegister}>Kostenlos starten</button>
+          <button style={styles.btnHeroGhost} onClick={onOpenLogin}>Einloggen</button>
         </div>
-
-        {/* ── Footer ── */}
-        <footer className="landing-footer">
-          <div className="landing-footer-inner">
-            <div className="landing-footer-brand">
-              <img src="/chat-net-logo.svg" alt="Chat-Net Logo" className="landing-footer-logo" />
-              <span>Chat-Net</span>
-            </div>
-            <div className="landing-footer-links">
-              <a href="https://chat-net.tech" className="landing-footer-link">chat-net.tech</a>
-              <span className="landing-footer-sep">·</span>
-              <button className="landing-footer-link" onClick={onOpenLogin}>Login</button>
-              <span className="landing-footer-sep">·</span>
-              <button className="landing-footer-link" onClick={onOpenRegister}>Registrieren</button>
-            </div>
-            <p className="landing-footer-copy">
-              &copy; {new Date().getFullYear()} Chat-Net. Alle Rechte vorbehalten.
-            </p>
-          </div>
-        </footer>
-
+        <div style={styles.heroStats}>
+          {["⚡ Echtzeit", "🎙️ Voice", "📊 Polls", "🔒 Sicher"].map((s) => (
+            <span key={s} style={styles.statChip}>{s}</span>
+          ))}
+        </div>
       </section>
-    </main>
+
+      {/* Feature grid */}
+      <section style={styles.features}>
+        <p style={styles.sectionLabel}>Alles was du brauchst</p>
+        <div style={styles.featureGrid}>
+          {FEATURES.map((f) => (
+            <div key={f.title} style={styles.featureCard}>
+              <span style={styles.featureIcon}>{f.icon}</span>
+              <h3 style={styles.featureTitle}>{f.title}</h3>
+              <p style={styles.featureText}>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* CTA banner */}
+      <section style={styles.ctaBanner}>
+        <h2 style={styles.ctaTitle}>Bereit loszulegen?</h2>
+        <p style={styles.ctaSub}>Erstelle deinen Account in Sekunden — kostenlos und ohne Kreditkarte.</p>
+        <button style={styles.btnHeroPrimary} onClick={onOpenRegister}>Jetzt starten</button>
+      </section>
+
+      {/* Footer */}
+      <footer style={styles.footer}>
+        <img src="/chat-net-logo.svg" alt="" style={{ width: 20, height: 20, opacity: 0.5 }} />
+        <span style={styles.footerText}>© {new Date().getFullYear()} Chat-Net</span>
+        <button style={styles.footerLink} onClick={onOpenLogin}>Login</button>
+        <button style={styles.footerLink} onClick={onOpenRegister}>Registrieren</button>
+      </footer>
+    </div>
   );
 }
+
+const FEATURES = [
+  { icon: "⚡", title: "Echtzeit-Messaging", desc: "Nachrichten sofort, ohne Refresh. WebSocket-basiert für minimale Latenz." },
+  { icon: "🏠", title: "Eigene Spaces", desc: "Channels für Teams, Communities oder Freunde. Mit Rollen und Moderation." },
+  { icon: "🎙️", title: "Voice & Media", desc: "Sprachnachrichten, Bilder und Dateien direkt im Chat senden." },
+  { icon: "📊", title: "Polls", desc: "Umfragen in Sekunden erstellen und Ergebnisse live verfolgen." },
+  { icon: "🔔", title: "Smart Mentions", desc: "@-Erwähnungen mit Auto-Complete. Nie wichtige Nachrichten verpassen." },
+  { icon: "🌙", title: "Dark & Light Mode", desc: "Vollständig anpassbares Theme für jeden Einsatz." },
+];
+
+const C = {
+  bg: "#060b14",
+  surface: "#0d1117",
+  elevated: "#111827",
+  border: "rgba(255,255,255,0.07)",
+  accent: "#5865f2",
+  accentHover: "#4752c4",
+  text: "#e2e8f0",
+  muted: "#64748b",
+  subtle: "rgba(88,101,242,0.12)",
+};
+
+const styles: Record<string, React.CSSProperties> = {
+  root: { minHeight: "100dvh", background: C.bg, color: C.text, fontFamily: "Inter, sans-serif", display: "flex", flexDirection: "column" },
+  nav: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px", height: 60, borderBottom: `1px solid ${C.border}`, background: C.surface, position: "sticky", top: 0, zIndex: 10 },
+  navBrand: { display: "flex", alignItems: "center", gap: 10 },
+  navLogo: { width: 28, height: 28 },
+  navTitle: { fontWeight: 700, fontSize: 18 },
+  navActions: { display: "flex", gap: 10 },
+  btnGhost: { padding: "8px 18px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.text, fontWeight: 600, fontSize: 14, cursor: "pointer" },
+  btnPrimary: { padding: "8px 18px", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontWeight: 600, fontSize: 14, cursor: "pointer" },
+  hero: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "80px 24px 60px", textAlign: "center", maxWidth: 720, margin: "0 auto", width: "100%" },
+  eyebrow: { fontSize: 12, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: C.accent, marginBottom: 16, display: "block" },
+  heroTitle: { fontSize: "clamp(2rem, 5vw, 3.5rem)", fontWeight: 800, lineHeight: 1.15, margin: "0 0 20px", letterSpacing: "-0.02em" },
+  heroSub: { fontSize: 18, color: C.muted, lineHeight: 1.7, margin: "0 0 36px", maxWidth: 520 },
+  heroCta: { display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 32 },
+  btnHeroPrimary: { padding: "13px 30px", borderRadius: 10, border: "none", background: C.accent, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", boxShadow: "0 4px 20px rgba(88,101,242,0.35)" },
+  btnHeroGhost: { padding: "12px 28px", borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.text, fontWeight: 600, fontSize: 15, cursor: "pointer" },
+  heroStats: { display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" },
+  statChip: { padding: "6px 14px", borderRadius: 20, background: C.elevated, border: `1px solid ${C.border}`, fontSize: 13, color: C.muted },
+  features: { padding: "60px 24px", maxWidth: 960, margin: "0 auto", width: "100%" },
+  sectionLabel: { fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, textAlign: "center", marginBottom: 40 },
+  featureGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 },
+  featureCard: { background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 14, padding: "28px 24px" },
+  featureIcon: { fontSize: 28, display: "block", marginBottom: 12 },
+  featureTitle: { fontWeight: 700, fontSize: 15, margin: "0 0 8px" },
+  featureText: { fontSize: 14, color: C.muted, lineHeight: 1.6, margin: 0 },
+  ctaBanner: { margin: "0 24px 60px", maxWidth: 720, marginInline: "auto", background: C.subtle, border: `1px solid rgba(88,101,242,0.25)`, borderRadius: 18, padding: "48px 32px", textAlign: "center" },
+  ctaTitle: { fontSize: "clamp(1.4rem, 3vw, 2rem)", fontWeight: 800, margin: "0 0 12px" },
+  ctaSub: { fontSize: 15, color: C.muted, margin: "0 0 28px" },
+  footer: { borderTop: `1px solid ${C.border}`, padding: "20px 32px", display: "flex", alignItems: "center", gap: 16, color: C.muted, fontSize: 13 },
+  footerText: { flex: 1 },
+  footerLink: { background: "transparent", border: "none", color: C.muted, cursor: "pointer", fontSize: 13 },
+};
