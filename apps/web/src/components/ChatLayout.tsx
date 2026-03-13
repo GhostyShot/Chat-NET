@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, KeyboardEvent, MutableRefObject, ReactNode } from 'react';
 import type { AuthResponse } from '@chatnet/shared';
 import type { ChannelItem, ChannelMemberItem, MessageItem, PollItem } from '../lib/api';
@@ -124,10 +124,19 @@ type ChatLayoutProps = {
 };
 
 const AVATAR_PALETTE = ['#525252','#404040','#737373','#a3a3a3','#71717a','#52525b','#3f3f46','#27272a'];
-function getInitials(name: string) { return name.split(' ').map(w => w[0]?.toUpperCase() ?? '').slice(0, 2).join('') || '?'; }
-function avatarColor(id: string) { let h = 0; for (let i = 0; i < id.length; i++) h = ((h * 31) + id.charCodeAt(i)) >>> 0; return AVATAR_PALETTE[h % AVATAR_PALETTE.length]; }
+function getInitials(n: string) { return n.split(' ').map(w => w[0]?.toUpperCase() ?? '').slice(0,2).join('') || '?'; }
+function avatarColor(id: string) { let h = 0; for (let i = 0; i < id.length; i++) h = ((h*31)+id.charCodeAt(i))>>>0; return AVATAR_PALETTE[h%AVATAR_PALETTE.length]; }
 
-const QUICK_EMOJIS = ['👍', '❤️', '😂', '😲', '👏', '🔥'];
+const QUICK_EMOJIS = ['👍','❤️','😂','😲','👏','🔥'];
+
+// System/error messages that should be filtered from the visible banner
+const SILENT_CODES = [
+  'USER_BLOCKED','FORBIDDEN_CHANNEL','AUTH_REQUIRED','INVALID_TOKEN',
+  'UNEXPECTED_ERROR','CHANNEL_NOT_FOUND','MEMBER_NOT_FOUND',
+];
+function isSilentMessage(msg: string) {
+  return SILENT_CODES.some(code => msg.includes(code));
+}
 
 export function ChatLayout(props: ChatLayoutProps) {
   const {
@@ -153,7 +162,8 @@ export function ChatLayout(props: ChatLayoutProps) {
     filteredMentionCandidates, mentionIndex, insertMention, onSendMessage,
     uploadsEnabledForAll, onUploadSelected, voiceNoteSupported, voiceNoteState,
     onStartVoiceNote, onStopVoiceNote,
-    message, mentionNotice, settingsOpen, setSettingsOpen, settingsTab, setSettingsTab,
+    message, mentionNotice,
+    settingsOpen, setSettingsOpen, settingsTab, setSettingsTab,
     profileNickname, setProfileNickname, profileUsername, setProfileUsername, onSaveProfile,
     knownUsers, badgeTargetUserId, setBadgeTargetUserId, badgeTargetUser,
     badgeDefinitions, customBadgesByUserId, toggleBadgeForUser,
@@ -166,27 +176,39 @@ export function ChatLayout(props: ChatLayoutProps) {
 
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [showInlineSearch, setShowInlineSearch] = useState(false);
-  const [unreadDismissed, setUnreadDismissed] = useState<Record<string, boolean>>({});
-  const [reactions, setReactions] = useState<Record<string, Array<{ emoji: string; count: number; userIds: string[] }>>>({});
-  const [profilePopup, setProfilePopup] = useState<{ user: { id: string; displayName: string; username?: string }; position: { x: number; y: number } } | null>(null);
+  const [unreadDismissed, setUnreadDismissed] = useState<Record<string,boolean>>({});
+  const [reactions, setReactions] = useState<Record<string, Array<{emoji:string;count:number;userIds:string[]}>>>({});
+  const [profilePopup, setProfilePopup] = useState<{user:{id:string;displayName:string;username?:string};position:{x:number;y:number}}|null>(null);
+
+  // Toast state — replaces the permanent bottom banner
+  const [toast, setToast] = useState<{msg:string;type:'info'|'mention'}|null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
+
+  const showToast = (msg: string, type: 'info'|'mention' = 'info') => {
+    if (!msg || isSilentMessage(msg)) return; // suppress console-style errors
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ msg, type });
+    toastTimer.current = setTimeout(() => setToast(null), 4500);
+  };
+
+  // Show toast when message/mentionNotice changes
+  useEffect(() => { if (message) showToast(message, 'info'); }, [message]);
+  useEffect(() => { if (mentionNotice) showToast(mentionNotice, 'mention'); }, [mentionNotice]);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: globalThis.KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setSearchModalOpen(true); }
+      if ((e.metaKey||e.ctrlKey) && e.key === 'k') { e.preventDefault(); setSearchModalOpen(true); }
       if (e.key === 'Escape') { setSearchModalOpen(false); setProfilePopup(null); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // Reset unread dismissed when switching channels
-  useEffect(() => { setUnreadDismissed(prev => ({ ...prev })); }, [activeChannelId]);
-
   const enriched = messages.map((entry, idx) => {
-    const prev = messages[idx - 1];
+    const prev = messages[idx-1];
     const sameAuthor = prev?.sender.id === entry.sender.id;
-    const withinWindow = prev ? (new Date(entry.createdAt).getTime() - new Date(prev.createdAt).getTime()) < 5 * 60_000 : false;
+    const withinWindow = prev ? (new Date(entry.createdAt).getTime() - new Date(prev.createdAt).getTime()) < 5*60_000 : false;
     return { ...entry, isGroupStart: !sameAuthor || !withinWindow };
   });
 
@@ -195,49 +217,55 @@ export function ChatLayout(props: ChatLayoutProps) {
 
   const handleReact = (messageId: string, emoji: string) => {
     setReactions(prev => {
-      const current = prev[messageId] ?? [];
-      const existing = current.find(r => r.emoji === emoji);
-      const userId = auth.user.id;
-      if (existing) {
-        const hasVoted = existing.userIds.includes(userId);
-        const updated = hasVoted
-          ? { ...existing, count: existing.count - 1, userIds: existing.userIds.filter(id => id !== userId) }
-          : { ...existing, count: existing.count + 1, userIds: [...existing.userIds, userId] };
-        return { ...prev, [messageId]: current.map(r => r.emoji === emoji ? updated : r).filter(r => r.count > 0) };
+      const cur = prev[messageId] ?? [];
+      const ex = cur.find(r => r.emoji === emoji);
+      const uid = auth.user.id;
+      if (ex) {
+        const has = ex.userIds.includes(uid);
+        const upd = has
+          ? {...ex, count: ex.count-1, userIds: ex.userIds.filter(id => id !== uid)}
+          : {...ex, count: ex.count+1, userIds: [...ex.userIds, uid]};
+        return {...prev, [messageId]: cur.map(r => r.emoji===emoji ? upd : r).filter(r => r.count>0)};
       }
-      return { ...prev, [messageId]: [...current, { emoji, count: 1, userIds: [userId] }] };
+      return {...prev, [messageId]: [...cur, {emoji, count:1, userIds:[uid]}]};
     });
   };
 
-  const handleAvatarClick = (e: React.MouseEvent, user: { id: string; displayName: string; username?: string }) => {
+  const handleAvatarClick = (e: React.MouseEvent, user: {id:string;displayName:string;username?:string}) => {
     if (user.id === auth.user.id) return;
     e.stopPropagation();
-    setProfilePopup({ user, position: { x: e.clientX + 12, y: e.clientY - 40 } });
+    setProfilePopup({ user, position: { x: e.clientX+12, y: e.clientY-40 } });
   };
 
   const handleOpenDMFromPopup = (userId: string) => {
-    const user = knownUsers.find(u => u.id === userId);
-    if (user?.username) {
-      props.setDirectUsername(user.username);
-      props.onStartDirectByUsername();
-    }
+    const u = knownUsers.find(u => u.id === userId);
+    if (u?.username) { props.setDirectUsername(u.username); props.onStartDirectByUsername(); }
+  };
+
+  // Close sidebar on mobile when tapping the backdrop
+  const handleSidebarBackdropClick = () => {
+    if (isMobileLayout && mobilePane === 'list') setMobilePane('chat');
   };
 
   return (
     <main className="chat-app-shell">
       <section className="chat-shell">
+
         {/* Topbar */}
         <header className="chat-topbar">
           <div className="brand-block">
+            {isMobileLayout && mobilePane === 'chat' && (
+              <button className="icon-btn" onClick={() => setMobilePane('list')} style={{marginRight:2}}>☰</button>
+            )}
             <img src="/chat-net-logo.svg" alt="" className="brand-logo" />
             <h1>Chat-Net</h1>
           </div>
           <div className="user-block">
-            <span className={`realtime-pill ${realtimeState}`} aria-live="polite">
-              {realtimeState === 'online' ? '● Live' : realtimeState === 'connecting' ? 'Verbinde…' : '○ Offline'}
+            <span className={`realtime-pill ${realtimeState}`}>
+              {realtimeState==='online' ? '● Live' : realtimeState==='connecting' ? 'Verbinde…' : '○ Offline'}
             </span>
             <div className="user-chip">
-              <div className="chip-avatar" style={{ background: avatarColor(auth.user.id) }}>
+              <div className="chip-avatar" style={{background: avatarColor(auth.user.id)}}>
                 {getInitials(auth.user.displayName)}
                 <span className="chip-presence" />
               </div>
@@ -251,21 +279,24 @@ export function ChatLayout(props: ChatLayoutProps) {
               </div>
             </div>
             <div className="topbar-actions">
-              <button className="icon-btn" title="Suchen (⌘K)" onClick={() => setSearchModalOpen(true)}>🔍</button>
-              <button className={`icon-btn${theme === 'dark' ? '' : ' active-btn'}`} onClick={onToggleTheme}>{theme === 'dark' ? '☀' : '☾'}</button>
-              {currentUserIsPlatformOwner && (
-                <button className="icon-btn" onClick={() => { setSettingsTab('owner'); setSettingsOpen(true); }}>⚙</button>
-              )}
+              <button className="icon-btn" onClick={() => setSearchModalOpen(true)} title="Suchen (⌘K)">🔍</button>
+              <button className={`icon-btn${theme==='dark'?'':' active-btn'}`} onClick={onToggleTheme}>{theme==='dark'?'☀':'☾'}</button>
+              {currentUserIsPlatformOwner && <button className="icon-btn" onClick={() => { setSettingsTab('owner'); setSettingsOpen(true); }}>⚙</button>}
               <button className="icon-btn" onClick={() => { setSettingsTab('profile'); setSettingsOpen(true); }}>◎</button>
               <button className="icon-btn danger-btn" onClick={onLogout}>⏻</button>
             </div>
           </div>
         </header>
 
-        <div className={isMobileLayout ? (mobilePane === 'chat' ? 'chat-layout mobile-chat-open' : 'chat-layout mobile-list-open') : 'chat-layout'}>
-
+        {/* Layout */}
+        <div
+          className={isMobileLayout
+            ? (mobilePane==='list' ? 'chat-layout mobile-list-open' : 'chat-layout')
+            : 'chat-layout'}
+          onClick={isMobileLayout && mobilePane==='list' ? handleSidebarBackdropClick : undefined}
+        >
           {/* Sidebar */}
-          <aside className="panel channel-panel">
+          <aside className="panel channel-panel" onClick={e => e.stopPropagation()}>
             <div className="sidebar-section-header">
               <span className="sidebar-section-label">Chats</span>
               <span className="sidebar-count">{channels.length}</span>
@@ -273,8 +304,8 @@ export function ChatLayout(props: ChatLayoutProps) {
             <div className="channel-toolbar">
               <button className="sidebar-action-btn" onClick={onOpenCreateChannelModal}>+ Gruppe</button>
               <button className="sidebar-action-btn" onClick={onOpenDirectModal}>✉ DM</button>
-              {activeChannel?.type === 'GROUP' && !activeChannel?.isSystem && (
-                <button className="sidebar-action-btn" onClick={onOpenAddMemberModal} disabled={ownMembershipRole !== 'OWNER'}>👤</button>
+              {activeChannel?.type==='GROUP' && !activeChannel?.isSystem && (
+                <button className="sidebar-action-btn" onClick={onOpenAddMemberModal} disabled={ownMembershipRole!=='OWNER'}>👤</button>
               )}
             </div>
             <div className="channel-items">
@@ -284,17 +315,17 @@ export function ChatLayout(props: ChatLayoutProps) {
                 return (
                   <button
                     key={ch.id}
-                    className={`channel-item${ch.id === activeChannelId ? ' active' : unread > 0 ? ' unread' : ''}`}
-                    onClick={() => openChannel(ch.id)}
+                    className={`channel-item${ch.id===activeChannelId?' active':unread>0?' unread':''}`}
+                    onClick={() => { openChannel(ch.id); if (isMobileLayout) setMobilePane('chat'); }}
                   >
-                    <div className="ch-avatar" style={{ background: ch.isSystem ? '#222' : avatarColor(ch.id) }}>
-                      {ch.isSystem ? '📣' : getInitials(name)}
+                    <div className="ch-avatar" style={{background: ch.isSystem?'#222':avatarColor(ch.id)}}>
+                      {ch.isSystem?'📣':getInitials(name)}
                     </div>
                     <div className="channel-main">
-                      <span className={`channel-name${unread > 0 && ch.id !== activeChannelId ? ' unread-name' : ''}`}>{name}</span>
-                      <small className="channel-subline">{ch.isSystem ? 'Ankündigungen' : ch.type === 'DIRECT' ? 'Direktnachricht' : 'Gruppe'}</small>
+                      <span className={`channel-name${unread>0&&ch.id!==activeChannelId?' unread-name':''}`}>{name}</span>
+                      <small className="channel-subline">{ch.isSystem?'Ankündigungen':ch.type==='DIRECT'?'Direktnachricht':'Gruppe'}</small>
                     </div>
-                    {unread > 0 && <span className="channel-unread">{unread > 99 ? '99+' : unread}</span>}
+                    {unread>0 && <span className="channel-unread">{unread>99?'99+':unread}</span>}
                   </button>
                 );
               })}
@@ -304,15 +335,13 @@ export function ChatLayout(props: ChatLayoutProps) {
 
           {/* Message panel */}
           <section className="panel message-panel">
+
             {/* Room header */}
             <div className="chat-room-header">
-              {isMobileLayout && (
-                <button className="icon-btn" onClick={() => setMobilePane('list')}>←</button>
-              )}
               <div className="chat-room-meta">
                 {activeChannel && (
-                  <div className="room-avatar" style={{ background: activeChannel.isSystem ? '#222' : avatarColor(activeChannel.id) }}>
-                    {activeChannel.isSystem ? '📣' : getInitials(getChannelDisplayName(activeChannel))}
+                  <div className="room-avatar" style={{background: activeChannel.isSystem?'#222':avatarColor(activeChannel.id)}}>
+                    {activeChannel.isSystem?'📣':getInitials(getChannelDisplayName(activeChannel))}
                   </div>
                 )}
                 <div className="room-info">
@@ -320,24 +349,27 @@ export function ChatLayout(props: ChatLayoutProps) {
                     {getChannelDisplayName(activeChannel)}
                     {activeChannel?.isSystem && <span className="system-channel-badge">Offiziel</span>}
                   </h3>
-                  <span>{activeChannel?.isSystem ? 'Nur das Team kann schreiben' : activeConversationStatus}{voiceCallState !== 'idle' ? ` · 🔊 ${voiceParticipants} aktiv` : ''}</span>
+                  <span>
+                    {activeChannel?.isSystem?'Nur das Team kann schreiben':activeConversationStatus}
+                    {voiceCallState!=='idle'?` · 🔊 ${voiceParticipants} aktiv`:''}
+                  </span>
                 </div>
               </div>
               <div className="room-actions">
                 {voiceSupported && activeChannelId && (
-                  voiceCallState === 'idle'
-                    ? <button className="icon-btn" onClick={onStartVoiceCall} title="Sprachanruf">🎙</button>
+                  voiceCallState==='idle'
+                    ? <button className="icon-btn" onClick={onStartVoiceCall}>🎙</button>
                     : <>
-                        <button className={isVoiceMuted ? 'icon-btn danger-btn' : 'icon-btn active-btn'} onClick={onToggleVoiceMute}>{isVoiceMuted ? '🔇' : '🎙'}</button>
+                        <button className={isVoiceMuted?'icon-btn danger-btn':'icon-btn active-btn'} onClick={onToggleVoiceMute}>{isVoiceMuted?'🔇':'🎙'}</button>
                         <button className="icon-btn danger-btn" onClick={onLeaveVoiceCall}>📵</button>
                       </>
                 )}
-                <button className={`icon-btn${showInlineSearch ? ' active-btn' : ''}`} onClick={() => setShowInlineSearch(v => !v)}>🔍</button>
-                {activeChannel && <span className="chat-room-type-pill">{activeChannel.isSystem ? 'System' : activeChannel.type === 'GROUP' ? 'Gruppe' : 'Direkt'}</span>}
+                <button className={`icon-btn${showInlineSearch?' active-btn':''}`} onClick={() => setShowInlineSearch(v=>!v)}>🔍</button>
+                {activeChannel && <span className="chat-room-type-pill">{activeChannel.isSystem?'System':activeChannel.type==='GROUP'?'Gruppe':'Direkt'}</span>}
               </div>
             </div>
 
-            {/* Pinned message */}
+            {/* Pinned */}
             {activeChannel?.pinnedMessageContent && (
               <div className="pinned-banner">
                 <span className="pinned-banner-icon">📌</span>
@@ -348,46 +380,46 @@ export function ChatLayout(props: ChatLayoutProps) {
             {/* Inline search */}
             {showInlineSearch && (
               <div className="search-row">
-                <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Suchen…" autoFocus />
+                <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Suchen…" autoFocus />
                 <button className="secondary compact" onClick={onSearch}>Suchen</button>
-                <button className="secondary compact" onClick={onSummarizeChannel} disabled={!activeChannelId || summaryLoading}>{summaryLoading ? 'Lädt…' : 'AI-Zusammenfassung'}</button>
-                <button className="secondary compact" onClick={onCreatePoll} disabled={!activeChannelId || pollLoading}>{pollLoading ? 'Lädt…' : 'Umfrage'}</button>
+                <button className="secondary compact" onClick={onSummarizeChannel} disabled={!activeChannelId||summaryLoading}>{summaryLoading?'Lädt…':'AI'}</button>
+                <button className="secondary compact" onClick={onCreatePoll} disabled={!activeChannelId||pollLoading}>{pollLoading?'Lädt…':'Umfrage'}</button>
               </div>
             )}
-
-            {searchResults.length > 0 && showInlineSearch && (
+            {searchResults.length>0 && showInlineSearch && (
               <div className="search-results">
-                {searchResults.slice(0, 5).map(r => (
+                {searchResults.slice(0,5).map(r => (
                   <p key={r.id} className="result-item"><strong>{r.sender.displayName}:</strong> {r.content}</p>
                 ))}
               </div>
             )}
 
-            {polls.length > 0 && (
+            {/* Polls */}
+            {polls.length>0 && (
               <div className="poll-strip">
-                {polls.slice(0, 3).map(poll => (
+                {polls.slice(0,3).map(poll => (
                   <article key={poll.id} className="poll-card">
                     <p className="poll-question">{poll.question}</p>
                     <div className="poll-options">
                       {poll.options.map(opt => (
-                        <button key={opt.id} className={`poll-option${poll.votedOptionId === opt.id ? ' active' : ''}`} onClick={() => onVotePoll(poll.id, opt.id)} disabled={poll.isClosed}>
-                          <span className="poll-label">{opt.label}</span>
-                          <strong className="poll-count">{opt.voteCount}</strong>
+                        <button key={opt.id} className={`poll-option${poll.votedOptionId===opt.id?' active':''}`}
+                          onClick={() => onVotePoll(poll.id, opt.id)} disabled={poll.isClosed}>
+                          <span>{opt.label}</span><strong className="poll-count">{opt.voteCount}</strong>
                         </button>
                       ))}
                     </div>
-                    <small className="poll-total">{poll.totalVotes} Stimmen{poll.isClosed ? ' · Geschlossen' : ''}</small>
+                    <small className="poll-total">{poll.totalVotes} Stimmen{poll.isClosed?' · Geschlossen':''}</small>
                   </article>
                 ))}
               </div>
             )}
 
-            {/* Message list */}
+            {/* Messages */}
             <div className="message-list" ref={messageListRef}>
               {showUnreadBanner && (
-                <div className="unread-banner" onClick={() => setUnreadDismissed(p => ({ ...p, [activeChannelId ?? '']: true }))}>
-                  <span>↓ {totalUnread} neue Nachricht{totalUnread !== 1 ? 'en' : ''}</span>
-                  <button className="unread-banner-close" onClick={e => { e.stopPropagation(); setUnreadDismissed(p => ({ ...p, [activeChannelId ?? '']: true })); }}>×</button>
+                <div className="unread-banner" onClick={() => setUnreadDismissed(p=>({...p,[activeChannelId??'']:true}))}>
+                  <span>↓ {totalUnread} neue Nachricht{totalUnread!==1?'en':''}</span>
+                  <button className="unread-banner-close" onClick={e=>{e.stopPropagation();setUnreadDismissed(p=>({...p,[activeChannelId??'']:true}))}}>×</button>
                 </div>
               )}
 
@@ -399,28 +431,26 @@ export function ChatLayout(props: ChatLayoutProps) {
                 const color = avatarColor(entry.sender.id);
                 const voiceUrl = entry.content.match(/^\[voice\]\s+(https?:\/\/\S+)$/i)?.[1] ?? null;
                 const msgReactions = reactions[entry.id] ?? entry.reactions ?? [];
-                const status = (entry as MessageItem & { status?: string }).status;
+                const status = (entry as MessageItem & {status?:string}).status;
 
                 return (
                   <article
                     key={entry.id}
-                    className={['msg-row', entry.isGroupStart ? 'group-start' : 'group-cont', isActive ? 'selected' : '', status === 'sending' ? 'sending' : '', status === 'failed' ? 'failed' : ''].filter(Boolean).join(' ')}
-                    onClick={() => setActiveMessageId(c => c === entry.id ? null : entry.id)}
+                    className={['msg-row',entry.isGroupStart?'group-start':'group-cont',
+                      isActive?'selected':'',status==='sending'?'sending':'',status==='failed'?'failed':''
+                    ].filter(Boolean).join(' ')}
+                    onClick={() => setActiveMessageId(c => c===entry.id?null:entry.id)}
                   >
-                    {/* Reaction quick-picker (shows on hover) */}
+                    {/* Reaction picker — desktop hover only */}
                     <div className="reaction-picker">
                       {QUICK_EMOJIS.map(emoji => (
-                        <button key={emoji} onClick={e => { e.stopPropagation(); handleReact(entry.id, emoji); }}>{emoji}</button>
+                        <button key={emoji} onClick={e=>{e.stopPropagation();handleReact(entry.id,emoji);}}>{emoji}</button>
                       ))}
                     </div>
 
                     <div className="msg-avatar-col">
                       {entry.isGroupStart && !isOwn && (
-                        <div
-                          className="msg-avatar"
-                          style={{ background: color }}
-                          onClick={e => handleAvatarClick(e, entry.sender)}
-                        >
+                        <div className="msg-avatar" style={{background:color}} onClick={e=>handleAvatarClick(e,entry.sender)}>
                           {getInitials(entry.sender.displayName)}
                           {isOnline && <span className="msg-presence-dot" />}
                         </div>
@@ -428,28 +458,23 @@ export function ChatLayout(props: ChatLayoutProps) {
                     </div>
 
                     <div className="msg-body">
-                      {entry.isGroupStart && !isOwn && (
+                      {entry.isGroupStart && (
                         <div className="msg-header">
-                          <span className="msg-author" style={{ color }} onClick={e => handleAvatarClick(e, entry.sender)}>
-                            {entry.sender.displayName}
-                          </span>
-                          {renderPlatformOwnerBadge(entry.sender.id, entry.sender.username)}
-                          {renderCustomBadges(entry.sender.id)}
-                          {role && role !== 'MEMBER' && <span className="role-pill">{role}</span>}
-                          <span className="msg-time">{formatTimeLabel(entry.createdAt)}</span>
-                        </div>
-                      )}
-                      {entry.isGroupStart && isOwn && (
-                        <div className="msg-header">
+                          {!isOwn && <>
+                            <span className="msg-author" style={{color}} onClick={e=>handleAvatarClick(e,entry.sender)}>{entry.sender.displayName}</span>
+                            {renderPlatformOwnerBadge(entry.sender.id,entry.sender.username)}
+                            {renderCustomBadges(entry.sender.id)}
+                            {role&&role!=='MEMBER'&&<span className="role-pill">{role}</span>}
+                          </>}
                           <span className="msg-time">{formatTimeLabel(entry.createdAt)}</span>
                         </div>
                       )}
 
-                      {editingMessageId === entry.id ? (
+                      {editingMessageId===entry.id ? (
                         <div className="edit-row">
-                          <input value={editingContent} onChange={e => setEditingContent(e.target.value)} autoFocus />
-                          <button className="primary compact" onClick={() => onSaveEdit(entry.id)}>✓</button>
-                          <button className="secondary compact" onClick={() => onEditMessage(entry)}>×</button>
+                          <input value={editingContent} onChange={e=>setEditingContent(e.target.value)} autoFocus />
+                          <button className="primary compact" onClick={()=>onSaveEdit(entry.id)}>✓</button>
+                          <button className="secondary compact" onClick={()=>onEditMessage(entry)}>×</button>
                         </div>
                       ) : voiceUrl ? (
                         <audio controls preload="none" src={voiceUrl} className="voice-message-player" />
@@ -468,22 +493,19 @@ export function ChatLayout(props: ChatLayoutProps) {
                         </>
                       )}
 
-                      {status === 'sending' && <span className="msg-status">Sendet…</span>}
-                      {status === 'failed' && (
-                        <span className="msg-status failed">
-                          Fehlgeschlagen
-                          <button className="msg-retry" onClick={e => { e.stopPropagation(); onSendMessage(); }}>Erneut</button>
+                      {status==='sending' && <span className="msg-status">Sendet…</span>}
+                      {status==='failed' && (
+                        <span className="msg-status failed">Fehlgeschlagen
+                          <button className="msg-retry" onClick={e=>{e.stopPropagation();onSendMessage();}}>Erneut</button>
                         </span>
                       )}
 
-                      {/* Reactions */}
-                      {msgReactions.length > 0 && (
+                      {msgReactions.length>0 && (
                         <div className="msg-reactions">
                           {msgReactions.map(r => (
-                            <button
-                              key={r.emoji}
-                              className={`reaction-chip${r.userIds.includes(auth.user.id) ? ' mine' : ''}`}
-                              onClick={e => { e.stopPropagation(); handleReact(entry.id, r.emoji); }}
+                            <button key={r.emoji}
+                              className={`reaction-chip${r.userIds.includes(auth.user.id)?' mine':''}`}
+                              onClick={e=>{e.stopPropagation();handleReact(entry.id,r.emoji);}}
                             >
                               {r.emoji} <span className="reaction-count">{r.count}</span>
                             </button>
@@ -491,13 +513,37 @@ export function ChatLayout(props: ChatLayoutProps) {
                         </div>
                       )}
 
-                      {/* Message actions */}
-                      <div className={isActive ? 'msg-actions visible' : 'msg-actions'}>
-                        <button className="msg-action-btn" onClick={e => { e.stopPropagation(); onReplyToMessage(entry.id); }} title="Antworten">↩</button>
-                        {isOwn && <button className="msg-action-btn" onClick={e => { e.stopPropagation(); onEditMessage(entry); }} title="Bearbeiten">✎</button>}
-                        {(isOwn || canModerateMembers) && <button className="msg-action-btn danger" onClick={e => { e.stopPropagation(); onDeleteMessage(entry.id); }} title="Löschen">🗑</button>}
-                        {!isOwn && <button className="msg-action-btn danger" onClick={e => { e.stopPropagation(); onBlockSender(entry.sender.id); }} title="Blockieren">🚫</button>}
-                      </div>
+                      {/* On mobile: tap message to show actions inline */}
+                      {isActive && (
+                        <div className="msg-actions visible">
+                          <button className="msg-action-btn" onClick={e=>{e.stopPropagation();onReplyToMessage(entry.id);}}
+                            title="Antworten">↩</button>
+                          {/* Reaction on mobile */}
+                          {isMobileLayout && QUICK_EMOJIS.map(emoji => (
+                            <button key={emoji} className="msg-action-btn"
+                              onClick={e=>{e.stopPropagation();handleReact(entry.id,emoji);}}>{emoji}</button>
+                          ))}
+                          {isOwn && <button className="msg-action-btn"
+                            onClick={e=>{e.stopPropagation();onEditMessage(entry);}}>✎</button>}
+                          {(isOwn||canModerateMembers) && <button className="msg-action-btn danger"
+                            onClick={e=>{e.stopPropagation();onDeleteMessage(entry.id);}}>🗑</button>}
+                          {!isOwn && <button className="msg-action-btn danger"
+                            onClick={e=>{e.stopPropagation();onBlockSender(entry.sender.id);}}>🚫</button>}
+                        </div>
+                      )}
+                      {/* Desktop: hover actions */}
+                      {!isMobileLayout && !isActive && (
+                        <div className="msg-actions">
+                          <button className="msg-action-btn" onClick={e=>{e.stopPropagation();onReplyToMessage(entry.id);}}
+                            title="Antworten">↩</button>
+                          {isOwn && <button className="msg-action-btn"
+                            onClick={e=>{e.stopPropagation();onEditMessage(entry);}}>✎</button>}
+                          {(isOwn||canModerateMembers) && <button className="msg-action-btn danger"
+                            onClick={e=>{e.stopPropagation();onDeleteMessage(entry.id);}}>🗑</button>}
+                          {!isOwn && <button className="msg-action-btn danger"
+                            onClick={e=>{e.stopPropagation();onBlockSender(entry.sender.id);}}>🚫</button>}
+                        </div>
+                      )}
                     </div>
                   </article>
                 );
@@ -506,8 +552,11 @@ export function ChatLayout(props: ChatLayoutProps) {
               {!messages.length && (
                 <div className="empty-state">
                   <div className="empty-state-icon">💬</div>
-                  <p>{activeChannel ? `Willkommen${activeChannel.type === 'GROUP' ? ' in ' + getChannelDisplayName(activeChannel) : ', ' + getChannelDisplayName(activeChannel)}!` : 'Chat auswählen'}</p>
-                  <span>{activeChannel ? 'Noch keine Nachrichten. Schreib die erste!' : 'Wähle links einen Chat.'}</span>
+                  <p>{activeChannel
+                    ? `Willkommen${activeChannel.type==='GROUP'?' in '+getChannelDisplayName(activeChannel):', '+getChannelDisplayName(activeChannel)}!`
+                    : 'Chat auswählen'}
+                  </p>
+                  <span>{activeChannel?'Noch keine Nachrichten. Schreib die erste!':'Wähle einen Chat.'}</span>
                 </div>
               )}
             </div>
@@ -515,21 +564,20 @@ export function ChatLayout(props: ChatLayoutProps) {
             {/* Composer */}
             {activeChannel?.isSystem && !currentUserIsPlatformOwner ? (
               <div className="system-composer-lock">
-                <span>🔒</span>
-                <span>Nur das Team kann in diesem Kanal schreiben.</span>
+                <span>🔒</span><span>Nur das Team kann hier schreiben.</span>
               </div>
             ) : (
               <div className="composer">
                 <div className="composer-side-actions">
-                  <label className={uploadsEnabledForAll ? 'composer-icon-btn' : 'composer-icon-btn disabled'} htmlFor="upload-input">📎</label>
+                  <label className={uploadsEnabledForAll?'composer-icon-btn':'composer-icon-btn disabled'} htmlFor="upload-input">📎</label>
                   <input id="upload-input" className="file-input" type="file" onChange={onUploadSelected} disabled={!uploadsEnabledForAll} />
                   {voiceNoteSupported && (
                     <button
-                      className={`composer-icon-btn${voiceNoteState === 'uploading' ? ' disabled' : voiceNoteState === 'recording' ? ' recording' : ''}`}
-                      onClick={voiceNoteState === 'recording' ? onStopVoiceNote : onStartVoiceNote}
-                      disabled={voiceNoteState === 'uploading'}
+                      className={`composer-icon-btn${voiceNoteState==='uploading'?' disabled':voiceNoteState==='recording'?' recording':''}`}
+                      onClick={voiceNoteState==='recording'?onStopVoiceNote:onStartVoiceNote}
+                      disabled={voiceNoteState==='uploading'}
                     >
-                      {voiceNoteState === 'recording' ? '⏹' : '🎙'}
+                      {voiceNoteState==='recording'?'⏹':'🎙'}
                     </button>
                   )}
                 </div>
@@ -545,13 +593,14 @@ export function ChatLayout(props: ChatLayoutProps) {
                     value={composerText}
                     onChange={onComposerChange}
                     onKeyDown={onComposerKeyDown}
-                    placeholder={activeChannel ? `Nachricht an ${getChannelDisplayName(activeChannel)}…` : 'Nachricht schreiben…'}
+                    placeholder={activeChannel?`Nachricht an ${getChannelDisplayName(activeChannel)}…`:'Nachricht schreiben…'}
                   />
-                  {mentionQuery !== null && filteredMentionCandidates.length > 0 && (
+                  {mentionQuery!==null && filteredMentionCandidates.length>0 && (
                     <div className="mention-suggestions">
-                      {filteredMentionCandidates.map((item, i) => (
-                        <button key={item.username} className={`mention-option${i === mentionIndex ? ' active' : ''}`} onClick={() => insertMention(item.username)}>
-                          <div className="mention-avatar" style={{ background: avatarColor(item.username) }}>{getInitials(item.displayName)}</div>
+                      {filteredMentionCandidates.map((item,i) => (
+                        <button key={item.username} className={`mention-option${i===mentionIndex?' active':''}`}
+                          onClick={()=>insertMention(item.username)}>
+                          <div className="mention-avatar" style={{background:avatarColor(item.username)}}>{getInitials(item.displayName)}</div>
                           <div><span>@{item.username}</span><small>{item.displayName}</small></div>
                         </button>
                       ))}
@@ -564,8 +613,13 @@ export function ChatLayout(props: ChatLayoutProps) {
           </section>
         </div>
 
-        {message && <p className="message-banner">{message}</p>}
-        {mentionNotice && <p className="message-banner mention-banner">{mentionNotice}</p>}
+        {/* Toast — replaces fixed bottom banner */}
+        {toast && (
+          <div className={`chat-toast${toast.type==='mention'?' mention':''}`}>
+            <span style={{flex:1}}>{toast.msg}</span>
+            <button className="chat-toast-close" onClick={() => setToast(null)}>×</button>
+          </div>
+        )}
 
         {/* Search modal */}
         <SearchModal
@@ -592,44 +646,42 @@ export function ChatLayout(props: ChatLayoutProps) {
           getInitials={getInitials}
         />
 
-        {/* Settings modal */}
+        {/* Settings */}
         {settingsOpen && (
           <div className="modal-backdrop" onClick={() => setSettingsOpen(false)}>
-            <section className="modal-panel settings-panel" role="dialog" onClick={e => e.stopPropagation()}>
+            <section className="modal-panel settings-panel" role="dialog" onClick={e=>e.stopPropagation()}>
               <div className="settings-head">
                 <h3>Einstellungen</h3>
                 <button className="secondary compact" onClick={() => setSettingsOpen(false)}>Schließen</button>
               </div>
               <div className="settings-tabs">
-                <button className={`settings-tab${settingsTab === 'profile' ? ' active' : ''}`} onClick={() => setSettingsTab('profile')}>Profil</button>
-                {currentUserIsPlatformOwner && <button className={`settings-tab${settingsTab === 'owner' ? ' active' : ''}`} onClick={() => setSettingsTab('owner')}>Owner</button>}
+                <button className={`settings-tab${settingsTab==='profile'?' active':''}`} onClick={() => setSettingsTab('profile')}>Profil</button>
+                {currentUserIsPlatformOwner && <button className={`settings-tab${settingsTab==='owner'?' active':''}`} onClick={() => setSettingsTab('owner')}>Owner</button>}
               </div>
-              {settingsTab === 'profile' && (
+              {settingsTab==='profile' && (
                 <div className="profile-grid">
-                  <label>Nickname<input value={profileNickname} onChange={e => setProfileNickname(e.target.value)} placeholder="Dein Nickname" /></label>
-                  <label>Username<input value={profileUsername} onChange={e => setProfileUsername(e.target.value.toLowerCase())} placeholder="discord_style" /></label>
+                  <label>Nickname<input value={profileNickname} onChange={e=>setProfileNickname(e.target.value)} placeholder="Dein Nickname" /></label>
+                  <label>Username<input value={profileUsername} onChange={e=>setProfileUsername(e.target.value.toLowerCase())} placeholder="discord_style" /></label>
                   <p className="inline-note">ID: <strong>{auth.user.userHandle}</strong></p>
                   <button className="primary compact" onClick={onSaveProfile}>Speichern</button>
                 </div>
               )}
-              {settingsTab === 'owner' && currentUserIsPlatformOwner && (
+              {settingsTab==='owner' && currentUserIsPlatformOwner && (
                 <div className="owner-studio">
-                  <div className="panel-header owner-studio-header">
-                    <h3>Badge Studio</h3>
-                  </div>
-                  <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--color-text-muted)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div className="panel-header owner-studio-header"><h3>Badge Studio</h3></div>
+                  <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--color-text-muted)',display:'flex',flexDirection:'column',gap:4}}>
                     Zielperson
-                    <select className="owner-studio-select" value={badgeTargetUserId} onChange={e => setBadgeTargetUserId(e.target.value)}>
-                      {knownUsers.map(u => <option key={u.id} value={u.id}>{u.displayName}{u.username ? ` (@${u.username})` : ''}</option>)}
+                    <select className="owner-studio-select" value={badgeTargetUserId} onChange={e=>setBadgeTargetUserId(e.target.value)}>
+                      {knownUsers.map(u=><option key={u.id} value={u.id}>{u.displayName}{u.username?` (@${u.username})`:''}</option>)}
                     </select>
                   </label>
                   {badgeTargetUser && (
                     <div className="owner-studio-badges">
                       {badgeDefinitions.map(b => {
-                        const active = (customBadgesByUserId[badgeTargetUser.id] ?? []).includes(b.id);
+                        const active = (customBadgesByUserId[badgeTargetUser.id]??[]).includes(b.id);
                         return (
-                          <label key={b.id} className={`badge-toggle${active ? ' active' : ''}`}>
-                            <input type="checkbox" checked={active} onChange={() => toggleBadgeForUser(badgeTargetUser.id, b.id)} />
+                          <label key={b.id} className={`badge-toggle${active?' active':''}`}>
+                            <input type="checkbox" checked={active} onChange={() => toggleBadgeForUser(badgeTargetUser.id,b.id)} />
                             {b.label}
                           </label>
                         );
@@ -639,15 +691,15 @@ export function ChatLayout(props: ChatLayoutProps) {
                   <div className="owner-studio-create">
                     <p className="inline-note">Eigenes Badge erstellen</p>
                     <div className="owner-studio-create-grid">
-                      <input value={newBadgeLabel} onChange={e => setNewBadgeLabel(e.target.value)} placeholder="Name" />
-                      <input value={newBadgeShortLabel} onChange={e => setNewBadgeShortLabel(e.target.value)} placeholder="Kurzlabel" maxLength={10} />
+                      <input value={newBadgeLabel} onChange={e=>setNewBadgeLabel(e.target.value)} placeholder="Name" />
+                      <input value={newBadgeShortLabel} onChange={e=>setNewBadgeShortLabel(e.target.value)} placeholder="Kurzlabel" maxLength={10} />
                       <button className="secondary compact" onClick={createCustomBadge}>Erstellen</button>
                     </div>
                   </div>
                   {canManagePlatformSettings && (
                     <div className="owner-studio-toggle-row">
-                      <button className={uploadsEnabled ? 'primary compact' : 'secondary compact'} disabled={platformToggleLoading} onClick={() => onToggleGlobalUploads(true)}>Uploads AN</button>
-                      <button className={!uploadsEnabled ? 'primary compact' : 'secondary compact'} disabled={platformToggleLoading} onClick={() => onToggleGlobalUploads(false)}>Uploads AUS</button>
+                      <button className={uploadsEnabled?'primary compact':'secondary compact'} disabled={platformToggleLoading} onClick={() => onToggleGlobalUploads(true)}>Uploads AN</button>
+                      <button className={!uploadsEnabled?'primary compact':'secondary compact'} disabled={platformToggleLoading} onClick={() => onToggleGlobalUploads(false)}>Uploads AUS</button>
                     </div>
                   )}
                 </div>
@@ -656,12 +708,12 @@ export function ChatLayout(props: ChatLayoutProps) {
           </div>
         )}
 
-        {/* Create channel modal */}
+        {/* Modals */}
         {createChannelModalOpen && (
           <div className="modal-backdrop" onClick={() => setCreateChannelModalOpen(false)}>
-            <section className="modal-panel" role="dialog" onClick={e => e.stopPropagation()}>
+            <section className="modal-panel" role="dialog" onClick={e=>e.stopPropagation()}>
               <h3>Neue Gruppe</h3>
-              <input value={newChannelName} onChange={e => setNewChannelName(e.target.value)} placeholder="Gruppenname" />
+              <input value={newChannelName} onChange={e=>setNewChannelName(e.target.value)} placeholder="Gruppenname" />
               <div className="modal-actions">
                 <button className="secondary compact" onClick={() => setCreateChannelModalOpen(false)}>Abbrechen</button>
                 <button className="primary compact" onClick={onCreateChannelFromModal}>Erstellen</button>
@@ -669,13 +721,11 @@ export function ChatLayout(props: ChatLayoutProps) {
             </section>
           </div>
         )}
-
-        {/* DM modal */}
         {directModalOpen && (
           <div className="modal-backdrop" onClick={() => setDirectModalOpen(false)}>
-            <section className="modal-panel" role="dialog" onClick={e => e.stopPropagation()}>
+            <section className="modal-panel" role="dialog" onClick={e=>e.stopPropagation()}>
               <h3>Direktnachricht</h3>
-              <input value={directUsername} onChange={e => setDirectUsername(e.target.value.toLowerCase())} placeholder="@username" />
+              <input value={directUsername} onChange={e=>setDirectUsername(e.target.value.toLowerCase())} placeholder="@username" />
               <div className="modal-actions">
                 <button className="secondary compact" onClick={() => setDirectModalOpen(false)}>Abbrechen</button>
                 <button className="primary compact" onClick={onStartDirectByUsername}>Starten</button>
@@ -683,13 +733,11 @@ export function ChatLayout(props: ChatLayoutProps) {
             </section>
           </div>
         )}
-
-        {/* Add member modal */}
         {addMemberModalOpen && (
           <div className="modal-backdrop" onClick={() => setAddMemberModalOpen(false)}>
-            <section className="modal-panel" role="dialog" onClick={e => e.stopPropagation()}>
+            <section className="modal-panel" role="dialog" onClick={e=>e.stopPropagation()}>
               <h3>Person hinzufügen</h3>
-              <input value={addMemberUsername} onChange={e => setAddMemberUsername(e.target.value.toLowerCase())} placeholder="@username" />
+              <input value={addMemberUsername} onChange={e=>setAddMemberUsername(e.target.value.toLowerCase())} placeholder="@username" />
               <div className="modal-actions">
                 <button className="secondary compact" onClick={() => setAddMemberModalOpen(false)}>Abbrechen</button>
                 <button className="primary compact" onClick={onAddMemberByUsername}>Hinzufügen</button>
