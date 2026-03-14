@@ -1,44 +1,47 @@
 @import './design-tokens.css';
 @import './chat.css';
 
-/* iOS momentum scrolling for all scrollable areas */
-* {
-  -webkit-overflow-scrolling: touch;
+/* Reset — prevent browser default white background from showing at edges */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-/* Prevent body/html scroll — app manages its own layout */
-html, body {
+html, body, #root {
   height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg-base);
   overflow: hidden;
   overscroll-behavior: none;
 }
 
-/* Save / primary action button — white background, dark text (not blue) */
-.primary {
-  background: #ffffff !important;
-  color: #0a0a0a !important;
-  border: none !important;
-}
-.primary:hover:not(:disabled) {
-  background: #e8e8e8 !important;
-}
-
-/* Ensure message list scrolls on all platforms */
-.message-list {
-  overflow-y: auto;
+/* iOS momentum scrolling for all scrollable containers */
+.message-list,
+.channel-items,
+.owner-studio,
+.settings-panel {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
 }
 
-/* Sidebar channel list scrolls on iOS */
-.channel-items {
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
+.message-list  { overflow-y: auto; }
+.channel-items { overflow-y: auto; }
 
-/* Settings modal scrolls on small screens */
+/* Settings modal scrollable on small screens */
 .settings-panel {
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
   max-height: 85dvh;
+}
+
+/* Primary / Save button — white on dark, matches design system */
+.primary {
+  background: #ffffff;
+  color: #0a0a0a;
+  border: none;
+}
+.primary:hover:not(:disabled) {
+  background: #e8e8e8;
 }
