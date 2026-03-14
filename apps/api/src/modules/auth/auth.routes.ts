@@ -1,8 +1,5 @@
 import { Router } from "express";
 import { authService } from "./auth.service.js";
-import { verifyGoogleIdToken } from "./auth.google.js";
-import { sendPasswordResetEmail } from "./auth.mail.js";
-import { buildAuthResponse } from "./auth.security.js";
 import {
   registerSchema, loginSchema, googleSchema, refreshSchema,
   forgotPasswordSchema, resetPasswordSchema, updateProfileSchema,
@@ -14,6 +11,7 @@ import { API_ERROR_CODES } from "@chatnet/shared";
 import jwt from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
 import multer from "multer";
+import { uploadAvatar } from "../../lib/cloudinary.js";
 
 export const authRouter = Router();
 authRouter.use(authLimiter);
@@ -35,7 +33,6 @@ function requireAuth(req: Request, res: Response, next: NextFunction): void {
   }
 }
 
-// Avatar upload — memory storage, 200KB limit
 const avatarUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: appConfig.avatarMaxBytes },
@@ -44,50 +41,6 @@ const avatarUpload = multer({
     else cb(null, true);
   },
 });
-
-// Helper: upload buffer to Cloudinary
-async function uploadAvatarToCloudinary(buffer: Buffer, mimetype: string, userId: string): Promise<string> {
-  const cloud  = appConfig.cloudinaryCloud;
-  const key    = appConfig.cloudinaryKey;
-  const secret = appConfig.cloudinarySecret;
-
-  if (!cloud || !key || !secret) {
-    // Fallback: base64 data-URI stored in DB (no external service needed)
-    return `data:${mimetype};base64,${buffer.toString("base64")}`;
-  }
-
-  const crypto = await import("node:crypto");
-  const timestamp = Math.floor(Date.now() / 1000).toString();
-  const publicId  = `avatars/${userId}`;
-  const sigStr    = `folder=avatars&overwrite=true&public_id=${publicId}&timestamp=${timestamp}${secret}`;
-  const signature = crypto.createHash("sha1").update(sigStr).digest("hex");
-
-  // Use Uint8Array to avoid Buffer/SharedArrayBuffer TS incompatibility
-  const uint8 = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
-  const blob  = new Blob([uint8], { type: mimetype });
-
-  const fd = new FormData();
-  fd.append("file", blob, `avatar-${userId}`);
-  fd.append("api_key",   key);
-  fd.append("timestamp", timestamp);
-  fd.append("public_id", publicId);
-  fd.append("folder",    "avatars");
-  fd.append("overwrite", "true");
-  fd.append("transformation", "w_200,h_200,c_fill,g_face,r_max,q_auto");
-  fd.append("signature",  signature);
-
-  const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${cloud}/image/upload`,
-    { method: "POST", body: fd }
-  );
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    console.error(`[cloudinary-avatar] ${res.status}: ${body}`);
-    throw new Error("CLOUDINARY_UPLOAD_FAILED");
-  }
-  const data = (await res.json()) as { secure_url: string };
-  return data.secure_url;
-}
 
 // Register
 authRouter.post("/register", async (req, res) => {
@@ -138,7 +91,7 @@ authRouter.post("/refresh", async (req, res) => {
 authRouter.post("/forgot-password", passwordResetLimiter, async (req, res) => {
   const parsed = forgotPasswordSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ code: "VALIDATION_ERROR" }); return; }
-  try { await authService.requestPasswordReset(parsed.data); } catch { /* swallow — always ok */ }
+  try { await authService.requestPasswordReset(parsed.data); } catch { /* always ok */ }
   res.json({ ok: true });
 });
 
@@ -178,9 +131,8 @@ authRouter.post("/avatar", requireAuth, avatarUpload.single("avatar"), async (re
   const userId = (req as AuthRequest).userId!;
   const file   = req.file;
   if (!file) { res.status(400).json({ code: "FILE_REQUIRED" }); return; }
-
   try {
-    const avatarUrl = await uploadAvatarToCloudinary(file.buffer, file.mimetype, userId);
+    const avatarUrl = await uploadAvatar(file.buffer, file.mimetype, userId);
     const user = await authStore.getById(userId);
     if (!user) throw new Error(API_ERROR_CODES.INVALID_TOKEN);
     user.avatarUrl = avatarUrl;
@@ -198,12 +150,7 @@ authRouter.get("/users/search", requireAuth, async (req, res) => {
   if (!q || q.length < 2) { res.json([]); return; }
   try {
     const results = await authStore.searchUsers(q);
-    res.json(results.map(u => ({
-      id: u.id,
-      displayName: u.displayName,
-      username: u.username,
-      avatarUrl: u.avatarUrl ?? null,
-    })));
+    res.json(results.map(u => ({ id: u.id, displayName: u.displayName, username: u.username, avatarUrl: u.avatarUrl ?? null })));
   } catch {
     res.json([]);
   }
