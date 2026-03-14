@@ -1,48 +1,44 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
 @import './design-tokens.css';
-@import './components.css';
 @import './chat.css';
 
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* iOS momentum scrolling for all scrollable areas */
+* {
+  -webkit-overflow-scrolling: touch;
 }
 
-html, body, #root {
+/* Prevent body/html scroll — app manages its own layout */
+html, body {
   height: 100%;
-  width: 100%;
-}
-
-body {
-  background: var(--color-bg-base);
-  color: var(--color-text-primary);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar       { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
-
-/* Selection */
-::selection { background: rgba(88,101,242,0.3); color: #fff; }
-
-/* Focus */
-:focus-visible { outline: 2px solid #5865f2; outline-offset: 2px; }
-
-/* Input focus */
-input:focus, textarea:focus {
-  border-color: var(--color-accent) !important;
-  box-shadow: 0 0 0 3px rgba(88,101,242,0.15);
+/* Save / primary action button — white background, dark text (not blue) */
+.primary {
+  background: #ffffff !important;
+  color: #0a0a0a !important;
+  border: none !important;
+}
+.primary:hover:not(:disabled) {
+  background: #e8e8e8 !important;
 }
 
-/* Buttons */
-button { transition: opacity 120ms ease, background 120ms ease, transform 80ms ease; }
-button:active:not(:disabled) { transform: scale(0.97); }
-button:disabled { cursor: not-allowed; }
+/* Ensure message list scrolls on all platforms */
+.message-list {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* Sidebar channel list scrolls on iOS */
+.channel-items {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Settings modal scrolls on small screens */
+.settings-panel {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: 85dvh;
+}
