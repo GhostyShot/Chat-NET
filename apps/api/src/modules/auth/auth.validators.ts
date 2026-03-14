@@ -2,17 +2,17 @@ import { z } from "zod";
 
 const usernameSchema = z
   .string().trim().toLowerCase()
-  .regex(/^[a-z0-9_]{3,24}$/u, "USERNAME_INVALID_FORMAT");
+  .regex(/^[a-z0-9_]{3,24}$/, "USERNAME_INVALID_FORMAT");
 
 export const registerSchema = z.object({
-  email: z.email().max(320),
+  email: z.string().email().max(320),
   password: z.string().min(8).max(128),
   displayName: z.string().min(2).max(40),
   username: usernameSchema.optional(),
 });
 
 export const loginSchema = z.object({
-  email: z.email().max(320),
+  email: z.string().email().max(320),
   password: z.string().min(8).max(128),
 });
 
@@ -26,7 +26,7 @@ export const refreshSchema = z.object({
 });
 
 export const forgotPasswordSchema = z.object({
-  email: z.email().max(320),
+  email: z.string().email().max(320),
 });
 
 export const resetPasswordSchema = z.object({
@@ -43,8 +43,11 @@ export const updateProfileSchema = z
     statusExpiresAt: z.string().datetime().nullable().optional(),
   })
   .refine(
-    v => v.displayName !== undefined || v.username !== undefined
-      || v.statusEmoji !== undefined || v.statusText !== undefined
-      || v.statusExpiresAt !== undefined,
+    (v) =>
+      v.displayName !== undefined ||
+      v.username !== undefined ||
+      v.statusEmoji !== undefined ||
+      v.statusText !== undefined ||
+      v.statusExpiresAt !== undefined,
     { message: "PROFILE_UPDATE_EMPTY" }
   );

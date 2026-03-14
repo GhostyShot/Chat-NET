@@ -1,109 +1,90 @@
 /**
- * cloudinary.ts — Upload helper using base64 data URI.
- * Avoids all Buffer/Blob/ArrayBuffer TypeScript compatibility issues.
- * Works with both signed and unsigned presets.
+ * cloudinary.ts — Upload via base64 URLSearchParams.
+ * No Blob/ArrayBuffer — zero TS type issues.
  */
 import { appConfig } from "../config.js";
 import crypto from "node:crypto";
 
-export type CloudinaryResourceType = "image" | "video" | "raw";
+type ResourceType = "image" | "video" | "raw";
 
-function getResourceType(mimetype: string): CloudinaryResourceType {
-  if (mimetype.startsWith("image/")) return "image";
-  if (mimetype.startsWith("video/") || mimetype.startsWith("audio/")) return "video";
+function resourceType(mime: string): ResourceType {
+  if (mime.startsWith("image/")) return "image";
+  if (mime.startsWith("video/") || mime.startsWith("audio/")) return "video";
   return "raw";
 }
 
 /**
- * Upload a Buffer to Cloudinary using base64 encoding.
- * No Blob, no ArrayBuffer — avoids all TS type issues.
+ * Core upload: Buffer → base64 data URI → Cloudinary signed upload.
+ * signedParams: params that go INTO the signature (must be sorted).
+ * extraBodyParams: params sent in body but NOT signed (e.g. transformation).
  */
-export async function uploadBufferToCloudinary(
+async function cloudinaryUpload(
   buffer: Buffer,
-  mimetype: string,
-  publicId: string,
-  folder: string,
-  extraParams: Record<string, string> = {}
+  mime: string,
+  signedParams: Record<string, string>,
+  extraBodyParams: Record<string, string> = {}
 ): Promise<string> {
   const cloud  = appConfig.cloudinaryCloud;
   const key    = appConfig.cloudinaryKey;
   const secret = appConfig.cloudinarySecret;
+  if (!cloud || !key || !secret) throw new Error("CLOUDINARY_NOT_CONFIGURED");
 
-  if (!cloud || !key || !secret) {
-    throw new Error("CLOUDINARY_NOT_CONFIGURED");
-  }
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const allSigned = { ...signedParams, timestamp };
 
-  const resourceType = getResourceType(mimetype);
-  const timestamp    = Math.floor(Date.now() / 1000).toString();
-
-  // Build signature params (sorted alphabetically)
-  const sigParams: Record<string, string> = {
-    folder,
-    public_id: publicId,
-    timestamp,
-    ...extraParams,
-  };
-  const sigStr = Object.keys(sigParams)
+  // Signature: alphabetically sorted key=value pairs + secret
+  const sigStr = Object.keys(allSigned)
     .sort()
-    .map((k) => `${k}=${sigParams[k]}`)
+    .map((k) => `${k}=${allSigned[k]}`)
     .join("&") + secret;
   const signature = crypto.createHash("sha1").update(sigStr).digest("hex");
 
-  // Use base64 data URI — no Blob needed
-  const base64Data = buffer.toString("base64");
-  const dataUri    = `data:${mimetype};base64,${base64Data}`;
+  const dataUri = `data:${mime};base64,${buffer.toString("base64")}`;
 
   const body = new URLSearchParams({
-    file:       dataUri,
-    api_key:    key,
+    file:      dataUri,
+    api_key:   key,
     timestamp,
-    public_id:  publicId,
-    folder,
     signature,
-    ...extraParams,
+    ...allSigned,
+    ...extraBodyParams,   // NOT in signature (e.g. transformation)
   });
 
+  const rType = resourceType(mime);
   const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${cloud}/${resourceType}/upload`,
-    {
-      method:  "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body:    body.toString(),
-    }
+    `https://api.cloudinary.com/v1_1/${cloud}/${rType}/upload`,
+    { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: body.toString() }
   );
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    console.error(`[cloudinary] ${res.status}: ${text}`);
+    console.error(`[cloudinary] ${res.status} ${text.slice(0, 300)}`);
     throw new Error("CLOUDINARY_UPLOAD_FAILED");
   }
 
-  const data = (await res.json()) as { secure_url: string };
-  return data.secure_url;
+  return ((await res.json()) as { secure_url: string }).secure_url;
 }
 
 /**
- * Upload an avatar buffer to Cloudinary with auto-crop transformation.
+ * Upload avatar. Transformation is NOT signed (correct Cloudinary behaviour).
  * Falls back to base64 data-URI in DB if Cloudinary is not configured.
  */
-export async function uploadAvatar(buffer: Buffer, mimetype: string, userId: string): Promise<string> {
+export async function uploadAvatar(buffer: Buffer, mime: string, userId: string): Promise<string> {
   if (!appConfig.cloudinaryCloud || !appConfig.cloudinaryKey || !appConfig.cloudinarySecret) {
-    // Fallback: store as data-URI in DB (max 200KB, fine for small user bases)
-    return `data:${mimetype};base64,${buffer.toString("base64")}`;
+    return `data:${mime};base64,${buffer.toString("base64")}`;
   }
-
-  const publicId = `avatar_${userId}`;
-  return uploadBufferToCloudinary(buffer, mimetype, publicId, "avatars", {
-    overwrite: "true",
-    transformation: "w_200,h_200,c_fill,g_face,r_max,q_auto",
-  });
+  return cloudinaryUpload(
+    buffer, mime,
+    { folder: "avatars", public_id: `avatar_${userId}`, overwrite: "true" },
+    { transformation: "c_fill,g_face,h_200,q_auto,r_max,w_200" }   // NOT signed
+  );
 }
 
 /**
- * Upload a chat file buffer to Cloudinary.
+ * Upload a chat file (image, video, audio, document).
  */
-export async function uploadChatFile(buffer: Buffer, mimetype: string, originalname: string): Promise<string> {
-  const safeName = originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const publicId = `${Date.now()}_${safeName}`;
-  return uploadBufferToCloudinary(buffer, mimetype, publicId, "chat_net_uploads");
+export async function uploadChatFile(buffer: Buffer, mime: string, originalname: string): Promise<string> {
+  const safe     = originalname.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
+  const publicId = `${Date.now()}_${safe}`;
+  return cloudinaryUpload(buffer, mime, { folder: "chat_net_uploads", public_id: publicId });
 }
