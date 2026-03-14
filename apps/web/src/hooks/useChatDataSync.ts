@@ -1,12 +1,7 @@
 import { useEffect } from "react";
 import {
-  getPlatformSettings,
-  getPresence,
-  getProfile,
-  listChannelMembers,
-  listChannels,
-  listMessages,
-  markRead,
+  getPlatformSettings, getPresence, getProfile,
+  listChannelMembers, listChannels, listMessages, markRead,
 } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
 import { useChatStore } from "../store/chatStore";
@@ -14,137 +9,113 @@ import { useChatStore } from "../store/chatStore";
 export function useChatDataSync() {
   const auth = useAuthStore((s) => s.auth);
   const setAuth = useAuthStore((s) => s.setAuth);
-
   const {
-    activeChannelId,
-    messages,
-    setMessage,
-    setChannels,
-    setMessages,
-    setChannelMembers,
-    setPresenceMap,
-    setUnreadByChannelId,
-    setUploadsEnabledForAll,
-    setCanManagePlatformSettings,
-    setRealtimeState,
+    activeChannelId, messages,
+    setMessage, setChannels, setMessages, setChannelMembers,
+    setPresenceMap, setUnreadByChannelId, setUploadsEnabledForAll,
+    setCanManagePlatformSettings, setRealtimeState,
   } = useChatStore();
-
   const channels = useChatStore((s) => s.channels);
   const activeChannel = channels.find((c) => c.id === activeChannelId) ?? null;
 
+  // Platform settings
+  useEffect(() => {
+    const load = async () => {
+      if (!auth) { setUploadsEnabledForAll(true); setCanManagePlatformSettings(false); return; }
+      try {
+        const s = await getPlatformSettings(auth.tokens.accessToken);
+        setUploadsEnabledForAll(s.uploadsEnabled);
+        setCanManagePlatformSettings(s.canManage);
+      } catch { setUploadsEnabledForAll(true); setCanManagePlatformSettings(false); }
+    };
+    void load();
+  // accessToken is a stable string dep — avoids re-firing on object identity changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth?.tokens.accessToken]);
+
+  // Channels
   useEffect(() => {
     const load = async () => {
       if (!auth) {
-        setUploadsEnabledForAll(true);
-        setCanManagePlatformSettings(false);
-        return;
+        setChannels([]); setMessages([]); setChannelMembers([]);
+        setPresenceMap({}); setUnreadByChannelId({}); setRealtimeState("offline"); return;
       }
-      try {
-        const settings = await getPlatformSettings(auth.tokens.accessToken);
-        setUploadsEnabledForAll(settings.uploadsEnabled);
-        setCanManagePlatformSettings(settings.canManage);
-      } catch {
-        setUploadsEnabledForAll(true);
-        setCanManagePlatformSettings(false);
-      }
-    };
-    void load();
-  }, [auth, setCanManagePlatformSettings, setUploadsEnabledForAll]);
-
-  useEffect(() => {
-    const load = async () => {
-      if (!auth) {
-        setChannels([]);
-        setMessages([]);
-        setChannelMembers([]);
-        setPresenceMap({});
-        setUnreadByChannelId({});
-        setRealtimeState("offline");
-        return;
-      }
-      try {
-        const list = await listChannels(auth.tokens.accessToken);
-        setChannels(list);
-      } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Channels konnten nicht geladen werden");
-      }
-    };
-    void load();
-  }, [auth, setChannelMembers, setChannels, setMessage, setMessages, setPresenceMap, setRealtimeState, setUnreadByChannelId]);
-
-  useEffect(() => {
-    const load = async () => {
-      if (!auth) return;
-      try {
-        const profile = await getProfile(auth.tokens.accessToken);
-        setAuth({
-          ...auth,
-          user: { ...auth.user, ...profile, avatarUrl: profile.avatarUrl ?? undefined },
-        });
-      } catch { /* keep existing */ }
+      try { setChannels(await listChannels(auth.tokens.accessToken)); }
+      catch (e) { setMessage(e instanceof Error ? e.message : "Channels konnten nicht geladen werden"); }
     };
     void load();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth?.tokens.accessToken]);
 
+  // Profile
   useEffect(() => {
     const load = async () => {
-      if (!auth || !activeChannelId) {
-        setMessages([]);
-        return;
-      }
+      if (!auth) return;
       try {
-        const result = await listMessages(auth.tokens.accessToken, activeChannelId);
-        setMessages(result.items.slice().reverse());
-      } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Nachrichten konnten nicht geladen werden");
-      }
+        const profile = await getProfile(auth.tokens.accessToken);
+        setAuth({ ...auth, user: { ...auth.user, ...profile, avatarUrl: profile.avatarUrl ?? undefined } });
+      } catch { /* keep */ }
     };
     void load();
-  }, [auth, activeChannelId, setMessage, setMessages]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth?.tokens.accessToken]);
 
+  // Messages
+  useEffect(() => {
+    const load = async () => {
+      if (!auth || !activeChannelId) { setMessages([]); return; }
+      try {
+        const r = await listMessages(auth.tokens.accessToken, activeChannelId);
+        setMessages(r.items.slice().reverse());
+      } catch (e) { setMessage(e instanceof Error ? e.message : "Nachrichten konnten nicht geladen werden"); }
+    };
+    void load();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth?.tokens.accessToken, activeChannelId]);
+
+  // Clear unread
   useEffect(() => {
     if (!activeChannelId) return;
     setUnreadByChannelId((prev) => {
       if (!prev[activeChannelId]) return prev;
-      const { [activeChannelId]: _removed, ...rest } = prev;
-      return rest;
+      const { [activeChannelId]: _, ...rest } = prev; return rest;
     });
-  }, [activeChannelId, setUnreadByChannelId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChannelId]);
 
+  // Channel members
   useEffect(() => {
     const load = async () => {
-      if (!auth || !activeChannelId || activeChannel?.type !== "GROUP") {
-        setChannelMembers([]);
-        return;
-      }
+      if (!auth || !activeChannelId || activeChannel?.type !== "GROUP") { setChannelMembers([]); return; }
+      try { setChannelMembers(await listChannelMembers(auth.tokens.accessToken, activeChannelId)); }
+      catch { setChannelMembers([]); }
+    };
+    void load();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth?.tokens.accessToken, activeChannelId, activeChannel?.type]);
+
+  // Presence
+  useEffect(() => {
+    const load = async () => {
+      if (!auth || !messages.length) return;
+      const ids = [...new Set(messages.map((m) => m.sender.id))];
       try {
-        const members = await listChannelMembers(auth.tokens.accessToken, activeChannelId);
-        setChannelMembers(members);
-      } catch {
-        setChannelMembers([]);
-      }
+        const p = await getPresence(auth.tokens.accessToken, ids);
+        setPresenceMap(Object.fromEntries(p.map((x) => [x.userId, x.online])));
+      } catch { /* ignore */ }
     };
     void load();
-  }, [auth, activeChannelId, activeChannel?.type, setChannelMembers]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth?.tokens.accessToken, messages.length]);
 
-  useEffect(() => {
-    const load = async () => {
-      if (!auth || messages.length === 0) return;
-      const ids = Array.from(new Set(messages.map((m) => m.sender.id)));
-      const presence = await getPresence(auth.tokens.accessToken, ids);
-      const next = Object.fromEntries(presence.map((p) => [p.userId, p.online]));
-      setPresenceMap(next);
-    };
-    void load();
-  }, [auth, messages, setPresenceMap]);
-
+  // Mark read
   useEffect(() => {
     const mark = async () => {
-      if (!auth || !activeChannelId || messages.length === 0) return;
-      const latest = messages[messages.length - 1];
-      await markRead(auth.tokens.accessToken, activeChannelId, latest.id);
+      if (!auth || !activeChannelId || !messages.length) return;
+      try { await markRead(auth.tokens.accessToken, activeChannelId, messages[messages.length - 1].id); }
+      catch { /* ignore */ }
     };
     void mark();
-  }, [auth, activeChannelId, messages]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth?.tokens.accessToken, activeChannelId, messages.length]);
 }
