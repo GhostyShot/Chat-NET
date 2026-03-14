@@ -6,7 +6,7 @@ type CreateUserInput = {
   email: string;
   displayName: string;
   username?: string;
-  provider: "google" | "password";
+  provider: "GOOGLE" | "PASSWORD";
   verifiedEmail: boolean;
   passwordHash?: string;
 };
@@ -38,7 +38,7 @@ function toStoredUser(u: {
     userCode: u.userCode,
     displayName: u.displayName,
     avatarUrl: u.avatarUrl ?? undefined,
-    provider: u.provider as "google" | "password",
+    provider: u.provider.toLowerCase() as "google" | "password",
     verifiedEmail: u.verifiedEmail,
     passwordHash: u.passwordHash ?? undefined,
     statusEmoji: u.statusEmoji ?? undefined,

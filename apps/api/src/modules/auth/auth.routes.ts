@@ -40,15 +40,56 @@ const avatarUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: appConfig.avatarMaxBytes },
   fileFilter: (_req, file, cb) => {
-    if (!file.mimetype.startsWith("image/")) {
-      cb(new Error("Only images allowed"));
-    } else {
-      cb(null, true);
-    }
+    if (!file.mimetype.startsWith("image/")) cb(new Error("Only images allowed"));
+    else cb(null, true);
   },
 });
 
-// ── Register
+// Helper: upload buffer to Cloudinary
+async function uploadAvatarToCloudinary(buffer: Buffer, mimetype: string, userId: string): Promise<string> {
+  const cloud  = appConfig.cloudinaryCloud;
+  const key    = appConfig.cloudinaryKey;
+  const secret = appConfig.cloudinarySecret;
+
+  if (!cloud || !key || !secret) {
+    // Fallback: base64 data-URI stored in DB (no external service needed)
+    return `data:${mimetype};base64,${buffer.toString("base64")}`;
+  }
+
+  const crypto = await import("node:crypto");
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const publicId  = `avatars/${userId}`;
+  const sigStr    = `folder=avatars&overwrite=true&public_id=${publicId}&timestamp=${timestamp}${secret}`;
+  const signature = crypto.createHash("sha1").update(sigStr).digest("hex");
+
+  // Use Uint8Array to avoid Buffer/SharedArrayBuffer TS incompatibility
+  const uint8 = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  const blob  = new Blob([uint8], { type: mimetype });
+
+  const fd = new FormData();
+  fd.append("file", blob, `avatar-${userId}`);
+  fd.append("api_key",   key);
+  fd.append("timestamp", timestamp);
+  fd.append("public_id", publicId);
+  fd.append("folder",    "avatars");
+  fd.append("overwrite", "true");
+  fd.append("transformation", "w_200,h_200,c_fill,g_face,r_max,q_auto");
+  fd.append("signature",  signature);
+
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${cloud}/image/upload`,
+    { method: "POST", body: fd }
+  );
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error(`[cloudinary-avatar] ${res.status}: ${body}`);
+    throw new Error("CLOUDINARY_UPLOAD_FAILED");
+  }
+  const data = (await res.json()) as { secure_url: string };
+  return data.secure_url;
+}
+
+// Register
 authRouter.post("/register", async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ code: "VALIDATION_ERROR", errors: parsed.error.format() }); return; }
@@ -60,7 +101,7 @@ authRouter.post("/register", async (req, res) => {
   }
 });
 
-// ── Login
+// Login
 authRouter.post("/login", async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ code: "VALIDATION_ERROR", errors: parsed.error.format() }); return; }
@@ -71,7 +112,7 @@ authRouter.post("/login", async (req, res) => {
   }
 });
 
-// ── Google
+// Google
 authRouter.post("/google", async (req, res) => {
   const parsed = googleSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ code: "VALIDATION_ERROR" }); return; }
@@ -82,7 +123,7 @@ authRouter.post("/google", async (req, res) => {
   }
 });
 
-// ── Refresh
+// Refresh
 authRouter.post("/refresh", async (req, res) => {
   const parsed = refreshSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ code: "REFRESH_TOKEN_MISSING" }); return; }
@@ -93,19 +134,15 @@ authRouter.post("/refresh", async (req, res) => {
   }
 });
 
-// ── Forgot password
+// Forgot password
 authRouter.post("/forgot-password", passwordResetLimiter, async (req, res) => {
   const parsed = forgotPasswordSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ code: "VALIDATION_ERROR" }); return; }
-  try {
-    await authService.requestPasswordReset(parsed.data);
-  } catch {
-    // swallow — always return ok to prevent email enumeration
-  }
+  try { await authService.requestPasswordReset(parsed.data); } catch { /* swallow — always ok */ }
   res.json({ ok: true });
 });
 
-// ── Reset password
+// Reset password
 authRouter.post("/reset-password", passwordResetLimiter, async (req, res) => {
   const parsed = resetPasswordSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ code: "VALIDATION_ERROR" }); return; }
@@ -116,7 +153,7 @@ authRouter.post("/reset-password", passwordResetLimiter, async (req, res) => {
   }
 });
 
-// ── Get profile
+// Get profile
 authRouter.get("/me", requireAuth, async (req, res) => {
   try {
     res.json(await authService.getProfile((req as AuthRequest).userId!));
@@ -125,7 +162,7 @@ authRouter.get("/me", requireAuth, async (req, res) => {
   }
 });
 
-// ── Update profile (displayName, username, status)
+// Update profile
 authRouter.patch("/profile", requireAuth, async (req, res) => {
   const parsed = updateProfileSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ code: "VALIDATION_ERROR" }); return; }
@@ -136,44 +173,18 @@ authRouter.patch("/profile", requireAuth, async (req, res) => {
   }
 });
 
-// ── Upload avatar
-// Strategy: Cloudinary if configured, otherwise store as base64 data-URI in DB.
-// Max 200KB → fits comfortably in Neon without eating storage budget.
+// Upload avatar
 authRouter.post("/avatar", requireAuth, avatarUpload.single("avatar"), async (req, res) => {
   const userId = (req as AuthRequest).userId!;
-  const file = req.file;
+  const file   = req.file;
   if (!file) { res.status(400).json({ code: "FILE_REQUIRED" }); return; }
 
   try {
-    let avatarUrl: string;
-
-    if (appConfig.cloudinaryCloud && appConfig.cloudinaryKey && appConfig.cloudinarySecret) {
-      // Upload to Cloudinary
-      const formData = new FormData();
-      formData.append("file", new Blob([file.buffer], { type: file.mimetype }));
-      formData.append("upload_preset", "chat_net_avatars");
-      formData.append("public_id", `avatars/${userId}`);
-      formData.append("overwrite", "true");
-      formData.append("transformation", "w_200,h_200,c_fill,g_face,r_max,q_auto");
-
-      const cloudRes = await fetch(
-        `https://api.cloudinary.com/v1_1/${appConfig.cloudinaryCloud}/image/upload`,
-        { method: "POST", body: formData }
-      );
-      if (!cloudRes.ok) throw new Error("CLOUDINARY_UPLOAD_FAILED");
-      const cloudData = (await cloudRes.json()) as { secure_url: string };
-      avatarUrl = cloudData.secure_url;
-    } else {
-      // Fallback: base64 data-URI stored in DB
-      // Small images only — 200KB limit enforced by multer
-      avatarUrl = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
-    }
-
+    const avatarUrl = await uploadAvatarToCloudinary(file.buffer, file.mimetype, userId);
     const user = await authStore.getById(userId);
     if (!user) throw new Error(API_ERROR_CODES.INVALID_TOKEN);
     user.avatarUrl = avatarUrl;
     await authStore.updateUser(user);
-
     res.json({ avatarUrl });
   } catch (error) {
     console.error("[avatar]", error);
@@ -181,7 +192,7 @@ authRouter.post("/avatar", requireAuth, avatarUpload.single("avatar"), async (re
   }
 });
 
-// ── Search users (for DM modal)
+// Search users
 authRouter.get("/users/search", requireAuth, async (req, res) => {
   const q = (req.query.q as string ?? "").trim().toLowerCase();
   if (!q || q.length < 2) { res.json([]); return; }

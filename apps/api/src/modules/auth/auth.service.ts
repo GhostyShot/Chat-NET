@@ -21,7 +21,7 @@ export class AuthService {
       email: input.email,
       displayName: input.displayName,
       username: input.username,
-      provider: "password",
+      provider: "PASSWORD",
       verifiedEmail: false,
       passwordHash,
     });
@@ -44,7 +44,7 @@ export class AuthService {
         email: googleProfile.email,
         displayName: input.displayName ?? googleProfile.displayName,
         username: undefined,
-        provider: "google",
+        provider: "GOOGLE",
         verifiedEmail: googleProfile.verifiedEmail,
       });
     } else {
@@ -98,10 +98,15 @@ export class AuthService {
     const user = await authStore.getById(userId);
     if (!user) throw new Error(API_ERROR_CODES.INVALID_TOKEN);
     return {
-      id: user.id, email: user.email, username: user.username,
-      userCode: user.userCode, userHandle: `${user.username}#${user.userCode}`,
-      displayName: user.displayName, avatarUrl: user.avatarUrl,
-      provider: user.provider, verifiedEmail: user.verifiedEmail,
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      userCode: user.userCode,
+      userHandle: `${user.username}#${user.userCode}`,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+      provider: user.provider,
+      verifiedEmail: user.verifiedEmail,
       statusEmoji: user.statusEmoji ?? null,
       statusText: user.statusText ?? null,
       statusExpiresAt: user.statusExpiresAt?.toISOString() ?? null,

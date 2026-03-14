@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -36,26 +36,29 @@ enum PostingPolicy {
 }
 
 model User {
-  id            String       @id @default(uuid())
-  email         String       @unique
-  username      String       @unique
-  userCode      String       @unique
-  displayName   String
-  avatarUrl     String?
-  verifiedEmail Boolean      @default(false)
-  provider      AuthProvider
-  passwordHash  String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  emailTokens   EmailToken[]
+  id               String              @id @default(uuid())
+  email            String              @unique
+  username         String              @unique
+  userCode         String              @unique
+  displayName      String
+  avatarUrl        String?
+  verifiedEmail    Boolean             @default(false)
+  provider         AuthProvider
+  passwordHash     String?
+  statusEmoji      String?
+  statusText       String?
+  statusExpiresAt  DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  emailTokens      EmailToken[]
   channelMemberships ChannelMembership[]
-  messagesSent  Message[]
-  readReceipts  ReadReceipt[]
-  pollsCreated  Poll[]
-  pollVotes     PollVote[]
-  channelsCreated Channel[] @relation("ChannelCreator")
-  blocksInitiated UserBlock[] @relation("BlockerUser")
-  blocksReceived UserBlock[]  @relation("BlockedUser")
+  messagesSent     Message[]
+  readReceipts     ReadReceipt[]
+  pollsCreated     Poll[]
+  pollVotes        PollVote[]
+  channelsCreated  Channel[]           @relation("ChannelCreator")
+  blocksInitiated  UserBlock[]         @relation("BlockerUser")
+  blocksReceived   UserBlock[]         @relation("BlockedUser")
 }
 
 model UserBlock {
@@ -74,6 +77,7 @@ model EmailToken {
   token     String         @unique
   type      EmailTokenType
   expiresAt DateTime
+  usedAt    DateTime?
   createdAt DateTime       @default(now())
   userId    String
   user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -82,47 +86,49 @@ model EmailToken {
 }
 
 model Channel {
-  id            String              @id @default(uuid())
-  type          ChannelType
-  name          String?
-  isSystem      Boolean             @default(false)
-  systemKey     String?             @unique
-  postingPolicy PostingPolicy       @default(ALL_MEMBERS)
-  createdById   String
-  createdBy     User                @relation("ChannelCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  memberships   ChannelMembership[]
-  messages      Message[]
-  polls         Poll[]
+  id              String              @id @default(uuid())
+  type            ChannelType
+  name            String?
+  description     String?
+  isSystem        Boolean             @default(false)
+  systemKey       String?             @unique
+  postingPolicy   PostingPolicy       @default(ALL_MEMBERS)
+  pinnedMessageId String?
+  createdById     String
+  createdBy       User                @relation("ChannelCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  memberships     ChannelMembership[]
+  messages        Message[]
+  polls           Poll[]
 
   @@index([updatedAt])
 }
 
 model ChannelMembership {
-  userId      String
-  channelId   String
-  role        MembershipRole @default(MEMBER)
-  createdAt   DateTime       @default(now())
-  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  channel     Channel        @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userId    String
+  channelId String
+  role      MembershipRole @default(MEMBER)
+  createdAt DateTime       @default(now())
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel   Channel        @relation(fields: [channelId], references: [id], onDelete: Cascade)
 
   @@id([userId, channelId])
   @@index([channelId])
 }
 
 model Message {
-  id          String        @id @default(uuid())
-  channelId   String
-  senderId    String
-  replyToId   String?
-  content     String
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  channel     Channel       @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  sender      User          @relation(fields: [senderId], references: [id], onDelete: Restrict)
-  replyTo     Message?      @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
-  replies     Message[]     @relation("MessageReplies")
+  id           String        @id @default(uuid())
+  channelId    String
+  senderId     String
+  replyToId    String?
+  content      String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  channel      Channel       @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  sender       User          @relation(fields: [senderId], references: [id], onDelete: Restrict)
+  replyTo      Message?      @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies      Message[]     @relation("MessageReplies")
   readReceipts ReadReceipt[]
 
   @@index([channelId, createdAt])
@@ -130,51 +136,51 @@ model Message {
 }
 
 model Poll {
-  id          String       @id @default(uuid())
-  channelId   String
-  creatorId   String
-  question    String
-  isClosed    Boolean      @default(false)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  channel     Channel      @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  creator     User         @relation(fields: [creatorId], references: [id], onDelete: Restrict)
-  options     PollOption[]
-  votes       PollVote[]
+  id        String       @id @default(uuid())
+  channelId String
+  creatorId String
+  question  String
+  isClosed  Boolean      @default(false)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  channel   Channel      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  creator   User         @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+  options   PollOption[]
+  votes     PollVote[]
 
   @@index([channelId, createdAt])
 }
 
 model PollOption {
-  id          String      @id @default(uuid())
-  pollId      String
-  label       String
-  createdAt   DateTime    @default(now())
-  poll        Poll        @relation(fields: [pollId], references: [id], onDelete: Cascade)
-  votes       PollVote[]
+  id        String     @id @default(uuid())
+  pollId    String
+  label     String
+  createdAt DateTime   @default(now())
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes     PollVote[]
 
   @@index([pollId])
 }
 
 model PollVote {
-  pollId      String
-  optionId    String
-  userId      String
-  createdAt   DateTime   @default(now())
-  poll        Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
-  option      PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pollId    String
+  optionId  String
+  userId    String
+  createdAt DateTime   @default(now())
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([pollId, userId])
   @@index([optionId])
 }
 
 model ReadReceipt {
-  userId      String
-  messageId   String
-  readAt      DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  message     Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  messageId String
+  readAt    DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@id([userId, messageId])
   @@index([messageId])
