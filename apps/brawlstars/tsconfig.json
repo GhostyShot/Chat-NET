@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["react", "react-native", "node"],
+    "allowSyntheticDefaultImports": true,
+    "noEmit": false,
+    "strict": true
+  },
+  "include": ["src", "index.js"]
+}
