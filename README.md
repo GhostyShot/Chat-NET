@@ -26,6 +26,7 @@ Chat-Net ist eine Chatplattform für Web und Mobile mit Fokus auf junge Zielgrup
 - `apps/api` – Node.js + Express + Socket.IO API
 - `apps/web` – React Web Client
 - `apps/mobile` – React Native (Expo) Client
+- `apps/brawlstars` – **BrawlScope** – Brawl Stars Companion App (React Native / Expo)
 - `packages/shared` – gemeinsame TypeScript-Typen
 
 ## Quickstart
@@ -37,6 +38,7 @@ Chat-Net ist eine Chatplattform für Web und Mobile mit Fokus auf junge Zielgrup
 5. API starten: `npm run dev:api`
 6. Web starten: `npm run dev:web`
 7. Mobile starten: `npm run dev:mobile`
+8. BrawlScope starten: `npm run dev:brawlstars`
 
 ## Hinweise
 
@@ -48,6 +50,7 @@ Chat-Net ist eine Chatplattform für Web und Mobile mit Fokus auf junge Zielgrup
 - Passwort-Reset läuft über E-Mail-Link: `/auth/forgot-password` verschickt einen persönlichen Link auf die Web-App (`WEB_APP_URL/?mode=reset&token=...`), danach wird nur das neue Passwort gesetzt.
 - Für echten Mailversand SMTP-Variablen setzen (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`).
 - Für mobile Tests/Deploys `apps/mobile/.env` mit `EXPO_PUBLIC_API_URL` setzen (z. B. lokale Rechner-IP statt `localhost` für Devices).
+- **BrawlScope**: `BRAWLSTARS_API_KEY` in der API-Umgebung setzen (erhältlich unter https://developer.brawlstars.com/). Das `/brawlstars/*` Proxy-Endpoint leitet alle Anfragen der BrawlScope-App an die offizielle Brawl Stars API weiter und schützt dabei den API-Key server-seitig. Für die BrawlScope-App `apps/brawlstars/.env` mit `EXPO_PUBLIC_API_URL` setzen.
 
 ## Neon + Vercel Setup
 

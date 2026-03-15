@@ -7,6 +7,10 @@ apps/mobile/.expo
 apps/mobile/.expo-shared
 apps/mobile/ios/
 apps/mobile/android/
+apps/brawlstars/.expo
+apps/brawlstars/.expo-shared
+apps/brawlstars/ios/
+apps/brawlstars/android/
 .npm-cache
 .vscode/
 

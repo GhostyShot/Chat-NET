@@ -12,6 +12,7 @@
     "dev:api": "npm run dev -w @chatnet/api",
     "dev:web": "npm run dev -w @chatnet/web",
     "dev:mobile": "npm run start -w @chatnet/mobile",
+    "dev:brawlstars": "npm run start -w @chatnet/brawlstars",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces",
     "ci:test": "npm run test --workspaces --if-present",

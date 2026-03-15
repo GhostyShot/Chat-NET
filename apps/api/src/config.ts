@@ -65,4 +65,6 @@ export const appConfig = {
   publicBaseUrl: process.env.PUBLIC_BASE_URL ?? process.env.RENDER_EXTERNAL_URL ?? "",
   // Avatar: max 200KB base64 stored in DB if no Cloudinary configured
   avatarMaxBytes: 200 * 1024,
+  // Brawl Stars API key (optional — enables the /brawlstars/* proxy routes)
+  brawlStarsApiKey: resolveSecretValue(process.env.BRAWLSTARS_API_KEY),
 };

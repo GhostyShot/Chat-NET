@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { chatRouter } from "./modules/chat/chat.routes.js";
+import { brawlStarsRouter } from "./modules/brawlstars/brawlstars.routes.js";
 import { appConfig } from "./config.js";
 import { prisma } from "./lib/prisma.js";
 import { apiLimiter } from "./lib/rateLimiter.js";
@@ -46,6 +47,7 @@ export function createApp() {
   // Rate-limited routes
   app.use("/auth", authRouter);
   app.use("/chat", apiLimiter, chatRouter);
+  app.use("/brawlstars", brawlStarsRouter);
 
   // Central error handler (must be last)
   app.use(errorHandler);
