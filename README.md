@@ -66,4 +66,4 @@ Chat-Net ist eine Chatplattform für Web und Mobile mit Fokus auf junge Zielgrup
 	- `VITE_GOOGLE_CLIENT_ID=<deine-google-oauth-client-id>`
 6. Domain verbinden:
 	- `chat-net.tech` -> Vercel
-	- `api.chat-net.tech` -> API-Hosting
+	- `api.chat-net.tech` -> API-Hosting# BS-Stats-and-more-App
